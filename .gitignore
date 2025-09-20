@@ -63,7 +63,7 @@ instance/
 *.sqlite
 *.db
 .env
-.env.*
+.env.local
 secrets.json
 
 # Logs

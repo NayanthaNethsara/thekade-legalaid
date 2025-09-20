@@ -1,0 +1,52 @@
+### Database Migrations (Alembic)
+
+This project uses Alembic for managing PostgreSQL schema changes.
+
+#### Initial Setup
+
+1. Activate your virtual environment:
+
+   ```bash
+   source venv/bin/activate
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Ensure your `.env` file includes database credentials:
+   ```
+   POSTGRES_USER=admin
+   POSTGRES_PASSWORD=password
+   POSTGRES_DB=legal_aid
+   POSTGRES_HOST=localhost
+   POSTGRES_PORT=5432
+   ```
+
+#### Creating a Migration
+
+Generate a new migration script based on model changes:
+
+```bash
+alembic revision --autogenerate -m "your message"
+```
+
+Check the generated migration file in `alembic/versions/` and edit if necessary.
+
+#### Applying Migrations
+
+Run all migrations to update the database schema:
+
+```bash
+alembic upgrade head
+```
+
+#### Rolling Back Migrations
+
+To revert the last migration:
+
+```bash
+alembic downgrade -1
+```

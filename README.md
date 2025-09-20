@@ -19,8 +19,8 @@ TheKade-LegalAid/
 ### 1. Clone the repository
 
 ```bash
-git clone
-cd TheKade-LegalAid
+git clone https://github.com/NayanthaNethsara/thekade-legalaid.git
+cd thekade-legalaid
 ```
 
 ### 2. Backend Setup

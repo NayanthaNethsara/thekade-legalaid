@@ -1,11 +1,9 @@
 from fastapi import FastAPI
-from app.api.routes import hello
+from app.api.routes import auth
+from app.db.postgres import Base, engine
 
-app = FastAPI(title="TheKade LegalAid API")
+Base.metadata.create_all(bind=engine)
 
-# Include routes
-app.include_router(hello.router, prefix="/api")
+app = FastAPI()
 
-@app.get("/")
-async def root():
-    return {"message": "Welcome to TheKade LegalAid API!"}
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])

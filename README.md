@@ -1,62 +1,28 @@
-# TheKade LegalAid
+# LegalAid AI Services
 
-A hackathon project for a chatbot that answers legal questions using document context.
+**Status:** Under Construction
 
-## Project Structure
+LegalAid AI Services is a project aimed at providing AI-powered legal assistance. Detailed project description will be added soon.
+
+## Repository Structure
 
 ```
-TheKade-LegalAid/
-├─ backend/            # FastAPI backend
-│  ├─ .env             # Backend environment variables
-├─ frontend/           # Next.js frontend
-│  ├─ .env.local       # Frontend environment variables
-├─ requirements.txt
-└─ README.md
+.
+├── backend/   # FastAPI backend with JWT auth and PostgreSQL/MongoDB
+├── frontend/  # Next.js frontend using App Router and TypeScript
+└── README.md  # This file
 ```
 
-## Setup
+## Setup Guides
 
-### 1. Clone the repository
+- **Backend Setup:** See [`backend/README.md`](backend/README.md)  
+   Includes instructions for virtual environment, dependencies, database, environment variables, and running the API.
 
-```bash
-git clone https://github.com/NayanthaNethsara/thekade-legalaid.git
-cd thekade-legalaid
-```
+- **Frontend Setup:** See [`frontend/README.md`](frontend/README.md)  
+   Includes instructions for Node.js setup, dependencies, environment variables, and running the development server.
 
-### 2. Backend Setup
+## Notes
 
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate   # macOS/Linux
-venv\Scripts\activate      # Windows
-pip install -r requirements.txt
-```
-
-#### Environment Variables
-
-Create a `.env` file in `backend/`:
-
-```ini
-GEMINI_API_KEY=your_key_here
-DATABASE_URL=your_database_url_here
-```
-
-#### Run Backend
-
-```bash
-uvicorn main:app --reload
-```
-
-### 3. Frontend Setup
-
-```bash
-cd ../frontend
-npm install
-npm run dev
-```
-
-## Access
-
-- **Backend:** [http://127.0.0.1:8000](http://127.0.0.1:8000)
-- **Frontend:** [http://localhost:3000](http://localhost:3000)
+- Use the backend API URL in the frontend `.env.local` file.
+- Make sure to follow each folder’s README for proper environment setup.
+- Database migrations for the backend should be done using Alembic (see backend guide).

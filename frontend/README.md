@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend - LegalAid
 
-## Getting Started
+This folder contains the Next.js frontend for the LegalAid project using App Router and TypeScript.
 
-First, run the development server:
+## Folder Structure
+
+```
+frontend/
+├── app/                 # Next.js App Router pages
+│   ├── layout.tsx       # Root layout
+│   ├── page.tsx         # Homepage
+│   └── api/             # API routes
+├── components/          # React components
+├── public/              # Static files (images, favicon, etc.)
+├── styles/              # Global CSS
+├── package.json         # Project dependencies & scripts
+├── tsconfig.json        # TypeScript configuration
+└── next.config.js       # Next.js config
+```
+
+## Setup Guide
+
+### 1. Install Node.js
+
+Make sure you have Node.js v18+ installed.
+
+```bash
+node -v
+npm -v
+```
+
+### 2. Install Dependencies
+
+From the `frontend` folder:
+
+```bash
+npm install
+```
+
+### 3. Environment Variables
+
+Create a `.env.local` file in `frontend/` if needed for API URLs:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+> **Note:** `NEXT_PUBLIC_` prefix is required to expose variables to the frontend.
+
+### 4. Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 5. Build & Production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Build project
+npm run build
 
-## Learn More
+# Start production server
+npm start
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 6. Linting
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run lint
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Notes
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- All API calls should use `NEXT_PUBLIC_API_URL` from `.env.local`.
+- Components are in `components/` and pages in `app/`.
+- App uses **App Router**, not Pages Router.
+- You can extend the `app/api/` folder for frontend API routes (e.g., proxy calls to backend).

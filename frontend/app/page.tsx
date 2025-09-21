@@ -1,11 +1,5 @@
-"use client";
+import React from "react";
 
-import { Chatbot } from "@/components/chatbot";
-
-export default function Home() {
-  return (
-    <main className="h-screen bg-background">
-      <Chatbot />
-    </main>
-  );
+export default function home() {
+  return <div>home</div>;
 }

@@ -1,6 +1,10 @@
 from fastapi import FastAPI
 from app.api.routes import auth
 from app.api.routes.chatbot import router as chatbot_router
+from app.services.rag.vectorstore import build_or_load_index  # 👈 add this
+from app.core.logging import setup_logging
+
+
 app = FastAPI()
 
 # Include routers

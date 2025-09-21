@@ -23,10 +23,20 @@ class QAService:
         self.llm = llm
         self.history = history
 
-    def answer(self, chat_id: str, question: str, top_k: int) -> Dict:
-        ctx_docs = self.retriever.topk(question, top_k)
-        history = "\n".join(self.history.get(chat_id)) or "(no prior turns)"
-        prompt = PROMPT.format(ctx="\n\n".join(ctx_docs) or "(no context)", hist=history, q=question)
+    def answer(self, chat_id: str, question: str, k: int | None = None) -> dict:
+        ctx_docs = self.retriever.topk(question, k)  # retriever will use its default if k is None
+        hist_text = "\n".join(self.history.get(chat_id)) or "(no prior turns)"
+        prompt = (
+            "You are a friendly legal assistant. Use ONLY the context to answer. "
+            "If not in the context, say you don’t know.\n\n"
+            f"Context:\n{'\n\n'.join(ctx_docs) or '(no context)'}\n\n"
+            f"Conversation so far:\n{hist_text}\n\n"
+            f"User question:\n{question}\n\n"
+            "Answer clearly and concisely:"
+        )
         answer = self.llm.generate(prompt)
         self.history.append(chat_id, question, answer)
         return {"chat_id": chat_id, "answer": answer, "retrieved_chunks": [c[:500] for c in ctx_docs]}
+
+
+

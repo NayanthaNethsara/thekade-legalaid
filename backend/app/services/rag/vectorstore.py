@@ -1,3 +1,4 @@
+# app/services/rag/vectorstore.py
 from pathlib import Path
 from typing import Optional
 from langchain_community.document_loaders import PyPDFLoader
@@ -7,7 +8,6 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from app.core.config import settings
 
 class VectorStoreHolder:
-    """Singleton-ish holder to share a FAISS store across requests."""
     store: Optional[FAISS] = None
 
 vs_holder = VectorStoreHolder()
@@ -16,15 +16,14 @@ def _embedder():
     return HuggingFaceEmbeddings(model_name=settings.EMBED_MODEL)
 
 def build_or_load_index():
-    """
-    Load FAISS from disk if present; otherwise build from PDF, then persist.
-    """
-    index_path = settings.INDEX_DIR
-    faiss_idx = Path(index_path, "index.faiss")
-    faiss_pkl = Path(index_path, "index.pkl")
+    index_path = Path(settings.INDEX_DIR)
+    index_path.mkdir(parents=True, exist_ok=True)  # 👈 ensure dir exists
+
+    faiss_idx = index_path / "index.faiss"
+    faiss_pkl = index_path / "index.pkl"
 
     if faiss_idx.exists() and faiss_pkl.exists():
-        vs_holder.store = FAISS.load_local(index_path, _embedder(), allow_dangerous_deserialization=True)
+        vs_holder.store = FAISS.load_local(str(index_path), _embedder(), allow_dangerous_deserialization=True)
         return vs_holder.store
 
     # Build
@@ -37,15 +36,15 @@ def build_or_load_index():
     )
     chunks = splitter.split_documents(docs)
 
-    embeddings = _embedder()
-    vs = FAISS.from_documents(chunks, embeddings)
+    vs = FAISS.from_documents(chunks, _embedder())
 
     # Persist
-    vs.save_local(index_path)
+    vs.save_local(str(index_path))
     vs_holder.store = vs
     return vs_holder.store
 
 def similarity_search(query: str, k: int):
     if vs_holder.store is None:
-        raise RuntimeError("Vectorstore not ready")
+        # 👇 last-resort lazy init (in case startup wasn’t called)
+        build_or_load_index()
     return vs_holder.store.similarity_search(query, k=k)

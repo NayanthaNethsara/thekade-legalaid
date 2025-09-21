@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     #Gemini API Key
     GEMINI_API_KEY: str
-    DEFAULT_MODEL: str = "gemini-1.5-pro"
+    DEFAULT_MODEL: str = "gemini-2.5-flash"
 
     # RAG
     PDF_PATH: str = "data/motor_traffic_law.pdf"

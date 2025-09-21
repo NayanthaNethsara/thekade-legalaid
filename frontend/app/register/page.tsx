@@ -23,9 +23,7 @@ import Link from "next/link";
 
 export default function Register() {
   const [formData, setFormData] = useState({
-    nic: "", // Changed from username to nic
     email: "",
-    phone: "",
     password: "",
     confirmPassword: "",
   });
@@ -48,32 +46,14 @@ export default function Register() {
     setSuccess(null);
 
     // Validation
-    if (!formData.nic.trim()) {
-      setError("NIC is required"); // Updated validation message
-      return;
-    }
-
-    const nicPattern = /^(?:\d{9}[vVxX]|\d{12})$/;
-    if (!nicPattern.test(formData.nic.trim())) {
-      setError("Please enter a valid NIC (9 digits + V/X or 12 digits)");
-      return;
-    }
-
     if (!formData.email.trim()) {
       setError("Email is required");
       return;
     }
-
-    if (!formData.phone.trim()) {
-      setError("Phone number is required");
-      return;
-    }
-
     if (!formData.password) {
       setError("Password is required");
       return;
     }
-
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -100,7 +80,7 @@ export default function Register() {
       } else {
         setSuccess("Registration successful! You can now login.");
         setTimeout(() => {
-          router.push("/");
+          router.push("/login");
         }, 2000);
       }
     } catch {
@@ -135,7 +115,7 @@ export default function Register() {
               transition={{ delay: 0.3 }}
             >
               <h2 className="text-4xl font-black bg-gradient-to-r from-gray-800 to-gray-600 dark:from-gray-200 dark:to-gray-400 bg-clip-text text-transparent">
-                Join NoPolin HUB
+                Join Legal Aid+
               </h2>
               <div className="h-1 w-16 bg-gradient-to-r from-gray-600 to-gray-500 rounded-full mt-2" />
             </motion.div>
@@ -147,8 +127,7 @@ export default function Register() {
               transition={{ delay: 0.4 }}
             >
               <p className="text-gray-600 dark:text-gray-300 text-base leading-relaxed">
-                Create your citizen account to access Sri Lanka&apos;s
-                centralized appointment booking system.
+                Join today and unlock Sri Lanka’s first AI platform for equal justice
               </p>
             </motion.div>
 
@@ -184,34 +163,6 @@ export default function Register() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, staggerChildren: 0.1 }}
             >
-              {/* NIC Field */}
-              <motion.div
-                className="space-y-3"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.6 }}
-              >
-                <Label
-                  htmlFor="nic"
-                  className="text-sm font-semibold text-gray-700 dark:text-gray-200"
-                >
-                  National Identity Card (NIC)
-                </Label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400 dark:text-gray-500 group-focus-within:text-gray-600 dark:group-focus-within:text-gray-300 transition-colors">
-                    <CreditCard className="h-5 w-5" />
-                  </div>
-                  <Input
-                    id="nic"
-                    type="text"
-                    placeholder="123456789V or 200012345678"
-                    required
-                    value={formData.nic}
-                    onChange={(e) => handleInputChange("nic", e.target.value)}
-                    className="pl-12 h-14 backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-2 border-gray-200/50 dark:border-gray-700/50 focus-visible:ring-gray-500/20 focus-visible:border-gray-400 text-gray-900 dark:text-gray-100 rounded-2xl focus-visible:ring-4 focus-visible:ring-offset-0 shadow-lg shadow-gray-200/20 dark:shadow-gray-950/20 transition-all duration-200 hover:shadow-xl hover:shadow-gray-200/30 dark:hover:shadow-gray-950/30"
-                  />
-                </div>
-              </motion.div>
 
               {/* Email Field */}
               <motion.div
@@ -242,34 +193,6 @@ export default function Register() {
                 </div>
               </motion.div>
 
-              {/* Phone Field */}
-              <motion.div
-                className="space-y-3"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.8 }}
-              >
-                <Label
-                  htmlFor="phone"
-                  className="text-sm font-semibold text-gray-700 dark:text-gray-200"
-                >
-                  Phone Number
-                </Label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400 dark:text-gray-500 group-focus-within:text-gray-600 dark:group-focus-within:text-gray-300 transition-colors">
-                    <Phone className="h-5 w-5" />
-                  </div>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="0712345678"
-                    required
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className="pl-12 h-14 backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-2 border-gray-200/50 dark:border-gray-700/50 focus-visible:ring-gray-500/20 focus-visible:border-gray-400 text-gray-900 dark:text-gray-100 rounded-2xl focus-visible:ring-4 focus-visible:ring-offset-0 shadow-lg shadow-gray-200/20 dark:shadow-gray-950/20 transition-all duration-200 hover:shadow-xl hover:shadow-gray-200/30 dark:hover:shadow-gray-950/30"
-                  />
-                </div>
-              </motion.div>
 
               {/* Password Field */}
               <motion.div
@@ -374,7 +297,7 @@ export default function Register() {
                       Creating Account...
                     </div>
                   ) : (
-                    "Create Citizen Account"
+                    "Create Account"
                   )}
                 </motion.button>
               </motion.div>
@@ -389,7 +312,7 @@ export default function Register() {
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 Already have an account?{" "}
                 <Link
-                  href="/"
+                  href="/login"
                   className="font-medium text-gray-800 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
                 >
                   Sign in here
@@ -456,16 +379,22 @@ export default function Register() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8 }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-900/40 via-gray-800/30 to-gray-700/40 backdrop-blur-[2px] z-10"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-900/40 via-gray-800/30 to-gray-700/40 z-10"></div>
 
-          <Image
-            src="/login/sri-lanka.png"
-            alt="Register background"
-            fill
-            className="object-cover object-center z-0"
-            priority
-          />
+          {/* Centered logo */}
+          <div className="flex items-center justify-center h-full w-full" >
+            
+              <Image
+                src="/images/sana.png"
+                alt="LegalAid AI+ logo"
+                fill
+                className="object-fill object-center z-0"
+                priority
+              />
+            
+          </div>
 
+          {/* Foreground content */}
           <div className="absolute inset-0 flex flex-col justify-between z-20 p-12">
             <motion.div
               className="space-y-6"
@@ -484,22 +413,9 @@ export default function Register() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7, duration: 0.8 }}
             >
-              <motion.div
-                className="flex"
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.9, type: "spring" }}
-              >
-                <div className="inline-flex items-center px-8 py-3 rounded-full backdrop-blur-md bg-white/20 text-white border border-white/30 shadow-xl shadow-gray-900/20">
-                  <span className="text-sm font-semibold">
-                    Digital Sri Lanka
-                  </span>
-                </div>
-              </motion.div>
 
               <p className="text-white text-base drop-shadow-lg leading-relaxed max-w-md">
-                Be part of Sri Lanka&apos;s digital transformation. Register now
-                to access efficient government services without the wait.
+                Be part of Sri Lanka’s justice transformation. Register now to access legal help without barriers.
               </p>
             </motion.div>
           </div>

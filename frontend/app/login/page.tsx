@@ -335,16 +335,18 @@ export default function Login() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8 }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-900/40 via-gray-800/30 to-gray-700/40 backdrop-blur-[2px] z-10"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-900/40 via-gray-800/30 to-gray-700/40 z-10"></div>
 
           {/* Background image */}
-          <Image
-            src="/public/images/legal_aid.png"
-            alt="Login background"
-            fill
-            className="object-cover object-center z-0"
-            priority
-          />
+            <div className="flex items-center justify-center h-full w-full" style={{ minHeight: "400px", position: "relative" }}>
+                <Image
+                  src="/images/sana.png"
+                  alt="LegalAid AI+ logo"
+                  fill
+                  className="object-fill object-center z-0"
+                  priority
+                />
+            </div>
 
           {/* Foreground content */}
           <div className="absolute inset-0 flex flex-col justify-between z-20 p-12">
@@ -354,8 +356,8 @@ export default function Login() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.8 }}
             >
-              <h2 className="text-3xl font-bold text-white drop-shadow-2xl">
-                Smarter Transport, Fewer Queues
+              <h2 className="text-2xl font-bold text-white drop-shadow-2xl">
+                From questions to justice—AI powered
               </h2>
             </motion.div>
 
@@ -365,22 +367,9 @@ export default function Login() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7, duration: 0.8 }}
             >
-              <motion.div
-                className="flex"
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.9, type: "spring" }}
-              >
-                <div className="inline-flex items-center px-8 py-3 rounded-full backdrop-blur-md bg-white/20 text-white border border-white/30 shadow-xl shadow-gray-900/20">
-                  <span className="text-sm font-semibold">
-                    Centralized Control
-                  </span>
-                </div>
-              </motion.div>
 
               <p className="text-white text-base drop-shadow-lg leading-relaxed max-w-md">
-                Track vehicles, manage lines, and improve efficiency across Sri
-                Lanka — all in one unified platform.
+                Understand your rights, connect to lawyers, and access justice — all in one platform.
               </p>
             </motion.div>
           </div>

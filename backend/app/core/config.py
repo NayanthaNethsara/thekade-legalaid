@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
 
+    #Gemini API Key
+    GEMINI_API_KEY: str
+    DEFAULT_MODEL: str = "gemini-1.5-pro"
+
     model_config = SettingsConfigDict(env_file=".env",extra="allow")
 
 

@@ -4,72 +4,71 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.98 0.02 280);
-  --foreground: oklch(0.2 0.05 280);
-  --card: oklch(0.95 0.02 280);
-  --card-foreground: oklch(0.2 0.05 280);
-  --popover: oklch(0.95 0.02 280);
-  --popover-foreground: oklch(0.2 0.05 280);
-  --primary: oklch(0.7 0.15 280);
-  --primary-foreground: oklch(0.98 0.02 280);
-  --secondary: oklch(0.9 0.05 280);
-  --secondary-foreground: oklch(0.2 0.05 280);
-  --muted: oklch(0.92 0.03 280);
-  --muted-foreground: oklch(0.5 0.05 280);
-  --accent: oklch(0.85 0.08 280);
-  --accent-foreground: oklch(0.2 0.05 280);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.98 0.02 280);
-  --border: oklch(0.88 0.05 280);
-  --input: oklch(0.95 0.02 280);
-  --ring: oklch(0.7 0.15 280);
-  --chat-user: oklch(0.7 0.15 280);
-  --chat-bot: oklch(0.95 0.02 280);
-  --gradient-start: oklch(0.85 0.15 320);
-  --gradient-end: oklch(0.9 0.12 200);
-  --radius: 1rem;
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Updated to professional grayscale/slate theme for legal AI */
+  --background: #ffffff;
+  --foreground: #374151;
+  --card: #ffffff;
+  --card-foreground: #374151;
+  --popover: #ffffff;
+  --popover-foreground: #374151;
+  --primary: #1f2937;
+  --primary-foreground: #ffffff;
+  --secondary: #f8fafc;
+  --secondary-foreground: #475569;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #e2e8f0;
+  --accent-foreground: #334155;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #ffffff;
+  --ring: #94a3b8;
+  --chat-user: #1f2937;
+  --chat-bot: #f8fafc;
+  --chat-bot-border: #e2e8f0;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #374151;
+  --sidebar-primary: #1f2937;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f8fafc;
+  --sidebar-accent-foreground: #475569;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #94a3b8;
+  --radius: 0.5rem;
 }
 
 .dark {
-  --background: oklch(0.15 0.05 280);
-  --foreground: oklch(0.95 0.02 280);
-  --card: oklch(0.18 0.05 280);
-  --card-foreground: oklch(0.95 0.02 280);
-  --popover: oklch(0.18 0.05 280);
-  --popover-foreground: oklch(0.95 0.02 280);
-  --primary: oklch(0.7 0.15 280);
-  --primary-foreground: oklch(0.15 0.05 280);
-  --secondary: oklch(0.25 0.05 280);
-  --secondary-foreground: oklch(0.95 0.02 280);
-  --muted: oklch(0.22 0.05 280);
-  --muted-foreground: oklch(0.6 0.05 280);
-  --accent: oklch(0.3 0.08 280);
-  --accent-foreground: oklch(0.95 0.02 280);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.95 0.02 280);
-  --border: oklch(0.25 0.05 280);
-  --input: oklch(0.22 0.05 280);
-  --ring: oklch(0.7 0.15 280);
-  --chat-user: oklch(0.7 0.15 280);
-  --chat-bot: oklch(0.22 0.05 280);
-  --gradient-start: oklch(0.25 0.15 320);
-  --gradient-end: oklch(0.2 0.12 200);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  --card: #1e293b;
+  --card-foreground: #e2e8f0;
+  --popover: #1e293b;
+  --popover-foreground: #e2e8f0;
+  --primary: #e2e8f0;
+  --primary-foreground: #0f172a;
+  --secondary: #334155;
+  --secondary-foreground: #cbd5e1;
+  --muted: #475569;
+  --muted-foreground: #94a3b8;
+  --accent: #475569;
+  --accent-foreground: #e2e8f0;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #334155;
+  --input: #1e293b;
+  --ring: #64748b;
+  --chat-user: #e2e8f0;
+  --chat-bot: #334155;
+  --chat-bot-border: #475569;
+  --sidebar: #1e293b;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #e2e8f0;
+  --sidebar-primary-foreground: #0f172a;
+  --sidebar-accent: #334155;
+  --sidebar-accent-foreground: #cbd5e1;
+  --sidebar-border: #334155;
+  --sidebar-ring: #64748b;
 }
 
 @theme inline {
@@ -96,8 +95,7 @@
   --color-ring: var(--ring);
   --color-chat-user: var(--chat-user);
   --color-chat-bot: var(--chat-bot);
-  --color-gradient-start: var(--gradient-start);
-  --color-gradient-end: var(--gradient-end);
+  --color-chat-bot-border: var(--chat-bot-border);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -117,13 +115,6 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
-  }
-  .gradient-bg {
-    background: linear-gradient(
-      135deg,
-      var(--gradient-start),
-      var(--gradient-end)
-    );
+    @apply bg-background text-foreground font-sans;
   }
 }

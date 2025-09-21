@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { MapPin, ExternalLink, Search, ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import { useState } from "react"
+import { motion } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { MapPin, ExternalLink, Search, ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 
 // Sample lawyer data - in a real app this would come from an API
 const sampleLawyers = [
@@ -59,17 +59,19 @@ const sampleLawyers = [
     rating: 4.6,
     experience: "20+ years",
   },
-]
+];
 
 export default function LawyersPage() {
-  const [searchTerm, setSearchTerm] = useState("")
+  const [searchTerm, setSearchTerm] = useState("");
 
   const filteredLawyers = sampleLawyers.filter(
     (lawyer) =>
       lawyer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lawyer.place.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lawyer.specialties.some((specialty) => specialty.toLowerCase().includes(searchTerm.toLowerCase())),
-  )
+      lawyer.specialties.some((specialty) =>
+        specialty.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 dark:from-purple-950/20 dark:via-blue-950/20 dark:to-indigo-950/20">
@@ -88,8 +90,12 @@ export default function LawyersPage() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Find a Lawyer</h1>
-              <p className="text-muted-foreground mt-1">Connect with experienced legal professionals</p>
+              <h1 className="text-3xl font-bold text-foreground">
+                Find a Lawyer
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Connect with experienced legal professionals
+              </p>
             </div>
           </div>
 
@@ -106,7 +112,12 @@ export default function LawyersPage() {
         </motion.div>
 
         {/* Results count */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="mb-6">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="mb-6"
+        >
           <p className="text-sm text-muted-foreground">
             Showing {filteredLawyers.length} of {sampleLawyers.length} lawyers
           </p>
@@ -130,15 +141,21 @@ export default function LawyersPage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-lg font-semibold">{lawyer.name}</CardTitle>
+                      <CardTitle className="text-lg font-semibold">
+                        {lawyer.name}
+                      </CardTitle>
                       <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
                         <MapPin className="w-4 h-4" />
                         <span>{lawyer.place}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-medium">★ {lawyer.rating}</div>
-                      <div className="text-xs text-muted-foreground">{lawyer.experience}</div>
+                      <div className="text-sm font-medium">
+                        ★ {lawyer.rating}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {lawyer.experience}
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -148,14 +165,23 @@ export default function LawyersPage() {
                     <h4 className="text-sm font-medium mb-2">Specialties</h4>
                     <div className="flex flex-wrap gap-1">
                       {lawyer.specialties.map((specialty) => (
-                        <Badge key={specialty} variant="secondary" className="text-xs">
+                        <Badge
+                          key={specialty}
+                          variant="secondary"
+                          className="text-xs"
+                        >
                           {specialty}
                         </Badge>
                       ))}
                     </div>
                   </div>
 
-                  <Button className="w-full" onClick={() => window.open(lawyer.link, "_blank", "noopener,noreferrer")}>
+                  <Button
+                    className="w-full"
+                    onClick={() =>
+                      window.open(lawyer.link, "_blank", "noopener,noreferrer")
+                    }
+                  >
                     <ExternalLink className="w-4 h-4 mr-2" />
                     View Profile
                   </Button>
@@ -167,14 +193,24 @@ export default function LawyersPage() {
 
         {/* No results */}
         {filteredLawyers.length === 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
-            <p className="text-muted-foreground">No lawyers found matching your search criteria.</p>
-            <Button variant="outline" onClick={() => setSearchTerm("")} className="mt-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
+          >
+            <p className="text-muted-foreground">
+              No lawyers found matching your search criteria.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => setSearchTerm("")}
+              className="mt-4"
+            >
               Clear Search
             </Button>
           </motion.div>
         )}
       </div>
     </div>
-  )
+  );
 }

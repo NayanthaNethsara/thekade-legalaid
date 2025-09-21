@@ -88,11 +88,8 @@ export default function Register() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: formData.nic, // Changed from username to nic
-          password: formData.password,
           email: formData.email,
-          phone: formData.phone,
-          role: "CITIZEN", // Hardcoded role as CITIZEN
+          password: formData.password,
         }),
       });
 

@@ -4,7 +4,6 @@ import type React from "react";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import {
   Eye,
   EyeOff,
@@ -16,14 +15,14 @@ import {
   Mail,
 } from "lucide-react";
 import Image from "next/image";
-import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 export default function Login() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -35,8 +34,8 @@ export default function Login() {
 
     setError(null);
 
-    if (!username.trim()) {
-      setError("Username is required");
+    if (!email.trim()) {
+      setError("Email is required");
       return;
     }
 
@@ -48,16 +47,25 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const result = await signIn("credentials", {
-        username,
-        password,
-        redirect: false,
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
       });
 
-      if (result?.error) {
-        setError("Invalid username or password");
-      } else {
+      if (response.ok) {
+        const data = await response.json();
+        // Store the JWT token in localStorage or cookies
+        localStorage.setItem('access_token', data.access_token);
         router.push("/dashboard");
+      } else {
+        const errorData = await response.json();
+        setError(errorData.detail || "Invalid email or password");
       }
     } catch {
       setError("An error occurred. Please try again.");
@@ -74,51 +82,35 @@ export default function Login() {
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 p-4">
       <motion.div
         className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 rounded-3xl overflow-hidden backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 shadow-2xl shadow-gray-200/50 dark:shadow-gray-950/50 border border-white/20 dark:border-gray-700/30"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, type: "spring", stiffness: 100 }}
       >
         {/* Left Panel - Login Form */}
         <motion.div
           className="backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 p-8 md:p-12 flex flex-col justify-center relative"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-gray-50/20 dark:from-transparent dark:via-gray-800/5 dark:to-gray-950/20 pointer-events-none" />
 
           <div className="relative z-10">
-            <motion.div
+            <div
               className="mb-8"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
             >
               <h2 className="text-4xl font-black bg-gradient-to-r from-gray-800 to-gray-600 dark:from-gray-200 dark:to-gray-400 bg-clip-text text-transparent">
-                NoPolin HUB
+                Legal Aid+
               </h2>
               <div className="h-1 w-16 bg-gradient-to-r from-gray-600 to-gray-500 rounded-full mt-2" />
-            </motion.div>
+            </div>
 
-            <motion.div
+            <div
               className="mb-8"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
             >
               <p className="text-gray-600 dark:text-gray-300 text-base leading-relaxed">
-                Your centralized solution to reduce queues and optimize
-                transport across Sri Lanka.
+                Justice for Every Sri Lankan Powered by AI
               </p>
-            </motion.div>
+            </div>
 
             {/* Error message display */}
             {error && (
               <motion.div
                 className="mb-6 p-4 backdrop-blur-sm bg-red-50/80 dark:bg-red-950/30 border border-red-200/50 dark:border-red-800/30 rounded-2xl flex items-start gap-3 text-red-700 dark:text-red-300 shadow-lg shadow-red-100/20 dark:shadow-red-950/20"
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
               >
                 <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                 <div>
@@ -130,54 +122,45 @@ export default function Login() {
               </motion.div>
             )}
 
-            <motion.form
+            <form
               onSubmit={handleSubmit}
               className="space-y-6"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5, staggerChildren: 0.1 }}
             >
-              <motion.div
+              <div
                 className="space-y-3"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.6 }}
               >
                 <Label
-                  htmlFor="username"
+                  htmlFor="email"
                   className="text-sm font-semibold text-gray-700 dark:text-gray-200"
                 >
-                  Username
+                  Email
                 </Label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400 dark:text-gray-500 group-focus-within:text-gray-600 dark:group-focus-within:text-gray-300 transition-colors">
                     <User className="h-5 w-5" />
                   </div>
                   <Input
-                    id="username"
-                    type="text"
-                    placeholder="Enter your username"
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
                     required
-                    value={username}
-                    onChange={(e) => {
-                      setUsername(e.target.value);
+                    value={email}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      setEmail(e.target.value);
                       if (error) setError(null);
                     }}
                     className={`pl-12 h-14 backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-2 ${
-                      error && !username.trim()
+                      error && !email.trim()
                         ? "border-red-300 dark:border-red-700 focus-visible:ring-red-500/20"
                         : "border-gray-200/50 dark:border-gray-700/50 focus-visible:ring-gray-500/20 focus-visible:border-gray-400"
                     } text-gray-900 dark:text-gray-100 rounded-2xl focus-visible:ring-4 focus-visible:ring-offset-0 shadow-lg shadow-gray-200/20 dark:shadow-gray-950/20 transition-all duration-200 hover:shadow-xl hover:shadow-gray-200/30 dark:hover:shadow-gray-950/30`}
-                    aria-invalid={error && !username.trim() ? "true" : "false"}
+                    aria-invalid={error && !email.trim() ? "true" : "false"}
                   />
                 </div>
-              </motion.div>
+              </div>
 
               <motion.div
                 className="space-y-3"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.7 }}
               >
                 <Label
                   htmlFor="password"
@@ -195,7 +178,7 @@ export default function Login() {
                     required
                     placeholder="••••••••"
                     value={password}
-                    onChange={(e) => {
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                       setPassword(e.target.value);
                       if (error) setError(null);
                     }}
@@ -276,7 +259,7 @@ export default function Login() {
                   )}
                 </motion.button>
               </motion.div>
-            </motion.form>
+            </form>
             <motion.div
               className="mt-8 text-center"
               initial={{ opacity: 0 }}
@@ -356,7 +339,7 @@ export default function Login() {
 
           {/* Background image */}
           <Image
-            src="/login/sri-lanka.png"
+            src="/public/images/legal_aid.png"
             alt="Login background"
             fill
             className="object-cover object-center z-0"

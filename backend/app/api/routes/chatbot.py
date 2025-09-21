@@ -40,3 +40,19 @@ def debug_chunks(limit: int = 5):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/chats")
+def list_chats():
+    ids = qa.history.list_ids()
+    return {"chat_ids": ids, "count": len(ids)}
+
+@router.delete("/chat/{chat_id}")
+def clear_chat(chat_id: str):
+    qa.history.reset(chat_id)
+    return {"ok": True, "chat_id": chat_id, "message": "Chat cleared"}
+
+@router.delete("/chats")
+def clear_all_chats():
+    qa.history.reset_all()
+    return {"ok": True, "message": "All chats cleared"}

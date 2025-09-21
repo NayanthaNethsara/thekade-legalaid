@@ -13,6 +13,18 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
 
+    #Gemini API Key
+    GEMINI_API_KEY: str
+    DEFAULT_MODEL: str = "gemini-2.5-flash"
+
+    # RAG
+    PDF_PATH: str = "data/motor_traffic_law.pdf"
+    INDEX_DIR: str = "storage/faiss_index"
+    EMBED_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    CHUNK_SIZE: int = 1000
+    CHUNK_OVERLAP: int = 100
+    TOP_K: int = 3
+
     model_config = SettingsConfigDict(env_file=".env",extra="allow")
 
 

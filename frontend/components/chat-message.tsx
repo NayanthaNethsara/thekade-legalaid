@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { AlertCircle, Scale } from "lucide-react";
+import { AlertCircle, Scale, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LawyerSuggestions } from "./lawyer-suggestions";
 import type { Lawyer } from "@/hooks/use-chat";
@@ -26,90 +26,150 @@ export function ChatMessage({
 }: ChatMessageProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      initial={{ opacity: 0, y: 20, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ 
+        duration: 0.4, 
+        ease: [0.16, 1, 0.3, 1], // Custom easing for smooth entrance
+        type: "spring",
+        stiffness: 350,
+        damping: 40
+      }}
       className={cn(
-        "group w-full py-6 px-4 transition-colors",
-        !isUser && "bg-muted/30"
+        "group w-full py-8 px-6 transition-all duration-300 ease-out hover:bg-gradient-to-r",
+        isUser 
+          ? "hover:from-slate-50/30 hover:to-transparent" 
+          : "bg-gradient-to-br from-slate-50/40 via-slate-50/20 to-transparent hover:from-slate-50/60 hover:via-slate-50/30"
       )}
     >
-      <div className="max-w-3xl mx-auto flex gap-4">
-        <Avatar className="w-8 h-8 shrink-0">
-          <AvatarFallback
-            className={cn(
-              "text-sm font-medium",
-              isUser
-                ? "bg-primary text-primary-foreground"
-                : error
-                ? "bg-destructive text-destructive-foreground"
-                : "bg-muted text-muted-foreground"
-            )}
-          >
-            {isUser ? (
-              "U"
-            ) : error ? (
-              <AlertCircle className="w-4 h-4" />
-            ) : (
-              <Scale className="w-4 h-4" />
-            )}
-          </AvatarFallback>
-        </Avatar>
+      <div className="max-w-4xl mx-auto flex gap-5">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+        >
+          <Avatar className={cn(
+            "w-10 h-10 shrink-0 shadow-sm ring-2 transition-all duration-300",
+            isUser 
+              ? "ring-slate-200 group-hover:ring-slate-300 group-hover:shadow-md" 
+              : error
+              ? "ring-red-200 group-hover:ring-red-300" 
+              : "ring-blue-200 group-hover:ring-blue-300 group-hover:shadow-md"
+          )}>
+            <AvatarFallback
+              className={cn(
+                "text-sm font-semibold transition-colors duration-300",
+                isUser
+                  ? "bg-gradient-to-br from-slate-700 to-slate-900 text-white"
+                  : error
+                  ? "bg-gradient-to-br from-red-500 to-red-600 text-white"
+                  : "bg-gradient-to-br from-blue-600 to-blue-700 text-white"
+              )}
+            >
+              {isUser ? (
+                <User className="w-5 h-5" />
+              ) : error ? (
+                <AlertCircle className="w-5 h-5" />
+              ) : (
+                <Scale className="w-5 h-5" />
+              )}
+            </AvatarFallback>
+          </Avatar>
+        </motion.div>
 
-        <div className="flex-1 space-y-3">
-          <div className="prose prose-slate max-w-none">
+        <div className="flex-1 space-y-4 min-w-0"> {/* Added min-w-0 for proper text wrapping */}
+          <div className={cn(
+            "prose prose-slate max-w-none transition-all duration-300",
+            isUser && "prose-slate prose-strong:text-slate-800"
+          )}>
             {isTyping ? (
-              <div className="flex items-center gap-1">
-                <motion.div
-                  animate={{ opacity: [0.4, 1, 0.4] }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Number.POSITIVE_INFINITY,
-                    delay: 0,
-                  }}
-                  className="w-2 h-2 bg-muted-foreground rounded-full"
-                />
-                <motion.div
-                  animate={{ opacity: [0.4, 1, 0.4] }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Number.POSITIVE_INFINITY,
-                    delay: 0.2,
-                  }}
-                  className="w-2 h-2 bg-muted-foreground rounded-full"
-                />
-                <motion.div
-                  animate={{ opacity: [0.4, 1, 0.4] }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Number.POSITIVE_INFINITY,
-                    delay: 0.4,
-                  }}
-                  className="w-2 h-2 bg-muted-foreground rounded-full"
-                />
+              <div className="flex items-center gap-2 py-2">
+                <div className="flex items-center gap-1">
+                  <motion.div
+                    animate={{ 
+                      scale: [1, 1.2, 1],
+                      opacity: [0.4, 1, 0.4] 
+                    }}
+                    transition={{
+                      duration: 1.2,
+                      repeat: Number.POSITIVE_INFINITY,
+                      delay: 0,
+                      ease: "easeInOut"
+                    }}
+                    className="w-2.5 h-2.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
+                  />
+                  <motion.div
+                    animate={{ 
+                      scale: [1, 1.2, 1],
+                      opacity: [0.4, 1, 0.4] 
+                    }}
+                    transition={{
+                      duration: 1.2,
+                      repeat: Number.POSITIVE_INFINITY,
+                      delay: 0.2,
+                      ease: "easeInOut"
+                    }}
+                    className="w-2.5 h-2.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
+                  />
+                  <motion.div
+                    animate={{ 
+                      scale: [1, 1.2, 1],
+                      opacity: [0.4, 1, 0.4] 
+                    }}
+                    transition={{
+                      duration: 1.2,
+                      repeat: Number.POSITIVE_INFINITY,
+                      delay: 0.4,
+                      ease: "easeInOut"
+                    }}
+                    className="w-2.5 h-2.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
+                  />
+                </div>
+                <span className="text-sm text-slate-500 ml-2 animate-pulse">
+                  AI is thinking...
+                </span>
               </div>
             ) : (
-              <div
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.4 }}
                 className={cn(
-                  "text-sm leading-relaxed",
-                  error && "text-destructive"
+                  "text-[15px] leading-relaxed font-normal tracking-wide",
+                  isUser 
+                    ? "text-slate-800 font-medium" 
+                    : error 
+                    ? "text-red-600" 
+                    : "text-slate-700",
+                  "whitespace-pre-wrap break-words" // Better text wrapping
                 )}
               >
                 {message}
-              </div>
+              </motion.div>
             )}
           </div>
 
           {!isUser && lawyers && lawyers.length > 0 && (
-            <div className="mt-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.4 }}
+              className="mt-6"
+            >
               <LawyerSuggestions lawyers={lawyers} />
-            </div>
+            </motion.div>
           )}
 
           {timestamp && (
-            <div className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0 }}
+              whileHover={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="text-xs text-slate-400 font-medium pt-2"
+            >
               {timestamp}
-            </div>
+            </motion.div>
           )}
         </div>
       </div>

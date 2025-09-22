@@ -42,7 +42,7 @@ const navItems: NavItem[] = [
   {
     label: "AI Legal Assistant",
     href: "/chatbot",
-    icon: <MessageSquare className="w-4 h-4" />,
+    icon: <MessageSquare className="w-4 h-4 " />,
     description: "Multilingual AI chatbot for legal guidance",
     badge: "AI",
     isNew: true
@@ -123,7 +123,7 @@ export function Navbar() {
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 lg:h-20">
+          <div className="flex justify-between items-center h-16 lg:h-20 lg:gap-8">
             {/* Logo & Brand */}
             <motion.div
               whileHover={{ scale: 1.02 }}

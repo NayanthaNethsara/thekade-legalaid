@@ -101,7 +101,7 @@ export function Chatbot() {
                     <div className="space-y-3">
                       <h2 className="text-2xl font-bold text-slate-900">Legal AI Assistant</h2>
                       <p className="text-slate-600 max-w-md mx-auto leading-relaxed">
-                        Ask me any legal question and I'll provide expert guidance along with recommendations for qualified lawyers.
+                        Ask me any legal question and I&apos;ll provide expert guidance along with recommendations for qualified lawyers.
                       </p>
                     </div>
                     <div className="flex flex-wrap justify-center gap-2 max-w-lg mx-auto">

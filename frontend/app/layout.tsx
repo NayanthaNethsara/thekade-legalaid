@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Navbar } from "@/components/navbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "theKade LegalAid",
-  description: "Legal Aid Application",
+  title: "LegalAid - Legal Access for All",
+  description: "AI-powered legal assistance platform providing chatbot support, lawyer finder, document generation, and pro-bono access in multiple languages.",
 };
 
 export default function RootLayout({
@@ -25,9 +26,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50`}
       >
-        {children}
+        <Navbar />
+        <main className="min-h-screen">
+          {children}
+        </main>
       </body>
     </html>
   );

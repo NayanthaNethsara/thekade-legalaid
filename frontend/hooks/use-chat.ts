@@ -1,99 +1,19 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useChatHistory } from "./use-chat-history"
+import type { Message, Lawyer } from "./use-chat-history"
 
-export interface Message {
-  id: string
-  content: string
-  isUser: boolean
-  timestamp: string
-  error?: boolean
-  lawyers?: Lawyer[] // Added lawyers field for lawyer suggestions
-}
-
-export interface Lawyer {
-  name: string
-  place: string
-  link: string
-}
-
-export interface ChatState {
-  messages: Message[]
-  isLoading: boolean
-  chatId: string
-}
+export type { Message, Lawyer } from "./use-chat-history"
 
 export function useChat() {
-  const [chatState, setChatState] = useState<ChatState>({
-    messages: [],
-    isLoading: false,
-    chatId: `chat_${Date.now()}`,
-  })
-
-  useEffect(() => {
-    const savedChat = localStorage.getItem("chatbot-messages")
-    const savedChatId = localStorage.getItem("chatbot-chat-id")
-
-    if (savedChat) {
-      try {
-        const parsedMessages = JSON.parse(savedChat)
-        setChatState((prev) => ({
-          ...prev,
-          messages: parsedMessages,
-          chatId: savedChatId || prev.chatId,
-        }))
-      } catch (error) {
-        console.error("Failed to load chat history:", error)
-        // Initialize with welcome message if loading fails
-        initializeChat()
-      }
-    } else {
-      initializeChat()
-    }
-  }, [])
-
-  useEffect(() => {
-    if (chatState.messages.length > 0) {
-      localStorage.setItem("chatbot-messages", JSON.stringify(chatState.messages))
-      localStorage.setItem("chatbot-chat-id", chatState.chatId)
-    }
-  }, [chatState.messages, chatState.chatId])
-
-  const initializeChat = useCallback(() => {
-    const welcomeMessage: Message = {
-      id: "1",
-      content: "Hello! How can I help you today?",
-      isUser: false,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }
-
-    setChatState((prev) => ({
-      ...prev,
-      messages: [welcomeMessage],
-    }))
-  }, [])
-
-  const addMessage = useCallback((message: Omit<Message, "id" | "timestamp">) => {
-    const newMessage: Message = {
-      ...message,
-      id: Date.now().toString(),
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }
-
-    setChatState((prev) => ({
-      ...prev,
-      messages: [...prev.messages, newMessage],
-    }))
-
-    return newMessage.id
-  }, [])
-
-  const setLoading = useCallback((loading: boolean) => {
-    setChatState((prev) => ({
-      ...prev,
-      isLoading: loading,
-    }))
-  }, [])
+  const {
+    currentSession,
+    currentSessionId,
+    isLoading,
+    addMessageToCurrentSession,
+    setLoading,
+  } = useChatHistory()
 
   const parseLawyers = (content: string): Lawyer[] => {
     const lawyers: Lawyer[] = []
@@ -102,7 +22,7 @@ export function useChat() {
     const lawyerRegex1 = /lawyers?\s*\{\s*name[:\s]*([^,]+),\s*place[:\s]*([^,]+),\s*link[:\s]*([^}\s]+)\s*\}/gi
 
     // Format 2: lawyer: John Doe (New York) - https://example.com
-    const lawyerRegex2 = /lawyer[:\s]*([^(]+)\s*$$([^)]+)$$\s*[-–]\s*(https?:\/\/[^\s]+)/gi
+    const lawyerRegex2 = /lawyer[:\s]*([^(]+)\s*\(([^)]+)\)\s*[-–]\s*(https?:\/\/[^\s]+)/gi
 
     // Format 3: JSON-like format
     const lawyerRegex3 =
@@ -151,8 +71,10 @@ export function useChat() {
 
   const sendMessage = useCallback(
     async (content: string) => {
+      if (!currentSessionId) return
+
       // Add user message
-      addMessage({
+      addMessageToCurrentSession({
         content,
         isUser: true,
       })
@@ -166,7 +88,7 @@ export function useChat() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            chat_id: chatState.chatId,
+            chat_id: currentSessionId,
             query: content,
           }),
         })
@@ -183,7 +105,7 @@ export function useChat() {
             data.answer || "I received your message but couldn't generate a response. Please try again."
           const lawyers = parseLawyers(responseContent)
 
-          addMessage({
+          addMessageToCurrentSession({
             content: responseContent,
             isUser: false,
             lawyers: lawyers.length > 0 ? lawyers : undefined,
@@ -194,7 +116,7 @@ export function useChat() {
         console.error("Chat error:", error)
 
         setTimeout(() => {
-          addMessage({
+          addMessageToCurrentSession({
             content:
               "Sorry, I encountered an error connecting to the server. Please check your connection and try again.",
             isUser: false,
@@ -204,38 +126,13 @@ export function useChat() {
         }, 800)
       }
     },
-    [chatState.chatId, addMessage, setLoading],
+    [currentSessionId, addMessageToCurrentSession, setLoading],
   )
 
-  const clearChat = useCallback(() => {
-    localStorage.removeItem("chatbot-messages")
-    localStorage.removeItem("chatbot-chat-id")
-    setChatState({
-      messages: [],
-      isLoading: false,
-      chatId: `chat_${Date.now()}`,
-    })
-    initializeChat()
-  }, [initializeChat])
-
-  const startNewChat = useCallback(() => {
-    const newChatId = `chat_${Date.now()}`
-    localStorage.removeItem("chatbot-messages")
-    localStorage.removeItem("chatbot-chat-id")
-    setChatState({
-      messages: [],
-      isLoading: false,
-      chatId: newChatId,
-    })
-    initializeChat()
-  }, [initializeChat])
-
   return {
-    messages: chatState.messages,
-    isLoading: chatState.isLoading,
+    messages: currentSession?.messages || [],
+    isLoading,
     sendMessage,
-    clearChat,
-    startNewChat, // Exposed startNewChat function
-    chatId: chatState.chatId,
+    chatId: currentSessionId,
   }
 }

@@ -6,6 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default marker icons in Next.js
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -141,7 +142,7 @@ export default function LawyerMap({ lawyers, hoveredLawyerId, onMarkerClick }: L
                   </div>
                   {lawyer.reviews.length > 0 && (
                     <div className="text-xs text-gray-600 italic mb-2">
-                      "{lawyer.reviews[0].comment.substring(0, 50)}..."
+                      &quot;{lawyer.reviews[0].comment.substring(0, 50)}...&quot;
                     </div>
                   )}
                   <button 

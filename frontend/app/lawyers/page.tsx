@@ -646,7 +646,7 @@ export default function LawyersPage() {
                           </span>
                         </div>
                         <p className="text-xs text-gray-600 line-clamp-2">
-                          "{lawyer.reviews[0].comment}"
+                          &quot;{lawyer.reviews[0].comment}&quot;
                         </p>
                       </div>
                     )}
@@ -826,7 +826,7 @@ export default function LawyersPage() {
                             <div className="flex items-center justify-between">
                               <div>
                                 <div className="font-medium">🏢 In-Person Meeting</div>
-                                <div className="text-sm text-gray-600">45 minutes • At lawyer's office</div>
+                                <div className="text-sm text-gray-600">45 minutes • At lawyer&apos;s office</div>
                               </div>
                               <div className="text-right">
                                 <div className="font-medium">LKR {((selectedLawyer.consultationFee || 0) + 15000).toLocaleString()}</div>

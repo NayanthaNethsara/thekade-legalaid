@@ -20,168 +20,175 @@ import {
   X
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import dynamic from "next/dynamic";
 
-// Mock lawyer data with comprehensive details for Uber-style interface
-const mockLawyers = [
+// Dynamically import the map component to avoid SSR issues
+const LawyerMap = dynamic(() => import("@/components/lawyer-map"), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-full">Loading map...</div>
+});
+
+// Sri Lankan lawyer data with LKR pricing
+const sriLankanLawyers = [
   {
     id: 1,
-    name: "Sarah Johnson",
-    specializations: ["Corporate Law", "M&A", "Securities"],
+    name: "Priya Jayawardena",
+    specializations: ["Corporate Law", "Banking Law", "Securities"],
     rating: 4.9,
     reviewCount: 127,
     experience: "15+ years",
-    hourlyRate: 450,
-    consultationFee: 150,
-    location: "Manhattan, NY",
-    distance: "0.8 mi",
-    coordinates: { lat: 40.7831, lng: -73.9712 },
+    hourlyRate: 135000, // LKR
+    consultationFee: 45000, // LKR
+    location: "Fort, Colombo 01",
+    distance: "0.8 km",
+    coordinates: { lat: 6.9319, lng: 79.8478 },
     availability: "Available today",
     isProBono: false,
     profileImage: "/api/placeholder/64/64",
-    description: "Experienced corporate lawyer specializing in mergers and acquisitions.",
-    languages: ["English", "Spanish"],
-    barAdmissions: ["New York", "New Jersey"],
+    description: "Senior corporate lawyer specializing in banking regulations and securities law.",
+    languages: ["English", "Sinhala", "Tamil"],
+    barAdmissions: ["Sri Lanka Bar Association"],
     responseTime: "< 2 hours"
   },
   {
     id: 2,
-    name: "Michael Chen",
-    specializations: ["Criminal Defense", "DUI", "Drug Crimes"],
+    name: "Nuwan Fernando",
+    specializations: ["Criminal Defense", "Human Rights", "Constitutional Law"],
     rating: 4.8,
     reviewCount: 89,
     experience: "12+ years",
-    hourlyRate: 325,
-    consultationFee: 100,
-    location: "Downtown LA",
-    distance: "1.2 mi",
-    coordinates: { lat: 34.0522, lng: -118.2437 },
+    hourlyRate: 98000, // LKR
+    consultationFee: 30000, // LKR
+    location: "Hulftsdorp, Colombo 12",
+    distance: "1.2 km",
+    coordinates: { lat: 6.9147, lng: 79.8640 },
     availability: "Available tomorrow",
     isProBono: true,
     profileImage: "/api/placeholder/64/64",
-    description: "Criminal defense attorney with 98% success rate in DUI cases.",
-    languages: ["English", "Mandarin"],
-    barAdmissions: ["California"],
+    description: "Criminal defense attorney with expertise in human rights cases.",
+    languages: ["English", "Sinhala"],
+    barAdmissions: ["Sri Lanka Bar Association"],
     responseTime: "< 1 hour"
   },
   {
     id: 3,
-    name: "Emily Rodriguez",
+    name: "Kumari Perera",
     specializations: ["Family Law", "Divorce", "Child Custody"],
     rating: 4.7,
     reviewCount: 156,
     experience: "10+ years",
-    hourlyRate: 275,
-    consultationFee: 75,
-    location: "Lincoln Park, Chicago",
-    distance: "2.1 mi",
-    coordinates: { lat: 41.8781, lng: -87.6298 },
+    hourlyRate: 82500, // LKR
+    consultationFee: 22500, // LKR
+    location: "Wellawatte, Colombo 06",
+    distance: "2.1 km",
+    coordinates: { lat: 6.8693, lng: 79.8611 },
     availability: "Available now",
     isProBono: true,
     profileImage: "/api/placeholder/64/64",
-    description: "Compassionate family lawyer focused on protecting children's interests.",
-    languages: ["English", "Spanish"],
-    barAdmissions: ["Illinois"],
+    description: "Family law specialist focused on protecting women and children's rights.",
+    languages: ["English", "Sinhala", "Tamil"],
+    barAdmissions: ["Sri Lanka Bar Association"],
     responseTime: "< 30 min"
   },
   {
     id: 4,
-    name: "David Thompson",
-    specializations: ["Personal Injury", "Medical Malpractice", "Workers' Comp"],
+    name: "Roshan Silva",
+    specializations: ["Personal Injury", "Medical Negligence", "Insurance Claims"],
     rating: 4.9,
     reviewCount: 203,
     experience: "18+ years",
-    hourlyRate: 400,
-    consultationFee: 0,
-    location: "The Heights, Houston",
-    distance: "3.5 mi",
-    coordinates: { lat: 29.7604, lng: -95.3698 },
+    hourlyRate: 120000, // LKR
+    consultationFee: 0, // Free consultation
+    location: "Bambalapitiya, Colombo 04",
+    distance: "1.5 km",
+    coordinates: { lat: 6.8847, lng: 79.8589 },
     availability: "Available in 2 hours",
     isProBono: false,
     profileImage: "/api/placeholder/64/64",
-    description: "Top-rated personal injury attorney with $50M+ in settlements.",
-    languages: ["English"],
-    barAdmissions: ["Texas", "Louisiana"],
+    description: "Leading personal injury lawyer with LKR 1.5B+ in settlements.",
+    languages: ["English", "Sinhala"],
+    barAdmissions: ["Sri Lanka Bar Association"],
     responseTime: "< 3 hours"
   },
   {
     id: 5,
-    name: "Lisa Wang",
-    specializations: ["IP Law", "Patent Law", "Tech Startups"],
+    name: "Dilani Wickramasinghe",
+    specializations: ["IP Law", "Technology Law", "Startup Legal Services"],
     rating: 4.8,
     reviewCount: 94,
     experience: "14+ years",
-    hourlyRate: 525,
-    consultationFee: 200,
-    location: "SOMA, San Francisco",
-    distance: "1.7 mi",
-    coordinates: { lat: 37.7749, lng: -122.4194 },
+    hourlyRate: 157500, // LKR
+    consultationFee: 60000, // LKR
+    location: "Rajagiriya",
+    distance: "8.7 km",
+    coordinates: { lat: 6.9062, lng: 79.9100 },
     availability: "Available today",
     isProBono: false,
     profileImage: "/api/placeholder/64/64",
-    description: "IP specialist helping tech companies protect their innovations.",
-    languages: ["English", "Mandarin"],
-    barAdmissions: ["California", "New York"],
+    description: "IP specialist helping tech startups and established companies protect innovations.",
+    languages: ["English", "Sinhala"],
+    barAdmissions: ["Sri Lanka Bar Association"],
     responseTime: "< 4 hours"
   },
   {
     id: 6,
-    name: "Robert Miller",
-    specializations: ["Real Estate", "Commercial Law", "Contracts"],
+    name: "Mahinda Rathnayake",
+    specializations: ["Real Estate", "Property Law", "Construction Law"],
     rating: 4.6,
     reviewCount: 78,
     experience: "20+ years",
-    hourlyRate: 350,
-    consultationFee: 125,
-    location: "Brickell, Miami",
-    distance: "4.2 mi",
-    coordinates: { lat: 25.7617, lng: -80.1918 },
+    hourlyRate: 105000, // LKR
+    consultationFee: 37500, // LKR
+    location: "Kandy",
+    distance: "115 km",
+    coordinates: { lat: 7.2906, lng: 80.6337 },
     availability: "Available tomorrow",
     isProBono: true,
     profileImage: "/api/placeholder/64/64",
-    description: "Commercial real estate attorney with extensive transaction experience.",
-    languages: ["English", "Portuguese"],
-    barAdmissions: ["Florida"],
+    description: "Real estate attorney with extensive property transaction experience in Central Province.",
+    languages: ["English", "Sinhala"],
+    barAdmissions: ["Sri Lanka Bar Association"],
     responseTime: "< 2 hours"
   },
   {
     id: 7,
-    name: "Jennifer Kim",
-    specializations: ["Immigration", "Asylum", "Citizenship"],
+    name: "Fatima Nazeer",
+    specializations: ["Immigration", "Refugee Law", "International Law"],
     rating: 4.9,
     reviewCount: 167,
     experience: "11+ years",
-    hourlyRate: 250,
-    consultationFee: 50,
-    location: "Koreatown, LA",
-    distance: "2.8 mi",
-    coordinates: { lat: 34.0581, lng: -118.3089 },
+    hourlyRate: 75000, // LKR
+    consultationFee: 15000, // LKR
+    location: "Pettah, Colombo 11",
+    distance: "1.8 km",
+    coordinates: { lat: 6.9395, lng: 79.8519 },
     availability: "Available now",
     isProBono: true,
     profileImage: "/api/placeholder/64/64",
-    description: "Immigration attorney helping families navigate complex cases.",
-    languages: ["English", "Korean", "Spanish"],
-    barAdmissions: ["California"],
+    description: "Immigration lawyer helping families with visa applications and refugee cases.",
+    languages: ["English", "Tamil", "Arabic"],
+    barAdmissions: ["Sri Lanka Bar Association"],
     responseTime: "< 1 hour"
   },
   {
     id: 8,
-    name: "James Wilson",
-    specializations: ["Employment Law", "Discrimination", "Wrongful Termination"],
+    name: "Chamara Gunasekara",
+    specializations: ["Labor Law", "Employment Rights", "Trade Union Law"],
     rating: 4.7,
     reviewCount: 112,
     experience: "13+ years",
-    hourlyRate: 375,
-    consultationFee: 100,
-    location: "Financial District, NYC",
-    distance: "1.1 mi",
-    coordinates: { lat: 40.7074, lng: -74.0113 },
+    hourlyRate: 112500, // LKR
+    consultationFee: 30000, // LKR
+    location: "Galle",
+    distance: "119 km",
+    coordinates: { lat: 6.0535, lng: 80.2210 },
     availability: "Available in 3 hours",
     isProBono: false,
     profileImage: "/api/placeholder/64/64",
-    description: "Employment attorney protecting workers' rights and fighting discrimination.",
-    languages: ["English"],
-    barAdmissions: ["New York", "Connecticut"],
+    description: "Employment attorney protecting workers' rights across Southern Province.",
+    languages: ["English", "Sinhala"],
+    barAdmissions: ["Sri Lanka Bar Association"],
     responseTime: "< 2 hours"
   }
 ];
@@ -190,17 +197,17 @@ export default function LawyersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("rating"); // rating, price, distance, availability
   const [filterProBono, setFilterProBono] = useState(false);
-  const [selectedLawyer, setSelectedLawyer] = useState<typeof mockLawyers[0] | null>(null);
+  const [selectedLawyer, setSelectedLawyer] = useState<typeof sriLankanLawyers[0] | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showMap, setShowMap] = useState(true);
 
   // Filter and sort lawyers
-  const filteredAndSortedLawyers = mockLawyers
-    .filter(lawyer => {
+  const filteredAndSortedLawyers = sriLankanLawyers
+    .filter((lawyer) => {
       const matchesSearch = 
         lawyer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         lawyer.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lawyer.specializations.some(spec => 
+        lawyer.specializations.some((spec: string) => 
           spec.toLowerCase().includes(searchTerm.toLowerCase())
         );
       
@@ -221,7 +228,7 @@ export default function LawyersPage() {
       }
     });
 
-  const handleBookConsultation = (lawyer: typeof mockLawyers[0]) => {
+  const handleBookConsultation = (lawyer: typeof sriLankanLawyers[0]) => {
     setSelectedLawyer(lawyer);
     setShowBookingModal(true);
   };
@@ -253,21 +260,10 @@ export default function LawyersPage() {
       <div className="flex h-[calc(100vh-73px)]">
         {/* Map Section - Desktop: Left 2/3, Mobile: Toggle */}
         <div className={`bg-gray-200 relative ${showMap ? 'flex-1' : 'hidden'} md:flex md:flex-[2]`}>
-          <div className="absolute inset-0 flex items-center justify-center text-gray-600">
-            {/* Placeholder for map - would integrate with Google Maps, Mapbox, etc. */}
-            <div className="text-center">
-              <MapPin className="w-16 h-16 mx-auto mb-4 text-blue-600" />
-              <h3 className="text-lg font-medium mb-2">Interactive Map</h3>
-              <p className="text-sm">Lawyer pins would appear here</p>
-              <div className="mt-4 space-y-2 text-xs text-left max-w-xs">
-                {filteredAndSortedLawyers.slice(0, 3).map(lawyer => (
-                  <div key={lawyer.id} className="bg-white p-2 rounded shadow text-center">
-                    📍 {lawyer.name} - {lawyer.distance}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <LawyerMap 
+            lawyers={filteredAndSortedLawyers}
+            onMarkerClick={(lawyer) => setSelectedLawyer(lawyer)}
+          />
         </div>
 
         {/* Lawyer List Section - Desktop: Right 1/3, Mobile: Full width when map hidden */}
@@ -326,7 +322,7 @@ export default function LawyersPage() {
                   {/* Avatar */}
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-blue-600 font-medium text-sm">
-                      {lawyer.name.split(' ').map(n => n[0]).join('')}
+                      {lawyer.name.split(' ').map((n: string) => n[0]).join('')}
                     </span>
                   </div>
 
@@ -353,19 +349,19 @@ export default function LawyersPage() {
                       
                       <div className="text-right">
                         <div className="font-medium text-gray-900">
-                          ${lawyer.hourlyRate}/hr
+                          LKR {lawyer.hourlyRate.toLocaleString()}/hr
                         </div>
                         {lawyer.consultationFee === 0 ? (
                           <div className="text-sm text-green-600">Free consultation</div>
                         ) : (
-                          <div className="text-sm text-gray-600">${lawyer.consultationFee} consultation</div>
+                          <div className="text-sm text-gray-600">LKR {lawyer.consultationFee.toLocaleString()} consultation</div>
                         )}
                       </div>
                     </div>
 
                     {/* Specializations */}
                     <div className="flex flex-wrap gap-1 mb-2">
-                      {lawyer.specializations.slice(0, 2).map((spec) => (
+                      {lawyer.specializations.slice(0, 2).map((spec: string) => (
                         <Badge key={spec} variant="outline" className="text-xs">
                           {spec}
                         </Badge>
@@ -433,7 +429,7 @@ export default function LawyersPage() {
                 <div className="flex gap-3 p-3 bg-gray-50 rounded">
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                     <span className="text-blue-600 font-medium text-sm">
-                      {selectedLawyer.name.split(' ').map(n => n[0]).join('')}
+                      {selectedLawyer.name.split(' ').map((n: string) => n[0]).join('')}
                     </span>
                   </div>
                   <div>
@@ -454,21 +450,21 @@ export default function LawyersPage() {
                       <input type="radio" name="consultation" defaultChecked />
                       <div className="flex-1">
                         <div className="font-medium">Phone Consultation</div>
-                        <div className="text-sm text-gray-600">30 minutes • ${selectedLawyer.consultationFee || 'Free'}</div>
+                        <div className="text-sm text-gray-600">30 minutes • {selectedLawyer.consultationFee === 0 ? 'Free' : `LKR ${selectedLawyer.consultationFee.toLocaleString()}`}</div>
                       </div>
                     </label>
                     <label className="flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-gray-50">
                       <input type="radio" name="consultation" />
                       <div className="flex-1">
                         <div className="font-medium">Video Call</div>
-                        <div className="text-sm text-gray-600">30 minutes • ${selectedLawyer.consultationFee || 'Free'}</div>
+                        <div className="text-sm text-gray-600">30 minutes • {selectedLawyer.consultationFee === 0 ? 'Free' : `LKR ${selectedLawyer.consultationFee.toLocaleString()}`}</div>
                       </div>
                     </label>
                     <label className="flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-gray-50">
                       <input type="radio" name="consultation" />
                       <div className="flex-1">
                         <div className="font-medium">In-Person Meeting</div>
-                        <div className="text-sm text-gray-600">45 minutes • ${(selectedLawyer.consultationFee || 0) + 50}</div>
+                        <div className="text-sm text-gray-600">45 minutes • LKR {((selectedLawyer.consultationFee || 0) + 15000).toLocaleString()}</div>
                       </div>
                     </label>
                   </div>

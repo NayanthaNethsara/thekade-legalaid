@@ -391,7 +391,7 @@ export default function LawyersPage() {
           <LawyerMap 
             lawyers={filteredAndSortedLawyers}
             hoveredLawyerId={hoveredLawyerId}
-            onMarkerClick={(lawyer) => setSelectedLawyer(lawyer)}
+            onMarkerClick={(lawyer) => handleBookConsultation(lawyer)}
           />
         </div>
 
@@ -529,7 +529,7 @@ export default function LawyersPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="border-b p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => setSelectedLawyer(lawyer)}
+                onClick={() => handleBookConsultation(lawyer)}
                 onMouseEnter={() => setHoveredLawyerId(lawyer.id)}
                 onMouseLeave={() => setHoveredLawyerId(null)}
               >

@@ -146,7 +146,10 @@ export default function LawyerMap({ lawyers, hoveredLawyerId, onMarkerClick }: L
                   )}
                   <button 
                     className="w-full bg-blue-600 text-white text-xs py-1 px-2 rounded hover:bg-blue-700 transition-colors"
-                    onClick={() => onMarkerClick?.(lawyer)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMarkerClick?.(lawyer);
+                    }}
                   >
                     View Details
                   </button>

@@ -95,6 +95,6 @@ zstandard==0.25.0
 
 # Database and Cache clients
 motor==3.6.0
-pymongo==4.10.1
+pymongo==4.9.1
 redis==5.0.3
 aioredis==2.0.1

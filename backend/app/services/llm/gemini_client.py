@@ -1,13 +1,14 @@
 from typing import Optional
-from google import genai
+import google.generativeai as genai
 from app.core.config import settings
 
-_client: Optional[genai.Client] = None
+_configured = False
 
-def get_client() -> genai.Client:
-    global _client
-    if _client is None:
+def get_client():
+    global _configured
+    if not _configured:
         if not settings.GEMINI_API_KEY:
             raise RuntimeError("GEMINI_API_KEY not set")
-        _client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    return _client
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        _configured = True
+    return genai

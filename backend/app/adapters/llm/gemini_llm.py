@@ -1,4 +1,3 @@
-# app/adapters/llm/gemini_llm.py
 from app.domain.ports import LLMPort
 from app.services.llm.gemini_client import get_client
 from app.core.config import settings

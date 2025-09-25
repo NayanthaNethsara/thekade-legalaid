@@ -4,7 +4,8 @@ from app.core.config import settings
 
 _configured = False
 
-def get_client():
+def get_client() -> genai:
+    """Return a configured Gemini client. Configures once on first call."""
     global _configured
     if not _configured:
         if not settings.GEMINI_API_KEY:

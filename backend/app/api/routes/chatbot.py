@@ -6,8 +6,10 @@ from app.adapters.rag.faiss_retriever import FaissRetriever
 from app.services.rag.qa_service import QAService
 from app.services.rag.vectorstore import build_or_load_index
 from app.core.config import settings
+import traceback
 
 router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
+
 
 qa = QAService(
     retriever=FaissRetriever(),
@@ -25,7 +27,13 @@ def chat(req: ChatRequest):
             retrieved_chunks=result.get("retrieved_chunks", []),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Print full traceback in console for debugging
+        traceback.print_exc()
+        # Return a detailed error message in response
+        raise HTTPException(
+            status_code=500,
+            detail=f"Chatbot processing error: {str(e)}"
+        )
 
 #  Debug endpoint to view chunks
 @router.get("/debug/chunks")

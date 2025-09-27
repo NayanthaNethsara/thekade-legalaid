@@ -13,7 +13,15 @@ export function useChat() {
     isLoading,
     addMessageToCurrentSession,
     setLoading,
-  } = useChatHistory()
+    createNewSession,
+    clearAllHistory,
+    clearCurrentSessionMessages,
+  } = useChatHistory();
+
+  // Reset chat state (force update) when a new session is created
+  const resetChat = () => {
+    // This function can be expanded if you want to reset any local state in useChat
+  };
 
   const parseLawyers = (content: string): Lawyer[] => {
     const lawyers: Lawyer[] = []
@@ -134,5 +142,10 @@ export function useChat() {
     isLoading,
     sendMessage,
     chatId: currentSessionId,
-  }
+    resetChat,
+    currentSession,
+    createNewSession,
+    clearAllHistory,
+    clearCurrentSessionMessages,
+  };
 }

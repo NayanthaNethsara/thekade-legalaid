@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from app.schemas.chatbot import ChatRequest, ChatResponse
-from app.adapters.chat.inmem_history import InMemChatHistory
+from app.adapters.chat.mongo_history import MongoChatHistory
 from app.adapters.llm.gemini_llm import GeminiLLM
 from app.adapters.rag.faiss_retriever import FaissRetriever
 from app.services.rag.qa_service import QAService
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
 qa = QAService(
     retriever=FaissRetriever(),
     llm=GeminiLLM(),
-    history=InMemChatHistory(),
+    history=MongoChatHistory(),
 )
 
 @router.post("/chat", response_model=ChatResponse)

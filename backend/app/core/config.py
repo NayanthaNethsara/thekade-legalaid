@@ -15,7 +15,15 @@ class Settings(BaseSettings):
 
     #Gemini API Key
     GEMINI_API_KEY: str
-    DEFAULT_MODEL: str = "gemini-2.5-flash"
+    DEFAULT_MODEL: str = "gemini-1.5-flash"
+
+    # MongoDB
+    MONGODB_URL: str = "mongodb://localhost:27017"
+    MONGODB_DB_NAME: str = "legalaid"
+
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379"
+    REDIS_DB: int = 0
 
     # RAG
     PDF_PATH: str = "data/motor_traffic_law.pdf"

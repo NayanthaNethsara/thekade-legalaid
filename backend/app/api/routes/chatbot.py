@@ -2,6 +2,10 @@ import logging
 from fastapi import APIRouter
 
 from app.schemas.chatbot import ChatRequest, ChatResponse
+from app.adapters.chat.mongo_history import MongoChatHistory
+from app.adapters.llm.gemini_llm import GeminiLLM
+from app.adapters.rag.faiss_retriever import FaissRetriever
+from app.services.rag.qa_service import QAService
 from app.services.rag.vectorstore import build_or_load_index
 from app.core.dependencies import QAServiceDep
 from app.core.exceptions import ChatServiceError, RAGServiceError
@@ -9,6 +13,11 @@ from app.core.exceptions import ChatServiceError, RAGServiceError
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+qa = QAService(
+    retriever=FaissRetriever(),
+    llm=GeminiLLM(),
+    history=MongoChatHistory(),
+)
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, qa_service: QAServiceDep):

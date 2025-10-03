@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
@@ -99,7 +100,7 @@ export function useChatHistory() {
       content: "Hello! How can I help you with your legal questions today?",
       isUser: false,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }
+    };
 
     const newSession: ChatSession = {
       id: `chat_${Date.now()}`,
@@ -107,16 +108,16 @@ export function useChatHistory() {
       messages: [welcomeMessage],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    }
+    };
 
     setHistoryState(prev => ({
       ...prev,
-      sessions: [newSession, ...prev.sessions],
+      sessions: [newSession], // Only keep the new session
       currentSessionId: newSession.id,
-    }))
+    }));
 
-    return newSession.id
-  }, [])
+    return newSession.id;
+  }, []);
 
   const switchToSession = useCallback((sessionId: string) => {
     setHistoryState(prev => ({
@@ -228,6 +229,32 @@ export function useChatHistory() {
     }))
   }, [])
 
+    // Clear only the messages in the current session, keep the session and welcome message
+  const clearCurrentSessionMessages = useCallback(() => {
+    setHistoryState(prev => {
+      if (!prev.currentSessionId) return prev;
+      return {
+        ...prev,
+        sessions: prev.sessions.map(session =>
+          session.id === prev.currentSessionId
+            ? {
+                ...session,
+                messages: [
+                  {
+                    id: "1",
+                    content: "Hello! How can I help you with your legal questions today?",
+                    isUser: false,
+                    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                  },
+                ],
+                updatedAt: new Date().toISOString(),
+              }
+            : session
+        ),
+      };
+    });
+  }, []);
+
   return {
     sessions: historyState.sessions,
     currentSession: getCurrentSession(),
@@ -239,6 +266,7 @@ export function useChatHistory() {
     updateSessionTitle,
     deleteSession,
     clearAllHistory,
+    clearCurrentSessionMessages,
     setLoading,
   }
 }

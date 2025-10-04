@@ -164,18 +164,146 @@ The API will be available at:
 
 ### 🧪 Testing
 
+The project includes a comprehensive testing suite with unit tests, integration tests, and test fixtures.
+
+#### Test Setup
+
 ```bash
+# Install test dependencies (included in requirements.txt)
+pip install pytest pytest-asyncio pytest-mock pytest-cov httpx factory-boy faker
+
 # Run all tests
 pytest
 
-# Run with coverage
-pytest --cov=app
+# Run with coverage report
+pytest --cov=app --cov-report=html --cov-report=term-missing
+
+# Run specific test categories
+pytest tests/unit/          # Unit tests only
+pytest tests/integration/   # Integration tests only
 
 # Run specific test file
-pytest tests/test_whatsapp_service.py
+pytest tests/unit/test_whatsapp_service.py -v
 
-# Run with verbose output
-pytest -v
+# Run tests with specific markers
+pytest -m whatsapp         # WhatsApp related tests
+pytest -m transcription    # Transcription related tests
+pytest -m "not slow"       # Skip slow tests
+```
+
+#### Test Structure
+
+```
+tests/
+├── conftest.py                      # Global test configuration and fixtures
+├── pytest.ini                      # Pytest configuration settings
+├── unit/                           # Unit tests for individual components
+│   ├── __init__.py
+│   ├── test_whatsapp_service.py    # WhatsApp service tests
+│   ├── test_transcription_service.py # Transcription service tests
+│   └── test_message_processor.py   # Message processor tests
+├── integration/                    # Integration tests for API endpoints
+│   ├── __init__.py
+│   └── test_whatsapp_webhook.py    # WhatsApp webhook endpoint tests
+└── fixtures/                      # Reusable test data and mocks
+    ├── __init__.py
+    ├── whatsapp_fixtures.py        # WhatsApp message factories
+    └── mock_services.py            # Mock service implementations
+```
+
+#### Writing Tests
+
+**Unit Test Example:**
+
+```python
+import pytest
+from unittest.mock import patch, AsyncMock
+from app.services.whatsapp_service import WhatsAppService
+
+class TestWhatsAppService:
+    @pytest.mark.asyncio
+    async def test_send_text_success(self):
+        with patch('httpx.AsyncClient') as mock_client:
+            mock_response = Mock()
+            mock_response.json.return_value = {"messages": [{"id": "test123"}]}
+            mock_client.return_value.__aenter__.return_value.post = AsyncMock(
+                return_value=mock_response
+            )
+
+            service = WhatsAppService()
+            result = await service.send_text("1234567890", "Test message")
+
+            assert result["messages"][0]["id"] == "test123"
+```
+
+**Integration Test Example:**
+
+```python
+def test_webhook_verification(client):
+    response = client.get("/webhook", params={
+        "mode": "subscribe",
+        "verify_token": "test_verify_token",
+        "challenge": "1234567890"
+    })
+    assert response.status_code == 200
+    assert response.json() == 1234567890
+```
+
+#### Test Configuration
+
+**pytest.ini** settings:
+
+- Coverage reporting with 80% minimum threshold
+- Async test support with `pytest-asyncio`
+- Custom markers for test categorization
+- HTML coverage reports in `htmlcov/` directory
+
+**Available Test Fixtures:**
+
+- `client`: FastAPI test client
+- `mock_whatsapp_service`: Mocked WhatsApp service
+- `mock_transcription_service`: Mocked transcription service
+- `sample_whatsapp_message`: Sample message payloads
+- `test_audio_file`: Temporary audio file for testing
+
+#### Test Coverage Goals
+
+The test suite aims for comprehensive coverage:
+
+**Unit Tests (80%+ coverage):**
+
+- WhatsApp service message sending and media download
+- Transcription service audio processing
+- Message processor routing and error handling
+- Configuration and utility functions
+
+**Integration Tests:**
+
+- WhatsApp webhook endpoint verification
+- Message processing pipeline end-to-end
+- API error handling and validation
+- Webhook payload processing
+
+**Test Scenarios:**
+
+- ✅ Happy path scenarios
+- ✅ Error conditions and edge cases
+- ✅ Invalid input handling
+- ✅ Network failure simulation
+- ✅ Authentication failures
+- ✅ File processing errors
+
+#### Continuous Testing
+
+```bash
+# Watch mode for development
+pytest --watch
+
+# Run tests on file changes (using entr)
+find . -name "*.py" | entr -r pytest
+
+# Pre-commit testing
+pytest --cov=app --cov-fail-under=80
 ```
 
 ### 📊 Monitoring and Logging

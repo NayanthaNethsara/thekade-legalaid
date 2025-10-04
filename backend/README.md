@@ -104,6 +104,62 @@ npm install
 npm run dev
 ```
 
+## 🧪 Testing
+
+The project includes comprehensive unit and integration tests to ensure reliability and maintainability.
+
+### Running Tests
+
+```bash
+# Install test dependencies (if not already installed)
+pip install -r requirements.txt
+
+# Run all tests
+pytest
+
+# Run tests with coverage report
+pytest --cov=app --cov-report=html
+
+# Run only unit tests
+pytest tests/unit/
+
+# Run only integration tests
+pytest tests/integration/
+
+# Run specific test file
+pytest tests/unit/test_whatsapp_service.py
+
+# Run with verbose output
+pytest -v
+```
+
+### Test Structure
+
+```
+tests/
+├── conftest.py              # Test configuration and fixtures
+├── pytest.ini              # Pytest settings
+├── unit/                    # Unit tests
+│   ├── test_whatsapp_service.py
+│   ├── test_transcription_service.py
+│   └── test_message_processor.py
+├── integration/             # Integration tests
+│   └── test_whatsapp_webhook.py
+└── fixtures/                # Test data and mocks
+    ├── whatsapp_fixtures.py
+    └── mock_services.py
+```
+
+### Test Coverage
+
+The test suite covers:
+
+- **WhatsApp Service**: Message sending, media download, error handling
+- **Transcription Service**: Audio processing, error scenarios
+- **Message Processor**: Text/voice message routing, error handling
+- **API Endpoints**: Webhook verification, message processing, error responses
+- **Edge Cases**: Invalid inputs, network failures, malformed data
+
 ## 📞 Usage
 
 ### WhatsApp Integration

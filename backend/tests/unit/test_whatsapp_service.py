@@ -35,9 +35,11 @@ class TestWhatsAppService:
             
             # Verify the call arguments
             call_args = mock_client_instance.post.call_args
-            assert "messages" in call_args[1]["json"]
-            assert call_args[1]["json"]["text"]["body"] == "Test message"
-            assert call_args[1]["json"]["to"] == "1234567890"
+            json_data = call_args[1]["json"]
+            assert json_data["messaging_product"] == "whatsapp"
+            assert json_data["to"] == "1234567890"
+            assert json_data["type"] == "text"
+            assert json_data["text"]["body"] == "Test message"
 
     @pytest.mark.asyncio
     async def test_send_text_http_error(self, whatsapp_service):

@@ -6,6 +6,12 @@ from unittest.mock import Mock, AsyncMock
 from fastapi.testclient import TestClient
 from typing import AsyncGenerator, Generator
 
+# Set test environment variables before importing app modules
+os.environ["WHATSAPP_ACCESS_TOKEN"] = "test_token"
+os.environ["BUSINESS_PHONE_NUMBER_ID"] = "test_phone_id"
+os.environ["VERIFY_TOKEN"] = "test_verify_token"
+os.environ["DEBUG"] = "true"
+
 # Add the app directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'app'))
 
@@ -130,8 +136,8 @@ def test_audio_file(tmp_path):
 def setup_test_env(monkeypatch):
     """Set up test environment variables."""
     monkeypatch.setenv("WHATSAPP_ACCESS_TOKEN", "test_token")
-    monkeypatch.setenv("WHATSAPP_PHONE_NUMBER_ID", "test_phone_id")
-    monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", "test_verify_token")
+    monkeypatch.setenv("BUSINESS_PHONE_NUMBER_ID", "test_phone_id")
+    monkeypatch.setenv("VERIFY_TOKEN", "test_verify_token")
     monkeypatch.setenv("DEBUG", "true")
     monkeypatch.setenv("TEMP_AUDIO_DIR", "/tmp/test_audio")
 

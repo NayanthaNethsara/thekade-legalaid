@@ -49,6 +49,39 @@ coverage.xml
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# Node.js
+node_modules/
+
+# Next.js/React
+frontend/.next/
+frontend/out/
+
+# Coverage
+.coverage
+.coverage.*
+frontend/coverage/
+coverage/
+htmlcov/
+
+# Test and coverage output
+.pytest_cache/
+.tox/
+.mypy_cache/
+
+# Build
+build/
+dist/
+frontend/build/
+
+# Misc
+*.pkl
+*.faiss
+*.db
+*.sqlite3
+
+# System
+Thumbs.db
+
 # pyenv
 .python-version
 

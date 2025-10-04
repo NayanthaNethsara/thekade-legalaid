@@ -1,166 +1,310 @@
-# LegalAid Backend - Development Guide
+# Kakille AI - Development Guide 🛠️
 
-## 🏗️ Architecture Overview
+This document provides comprehensive instructions for setting up and developing the Kakille AI backend system.
 
-This backend follows a **Clean Architecture** pattern with the following structure:
+## 🏗️ Project Structure
 
 ```
-app/
-├── core/           # Core application configuration and utilities
-├── domain/         # Domain models and business rules (ports)
-├── adapters/       # External service adapters (implementations)
-├── services/       # Business logic services
-├── api/           # API routes and controllers
-├── db/            # Database configuration
-├── models/        # SQLAlchemy models
-├── repositories/  # Data access layer
-└── schemas/       # Pydantic schemas for API
+backend/
+├── app/
+│   ├── __init__.py
+│   ├── main.py                 # FastAPI application entry point
+│   ├── api/
+│   │   ├── __init__.py
+│   │   └── whatsapp.py         # WhatsApp webhook endpoints
+│   ├── core/
+│   │   ├── __init__.py
+│   │   └── config.py           # Configuration management
+│   ├── db/                     # Database models and connections
+│   ├── models/                 # Pydantic models
+│   ├── repositories/           # Data access layer
+│   ├── schemas/               # API schemas
+│   └── services/
+│       ├── __init__.py
+│       ├── message_processor.py    # Message routing and processing
+│       ├── transcription_service.py # Whisper voice-to-text
+│       └── whatsapp_service.py     # WhatsApp API integration
+├── data/
+│   └── motor_traffic_law.pdf   # Legal documents for knowledge base
+├── storage/
+│   └── faiss_index/           # Vector database storage
+├── .env.example               # Environment variables template
+├── requirements.txt           # Python dependencies
+└── README.md                  # Project overview
 ```
 
-## 🔧 Key Improvements Made
+## 🚀 Development Setup
 
-### 1. **Dependency Injection Container**
-- Centralized dependency management in `app/core/dependencies.py`
-- Type-safe dependency injection using FastAPI's Depends
-- Cached singleton services for performance
+### 1. Prerequisites
 
-### 2. **Custom Exception Handling**
-- Structured exception classes in `app/core/exceptions.py`
-- Global exception handlers with proper HTTP status codes
-- Consistent error response format
+- **Python 3.11+**: Ensure you have Python 3.11 or higher installed
+- **Virtual Environment**: Recommended for dependency isolation
+- **WhatsApp Business Account**: Required for WhatsApp integration
+- **Meta Developer Account**: For WhatsApp Business API access
 
-### 3. **Application Factory Pattern**
-- Clean application initialization in `app/core/app_factory.py`
-- Configurable middleware stack
-- Lifespan management for startup/shutdown
+### 2. Environment Setup
 
-### 4. **Enhanced Configuration**
-- Environment-based configuration with validation
-- Centralized settings management
-- Development/production environment support
-
-### 5. **Logging & Monitoring**
-- Structured logging with request tracking
-- Health check endpoints for monitoring
-- Performance metrics collection
-
-## 🚀 Getting Started
-
-### 1. Environment Setup
 ```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
+# Clone the repository
+git clone <repository-url>
+cd backend
 
-### 2. Install Dependencies
-```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Database Setup
+### 3. Environment Variables
+
+Copy the example environment file and configure your settings:
+
 ```bash
-alembic upgrade head
+cp .env.example .env
 ```
 
-### 4. Run Development Server
+Configure the following variables in `.env`:
+
+```env
+# WhatsApp Business API
+WHATSAPP_ACCESS_TOKEN=your_whatsapp_access_token
+WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
+WHATSAPP_VERIFY_TOKEN=your_webhook_verify_token
+WHATSAPP_BUSINESS_ACCOUNT_ID=your_business_account_id
+
+# API Configuration
+API_HOST=localhost
+API_PORT=8000
+DEBUG=true
+
+# OpenAI (for enhanced features)
+OPENAI_API_KEY=your_openai_api_key
+
+# Audio Processing
+WHISPER_MODEL=base
+TEMP_AUDIO_DIR=./temp_audio
+
+# Vector Database
+FAISS_INDEX_PATH=./storage/faiss_index
+```
+
+### 4. WhatsApp Business API Setup
+
+1. **Create Meta Developer Account**: Visit [developers.facebook.com](https://developers.facebook.com)
+2. **Create WhatsApp Business App**: Set up a new WhatsApp Business application
+3. **Configure Webhook**: Set webhook URL to `https://your-domain.com/webhook/whatsapp`
+4. **Get Access Tokens**: Obtain necessary tokens and IDs
+5. **Test Integration**: Send test messages to verify setup
+
+## 🔧 Development Workflow
+
+### Running the Development Server
+
 ```bash
+# Start the FastAPI development server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Alternative with more verbose logging
+uvicorn app.main:app --reload --log-level debug
 ```
 
-## 📋 API Endpoints
+The API will be available at:
 
-### Health Checks
-- `GET /health/` - Application health status
-- `GET /health/ready` - Readiness check
-- `GET /health/live` - Liveness check
+- **Main Application**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+- **Alternative Docs**: http://localhost:8000/redoc
 
-### Authentication
-- `POST /api/v1/auth/register` - User registration
-- `POST /api/v1/auth/login` - User login
+### 📝 Current Implementation Status
 
-### Chatbot
-- `POST /api/v1/chatbot/chat` - Chat with legal assistant
-- `GET /api/v1/chatbot/chats` - List chat sessions
-- `DELETE /api/v1/chatbot/chat/{chat_id}` - Clear specific chat
-- `DELETE /api/v1/chatbot/chats` - Clear all chats
+#### ✅ Implemented Features
 
-## 🧪 Testing
+**WhatsApp Integration**
 
-### Unit Tests
+- Webhook endpoint for receiving messages
+- Message verification and validation
+- Support for text and voice messages
+- Basic message routing and processing
+
+**Voice Processing**
+
+- Whisper-based speech-to-text transcription
+- Audio file download and processing
+- Temporary file management
+- Voice message response handling
+
+**Core Infrastructure**
+
+- FastAPI application structure
+- Configuration management
+- Service layer architecture
+- Error handling and logging
+
+#### 🚧 In Development
+
+**Legal Knowledge Base**
+
+- FAISS vector database integration
+- Legal document processing and indexing
+- Semantic search capabilities
+- Context-aware response generation
+
+**Enhanced Features**
+
+- User session management
+- Conversation history
+- Multi-turn dialogue support
+- Rich media message handling
+
+### 🧪 Testing
+
 ```bash
-pytest tests/unit/
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=app
+
+# Run specific test file
+pytest tests/test_whatsapp_service.py
+
+# Run with verbose output
+pytest -v
 ```
 
-### Integration Tests
+### 📊 Monitoring and Logging
+
+The application uses Python's built-in logging system. Logs are output to the console during development.
+
+**Log Levels:**
+
+- `DEBUG`: Detailed diagnostic information
+- `INFO`: General application flow
+- `WARNING`: Potential issues
+- `ERROR`: Error conditions
+- `CRITICAL`: Serious error conditions
+
+### 🔍 API Endpoints
+
+#### WhatsApp Webhook
+
+- `GET /webhook/whatsapp` - Webhook verification
+- `POST /webhook/whatsapp` - Receive WhatsApp messages
+
+#### Health Check
+
+- `GET /health` - Application health status
+
+### 🛠️ Development Tools
+
+**Code Quality**
+
 ```bash
-pytest tests/integration/
-```
+# Format code with black
+black app/
 
-### API Tests
-```bash
-pytest tests/api/
-```
+# Sort imports with isort
+isort app/
 
-## 🐳 Docker Support
-
-### Development
-```bash
-docker-compose up -d
-```
-
-### Production
-```bash
-docker build -t legalaid-api .
-docker run -p 8000:8000 legalaid-api
-```
-
-## 📝 Code Quality
-
-### Linting
-```bash
+# Lint with flake8
 flake8 app/
-```
 
-### Type Checking
-```bash
+# Type checking with mypy
 mypy app/
 ```
 
-### Code Formatting
+**Database Management**
+
 ```bash
-black app/
-isort app/
+# Initialize FAISS index (if implementing)
+python -m app.scripts.init_faiss_db
+
+# Rebuild vector database
+python -m app.scripts.rebuild_vectors
 ```
 
-## 🔒 Security Considerations
+## 🚨 Troubleshooting
 
-1. **Environment Variables**: Never commit sensitive data
-2. **JWT Secrets**: Use strong, unique secrets in production
-3. **Database**: Use connection pooling and prepared statements
-4. **CORS**: Configure allowed origins properly
-5. **Rate Limiting**: Implement rate limiting for API endpoints
+### Common Issues
 
-## 📈 Performance Optimization
+**1. WhatsApp Webhook Verification Fails**
 
-1. **Database**: Use connection pooling and query optimization
-2. **Caching**: Implement Redis for session and data caching
-3. **Async**: Use async/await for I/O operations
-4. **Monitoring**: Set up APM tools for performance tracking
+- Check `WHATSAPP_VERIFY_TOKEN` matches Meta configuration
+- Ensure webhook URL is publicly accessible
+- Verify HTTPS is properly configured
 
-## 🚀 Deployment
+**2. Voice Transcription Errors**
 
-### Environment Variables (Production)
-- Set `DEBUG=false`
-- Use strong `SECRET_KEY`
-- Configure proper `ALLOWED_ORIGINS`
-- Set appropriate `LOG_LEVEL`
+- Check Whisper model installation
+- Verify audio file permissions
+- Ensure sufficient disk space for temporary files
 
-### Database
-- Use managed PostgreSQL service
-- Enable connection pooling
-- Set up backups and monitoring
+**3. Import Errors**
 
-### Monitoring
-- Health checks for load balancers
-- Application metrics collection
-- Error tracking and alerting
+- Verify virtual environment is activated
+- Check all dependencies are installed
+- Ensure Python path is correctly configured
+
+### Debug Mode
+
+Enable debug mode for detailed error information:
+
+```bash
+export DEBUG=true
+uvicorn app.main:app --reload --log-level debug
+```
+
+## 📚 Resources
+
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [WhatsApp Business API](https://developers.facebook.com/docs/whatsapp)
+- [OpenAI Whisper](https://openai.com/research/whisper)
+- [FAISS Documentation](https://faiss.ai/)
+
+## 🤝 Contributing
+
+1. **Create Feature Branch**: `git checkout -b feature/your-feature-name`
+2. **Make Changes**: Implement your feature with tests
+3. **Run Tests**: Ensure all tests pass
+4. **Submit PR**: Create pull request with detailed description
+
+### Code Standards
+
+- Follow PEP 8 style guidelines
+- Use type hints for all functions
+- Write comprehensive docstrings
+- Include unit tests for new features
+- Update documentation as needed
+
+## 📋 TODO / Roadmap
+
+### High Priority
+
+- [ ] Implement legal query processing with LangChain
+- [ ] Add user authentication and session management
+- [ ] Expand legal knowledge base beyond motor traffic law
+- [ ] Implement conversation memory and context
+
+### Medium Priority
+
+- [ ] Add support for document uploads via WhatsApp
+- [ ] Implement lawyer referral system
+- [ ] Add multi-language support
+- [ ] Create admin dashboard for monitoring
+
+### Low Priority
+
+- [ ] Add voice response generation (text-to-speech)
+- [ ] Implement advanced analytics and reporting
+- [ ] Add integration with legal case management systems
+- [ ] Create mobile app with same backend
+
+---
+
+**Note**: This project is under active development. The development environment and procedures may change as the project evolves.

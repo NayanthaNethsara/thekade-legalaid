@@ -7,6 +7,22 @@ transcription_service = TranscriptionService()
 
 class MessageProcessor:
     @staticmethod
+    async def process_message(message: dict):
+        msg_type = message.get("type")
+        user_id = message.get("from")
+
+        if msg_type == "text":
+            await MessageProcessor.process_text_message(message)
+        elif msg_type == "audio":
+            await MessageProcessor.process_voice_message(message)
+        else:
+            # Unsupported message type
+            print(f"Unsupported message type from {user_id}: {msg_type}")
+            await WhatsAppService().send_text(
+                user_id,
+                f"Sorry, I only process text and voice messages for now. You sent a {msg_type}."
+            )
+    @staticmethod
     async def process_text_message(message: dict):
         user_id = message.get("from")
         text = message.get("text", {}).get("body")

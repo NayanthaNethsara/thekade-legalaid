@@ -18,9 +18,6 @@ async def receive_message(request: Request):
         for change in entry.get("changes", []):
             messages = change.get("value", {}).get("messages", [])
             for message in messages:
-                msg_type = message.get("type")
-                if msg_type == "text":
-                    await processor.process_text_message(message)
-                elif msg_type == "audio":
-                    await processor.process_voice_message(message)
+                await processor.process_message(message)
     return {"status": "received"}
+

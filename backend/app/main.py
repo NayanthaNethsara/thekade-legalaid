@@ -1,11 +1,6 @@
 from fastapi import FastAPI
-from app.core.config import settings
+from app.api import whatsapp
 
-app = FastAPI(debug=settings.DEBUG)
+app = FastAPI()
 
-@app.get("/test")
-def test():
-    return {
-        "debug": settings.DEBUG,
-        "api": settings.WHATSAPP_API
-    }
+app.include_router(whatsapp.router)

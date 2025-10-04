@@ -1,8 +1,8 @@
 import whisper
-import os
 
 # Load model once globally
 model = whisper.load_model("small.en")
+
 
 class TranscriptionService:
     @staticmethod

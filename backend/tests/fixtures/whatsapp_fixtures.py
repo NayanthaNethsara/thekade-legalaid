@@ -1,14 +1,16 @@
 """
 Test fixtures for WhatsApp messages and related data structures.
 """
-import factory
+
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
+
+import factory
 
 
 class WhatsAppMessageFactory(factory.Factory):
     """Factory for creating WhatsApp message test data."""
-    
+
     class Meta:
         model = dict
 
@@ -26,18 +28,21 @@ class WhatsAppMessageFactory(factory.Factory):
     @factory.lazy_attribute
     def audio(self):
         if self.type == "audio":
-            return {"id": f"audio_{self.message_id}", "mime_type": "audio/ogg; codecs=opus"}
+            return {
+                "id": f"audio_{self.message_id}",
+                "mime_type": "audio/ogg; codecs=opus",
+            }
         return None
 
 
 class WhatsAppWebhookFactory(factory.Factory):
     """Factory for creating WhatsApp webhook payloads."""
-    
+
     class Meta:
         model = dict
 
     object = "whatsapp_business_account"
-    
+
     @factory.lazy_attribute
     def entry(self):
         return [
@@ -49,31 +54,29 @@ class WhatsAppWebhookFactory(factory.Factory):
                             "messaging_product": "whatsapp",
                             "metadata": {
                                 "display_phone_number": "1234567890",
-                                "phone_number_id": "123456789"
+                                "phone_number_id": "123456789",
                             },
-                            "messages": [self.message] if hasattr(self, 'message') else []
+                            "messages": (
+                                [self.message] if hasattr(self, "message") else []
+                            ),
                         },
-                        "field": "messages"
+                        "field": "messages",
                     }
-                ]
+                ],
             }
         ]
 
     @classmethod
     def with_text_message(cls, text_content: str = "Test message") -> Dict[str, Any]:
         """Create webhook payload with a text message."""
-        message = WhatsAppMessageFactory(
-            type="text",
-            text={"body": text_content}
-        )
+        message = WhatsAppMessageFactory(type="text", text={"body": text_content})
         return cls(message=message)
 
     @classmethod
     def with_voice_message(cls, audio_id: str = "audio123") -> Dict[str, Any]:
         """Create webhook payload with a voice message."""
         message = WhatsAppMessageFactory(
-            type="audio",
-            audio={"id": audio_id, "mime_type": "audio/ogg; codecs=opus"}
+            type="audio", audio={"id": audio_id, "mime_type": "audio/ogg; codecs=opus"}
         )
         return cls(message=message)
 
@@ -91,29 +94,26 @@ class WhatsAppWebhookFactory(factory.Factory):
                                 "messaging_product": "whatsapp",
                                 "metadata": {
                                     "display_phone_number": "1234567890",
-                                    "phone_number_id": "123456789"
+                                    "phone_number_id": "123456789",
                                 },
-                                "messages": messages
+                                "messages": messages,
                             },
-                            "field": "messages"
+                            "field": "messages",
                         }
-                    ]
+                    ],
                 }
-            ]
+            ],
         }
 
     @classmethod
     def empty_payload(cls) -> Dict[str, Any]:
         """Create empty webhook payload."""
-        return {
-            "object": "whatsapp_business_account",
-            "entry": []
-        }
+        return {"object": "whatsapp_business_account", "entry": []}
 
 
 class LegalQueryFactory(factory.Factory):
     """Factory for creating legal query test data."""
-    
+
     class Meta:
         model = dict
 
@@ -127,27 +127,34 @@ class LegalQueryFactory(factory.Factory):
         "What happens if I don't appear in court?",
         "Can I get legal aid for a traffic case?",
         "What is the difference between a citation and a summons?",
-        "How do I check if my license is suspended?"
+        "How do I check if my license is suspended?",
     ]
 
     @classmethod
     def random_query(cls) -> str:
         """Return a random legal query."""
         import random
+
         return random.choice(cls.queries)
 
     @classmethod
     def traffic_law_query(cls) -> str:
         """Return a traffic law specific query."""
-        traffic_queries = [q for q in cls.queries if any(word in q.lower() 
-                          for word in ['traffic', 'speeding', 'license', 'fine'])]
+        traffic_queries = [
+            q
+            for q in cls.queries
+            if any(
+                word in q.lower() for word in ["traffic", "speeding", "license", "fine"]
+            )
+        ]
         import random
+
         return random.choice(traffic_queries)
 
 
 class TranscriptionResponseFactory(factory.Factory):
     """Factory for creating transcription response test data."""
-    
+
     class Meta:
         model = dict
 
@@ -162,9 +169,10 @@ class TranscriptionResponseFactory(factory.Factory):
             "I got into an accident, what should I do?",
             "How do I file a complaint against a police officer?",
             "My license was suspended, how do I get it back?",
-            "I need legal representation for my court case"
+            "I need legal representation for my court case",
         ]
         import random
+
         return random.choice(transcriptions)
 
     @classmethod
@@ -180,47 +188,52 @@ class TranscriptionResponseFactory(factory.Factory):
     @classmethod
     def long_transcription(cls) -> str:
         """Return a long transcription."""
-        return ("I was driving on the highway yesterday when I got pulled over "
-                "by a police officer who said I was speeding. I don't think I was "
-                "going over the speed limit, but he gave me a ticket anyway. "
-                "I want to know what my options are for fighting this ticket "
-                "and whether I need a lawyer. The fine is quite expensive and "
-                "I'm worried about points on my license. Can you help me understand "
-                "the legal process and what I should do next?")
+        return (
+            "I was driving on the highway yesterday when I got pulled over "
+            "by a police officer who said I was speeding. I don't think I was "
+            "going over the speed limit, but he gave me a ticket anyway. "
+            "I want to know what my options are for fighting this ticket "
+            "and whether I need a lawyer. The fine is quite expensive and "
+            "I'm worried about points on my license. Can you help me understand "
+            "the legal process and what I should do next?"
+        )
 
 
 class ApiResponseFactory(factory.Factory):
     """Factory for creating API response test data."""
-    
+
     class Meta:
         model = dict
 
     @classmethod
-    def whatsapp_send_success(cls, message_id: str = "wamid.success123") -> Dict[str, Any]:
+    def whatsapp_send_success(
+        cls, message_id: str = "wamid.success123"
+    ) -> Dict[str, Any]:
         """Return successful WhatsApp send response."""
-        return {
-            "messaging_product": "whatsapp",
-            "messages": [{"id": message_id}]
-        }
+        return {"messaging_product": "whatsapp", "messages": [{"id": message_id}]}
 
     @classmethod
-    def whatsapp_media_info(cls, media_url: str = "https://example.com/media.ogg") -> Dict[str, Any]:
+    def whatsapp_media_info(
+        cls, media_url: str = "https://example.com/media.ogg"
+    ) -> Dict[str, Any]:
         """Return WhatsApp media info response."""
         return {
             "url": media_url,
             "mime_type": "audio/ogg; codecs=opus",
             "sha256": "test_hash",
             "file_size": 12345,
-            "id": "media123"
+            "id": "media123",
         }
 
     @classmethod
-    def error_response(cls, error_code: int = 400, error_message: str = "Bad Request") -> Dict[str, Any]:
+    def error_response(
+        cls, error_code: int = 400, error_message: str = "Bad Request"
+    ) -> Dict[str, Any]:
         """Return error response."""
         return {
             "error": {
                 "code": error_code,
                 "message": error_message,
-                "type": "OAuthException"
+                "type": "OAuthException",
             }
         }

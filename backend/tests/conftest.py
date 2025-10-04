@@ -1,10 +1,11 @@
+import asyncio
 import os
 import sys
+from typing import Generator
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-import asyncio
-from unittest.mock import Mock, AsyncMock
 from fastapi.testclient import TestClient
-from typing import AsyncGenerator, Generator
 
 # Set test environment variables before importing app modules
 os.environ["WHATSAPP_ACCESS_TOKEN"] = "test_token"
@@ -13,9 +14,10 @@ os.environ["VERIFY_TOKEN"] = "test_verify_token"
 os.environ["DEBUG"] = "true"
 
 # Add the app directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'app'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 
-from app.main import app
+# Import after path setup to avoid import issues
+from app.main import app  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -65,25 +67,23 @@ def sample_whatsapp_message():
                             "messaging_product": "whatsapp",
                             "metadata": {
                                 "display_phone_number": "1234567890",
-                                "phone_number_id": "123456789"
+                                "phone_number_id": "123456789",
                             },
                             "messages": [
                                 {
                                     "from": "1234567890",
                                     "id": "wamid.test123",
                                     "timestamp": "1634567890",
-                                    "text": {
-                                        "body": "Hello, test message"
-                                    },
-                                    "type": "text"
+                                    "text": {"body": "Hello, test message"},
+                                    "type": "text",
                                 }
-                            ]
+                            ],
                         },
-                        "field": "messages"
+                        "field": "messages",
                     }
-                ]
+                ],
             }
-        ]
+        ],
     }
 
 
@@ -101,7 +101,7 @@ def sample_voice_message():
                             "messaging_product": "whatsapp",
                             "metadata": {
                                 "display_phone_number": "1234567890",
-                                "phone_number_id": "123456789"
+                                "phone_number_id": "123456789",
                             },
                             "messages": [
                                 {
@@ -110,17 +110,17 @@ def sample_voice_message():
                                     "timestamp": "1634567890",
                                     "audio": {
                                         "id": "audio123",
-                                        "mime_type": "audio/ogg; codecs=opus"
+                                        "mime_type": "audio/ogg; codecs=opus",
                                     },
-                                    "type": "audio"
+                                    "type": "audio",
                                 }
-                            ]
+                            ],
                         },
-                        "field": "messages"
+                        "field": "messages",
                     }
-                ]
+                ],
             }
-        ]
+        ],
     }
 
 

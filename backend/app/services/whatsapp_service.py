@@ -1,7 +1,9 @@
-import httpx
-from app.core.config import settings, get_whatsapp_api_url
-from io import BytesIO
 import tempfile
+
+import httpx
+
+from app.core.config import settings
+
 
 class WhatsAppService:
     def __init__(self):
@@ -10,12 +12,15 @@ class WhatsAppService:
 
     async def send_text(self, to: str, text: str):
         url = f"https://graph.facebook.com/v22.0/{self.api_url}/messages"
-        headers = {"Authorization": f"Bearer {self.access_token}" , "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
         data = {
             "messaging_product": "whatsapp",
             "to": to,
             "type": "text",
-            "text": {"body": text}
+            "text": {"body": text},
         }
         async with httpx.AsyncClient() as client:
             resp = await client.post(url, json=data, headers=headers)

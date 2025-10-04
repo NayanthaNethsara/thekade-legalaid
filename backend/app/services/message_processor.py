@@ -1,9 +1,11 @@
-from app.services.whatsapp_service import WhatsAppService
-from app.services.transcription_service import TranscriptionService
 import os
+
+from app.services.transcription_service import TranscriptionService
+from app.services.whatsapp_service import WhatsAppService
 
 whatsapp_service = WhatsAppService()
 transcription_service = TranscriptionService()
+
 
 class MessageProcessor:
     @staticmethod
@@ -20,8 +22,10 @@ class MessageProcessor:
             print(f"Unsupported message type from {user_id}: {msg_type}")
             await WhatsAppService().send_text(
                 user_id,
-                f"Sorry, I only process text and voice messages for now. You sent a {msg_type}."
+                f"Sorry, I only process text and voice messages for now. "
+                f"You sent a {msg_type}.",
             )
+
     @staticmethod
     async def process_text_message(message: dict):
         user_id = message.get("from")

@@ -1,4 +1,11 @@
-from app.core.app_factory import create_app
+from fastapi import FastAPI
+from app.core.config import settings
 
-# Create application instance
-app = create_app()
+app = FastAPI(debug=settings.DEBUG)
+
+@app.get("/test")
+def test():
+    return {
+        "debug": settings.DEBUG,
+        "api": settings.WHATSAPP_API
+    }

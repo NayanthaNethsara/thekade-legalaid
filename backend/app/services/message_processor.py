@@ -1,0 +1,33 @@
+from app.services.whatsapp_service import WhatsAppService
+from app.services.transcription_service import TranscriptionService
+import os
+
+whatsapp_service = WhatsAppService()
+transcription_service = TranscriptionService()
+
+class MessageProcessor:
+    @staticmethod
+    async def process_text_message(message: dict):
+        user_id = message.get("from")
+        text = message.get("text", {}).get("body")
+        if not text:
+            return
+        print(f"Text from {user_id}: {text}")
+        await whatsapp_service.send_text(user_id, f"You said: {text}")
+
+    @staticmethod
+    async def process_voice_message(message: dict):
+        user_id = message.get("from")
+        media_id = message.get("audio", {}).get("id")
+        if not media_id:
+            return
+
+        # Download and transcribe
+        audio_file_path = await whatsapp_service.download_media(media_id)
+        text = transcription_service.transcribe(audio_file_path)
+
+        # Delete temp file
+        os.remove(audio_file_path)
+
+        print(f"Voice from {user_id}: {text}")
+        await whatsapp_service.send_text(user_id, f"Transcription: {text}")

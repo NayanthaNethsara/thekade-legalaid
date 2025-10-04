@@ -2,12 +2,12 @@ name: Backend Tests
 
 on:
   push:
-    branches: [main, develop, feature/*]
+    branches: [main, dev, feature/*]
     paths:
       - "backend/**"
       - ".github/workflows/backend-tests.yml"
   pull_request:
-    branches: [main, develop]
+    branches: [main, dev]
     paths:
       - "backend/**"
       - ".github/workflows/backend-tests.yml"
@@ -75,7 +75,7 @@ jobs:
           pytest tests/ --junitxml=test-results.xml --cov=app --cov-report=html
 
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results-${{ matrix.python-version }}

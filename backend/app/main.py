@@ -1,4 +1,6 @@
-from app.core.app_factory import create_app
+from fastapi import FastAPI
+from app.api import whatsapp
 
-# Create application instance
-app = create_app()
+app = FastAPI()
+
+app.include_router(whatsapp.router)

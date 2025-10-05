@@ -1,5 +1,5 @@
 import httpx
-from app.core.config import settings, get_whatsapp_api_url
+from app.core.config import settings
 from io import BytesIO
 import tempfile
 

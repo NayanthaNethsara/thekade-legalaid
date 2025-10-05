@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     WHATSAPP_ACCESS_TOKEN: str
     BUSINESS_PHONE_NUMBER_ID: str
     VERIFY_TOKEN: str
+    N8N_WEBHOOK_URL: str
 
     class Config:
         env_file = ".env"
@@ -12,6 +13,3 @@ class Settings(BaseSettings):
         extra = "ignore"
 
 settings = Settings()
-
-def get_whatsapp_api_url() -> str:
-    return f"https://graph.facebook.com/v22.0/{Settings.BUSINESS_PHONE_NUMBER_ID}/messages"

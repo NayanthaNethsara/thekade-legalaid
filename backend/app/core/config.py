@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     BUSINESS_PHONE_NUMBER_ID: str
     VERIFY_TOKEN: str
     N8N_WEBHOOK_URL: str
+    GEMINI_API_KEY: str
 
     class Config:
         env_file = ".env"

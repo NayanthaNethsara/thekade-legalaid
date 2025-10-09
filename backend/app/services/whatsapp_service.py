@@ -10,7 +10,10 @@ class WhatsAppService:
 
     async def send_text(self, to: str, text: str):
         url = f"https://graph.facebook.com/v22.0/{self.api_url}/messages"
-        headers = {"Authorization": f"Bearer {self.access_token}" , "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
         data = {
             "messaging_product": "whatsapp",
             "to": to,
@@ -18,9 +21,15 @@ class WhatsAppService:
             "text": {"body": text}
         }
         async with httpx.AsyncClient() as client:
-            resp = await client.post(url, json=data, headers=headers)
-            resp.raise_for_status()
-            return resp.json()
+            try:
+                resp = await client.post(url, json=data, headers=headers)
+                resp.raise_for_status()
+                return resp.json()
+            except httpx.HTTPStatusError as e:
+                # log the error and return API-friendly response
+                print(f"WhatsApp API error: {e.response.text}")
+                return {"error": e.response.text, "status_code": e.response.status_code}
+
 
     async def download_media(self, media_id: str) -> str:
         headers = {"Authorization": f"Bearer {self.access_token}"}

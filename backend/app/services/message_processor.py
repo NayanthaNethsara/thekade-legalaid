@@ -39,7 +39,7 @@ class MessageProcessor:
 
         print(f"Message from {user_id}: {text}")
 
-        # Step 2: NLP processing
+        # Step 2: NLP processing (static method call)
         nlp_result = NLPService.parse_message_rule(text)
 
         # Step 3: Handle intent

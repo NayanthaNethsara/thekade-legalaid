@@ -65,7 +65,7 @@ class NLPService:
         """
         text_lower = text.lower()
 
-        # Reminder detection
+        # Reminder / Note detection
         if any(word in text_lower for word in self.reminder_keywords):
             time_match = re.search(r"at (\d{1,2})(?::(\d{2}))?", text_lower)
             if time_match:
@@ -79,18 +79,12 @@ class NLPService:
             else:
                 time_iso = (datetime.now() + timedelta(minutes=1)).isoformat()
 
-            # If it's just a note without "remind me", classify as note
-            if "remember" in text_lower:
-                intent = "note"
-            else:
-                intent = "reminder"
-
+            intent = "note" if "remember" in text_lower else "reminder"
             action = re.sub(r"(remind me to |reminder to )", "", text_lower, flags=re.I).strip()
             return {"intent": intent, "action": action, "time": time_iso, "raw": text}
 
         # Meeting detection
         if "meeting" in text_lower or "call" in text_lower or "appointment" in text_lower:
-            # try to extract time
             time_match = re.search(r"at (\d{1,2})(?::(\d{2}))?", text_lower)
             if time_match:
                 hour = int(time_match.group(1))
@@ -108,8 +102,9 @@ class NLPService:
         if any(text_lower.startswith(word) for word in self.question_keywords):
             return {"intent": "question", "action": text, "time": None, "raw": text}
 
-        # Todo detection: short tasks without time keywords
-        if len(text.split()) < 10 and not any(word in text_lower for word in ["meeting", "remind", "remember"]):
+        # Todo detection: imperative short tasks
+        todo_verbs = ["finish", "complete", "start", "buy", "call", "send", "write", "prepare"]
+        if any(text_lower.startswith(v) for v in todo_verbs):
             return {"intent": "todo", "action": text, "time": None, "raw": text}
 
         # Default to chat

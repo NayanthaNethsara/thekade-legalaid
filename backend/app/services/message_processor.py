@@ -2,6 +2,10 @@ from app.services.whatsapp_service import WhatsAppService
 from app.services.transcription_service import TranscriptionService
 from app.services.nlp_service import NLPService
 from app.services.reminder_service import ReminderService
+from app.services.todo_service import TodoService
+from app.services.note_service import NoteService
+from app.services.meeting_service import MeetingService
+from app.services.chatbot_service import ChatbotService
 import os
 
 whatsapp_service = WhatsAppService()
@@ -36,7 +40,7 @@ class MessageProcessor:
         print(f"Message from {user_id}: {text}")
 
         # Step 2: NLP processing
-        nlp_result = NLPService.parse_message(text)
+        nlp_result = NLPService.parse_message_rule(text)
 
         # Step 3: Handle intent
         await MessageProcessor.handle_intent(user_id, nlp_result)
@@ -58,22 +62,33 @@ class MessageProcessor:
 
     @staticmethod
     async def handle_intent(user_id: str, nlp_result: dict):
-        """
-        Handle structured NLP result: send to n8n, WhatsApp reply, etc.
-        """
         intent = nlp_result.get("intent")
+        action = nlp_result.get("action")
+        time = nlp_result.get("time")
+        raw = nlp_result.get("raw")
 
         if intent == "reminder":
-            await ReminderService.create_reminder(
-                user_id=user_id,
-                text=nlp_result["action"],
-                time=nlp_result["time"]
-            )
+            await ReminderService.create_reminder(user_id, action, time)
             await whatsapp_service.send_text(
                 user_id,
-                f"Got it! I'll remind you to {nlp_result['action']} at {nlp_result['time'][11:16]}."
+                f"Got it! I'll remind you to {action} at {time[11:16]}."
             )
-        elif intent == "question":
-            await whatsapp_service.send_text(user_id, "I see you have a question. I'll answer it soon!")
+        elif intent == "todo":
+            await TodoService.create_todo(user_id, action)
+            await whatsapp_service.send_text(
+                user_id, f"Todo created: {action}"
+            )
+        elif intent == "note":
+            await NoteService.create_note(user_id, action)
+            await whatsapp_service.send_text(
+                user_id, f"Noted: {action}"
+            )
+        elif intent == "meeting":
+            await MeetingService.create_meeting(user_id, action, time)
+            await whatsapp_service.send_text(
+                user_id, f"Meeting scheduled: {action} at {time[11:16]}"
+            )
         else:
-            await whatsapp_service.send_text(user_id, f"You said: {nlp_result.get('text')}")
+            # Anything else goes to chatbot
+            reply = await ChatbotService.ask(user_id, raw)
+            await whatsapp_service.send_text(user_id, reply)

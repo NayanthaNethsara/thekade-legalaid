@@ -1,60 +1,116 @@
-import re
 from datetime import datetime, timedelta
-from typing import Optional
+import json
+import re
+from app.core.llm_client import LLMClient
 
 class NLPService:
     """
-    Simple rule-based NLP for WhatsApp messages.
-    Detects 'reminder' intent and extracts time and action.
+    LLM-based NLP for WhatsApp messages with optional rule-based fallback.
+    Detects job types (reminder, todo, note, meeting) or falls back to chat.
     """
 
-    reminder_keywords = ["remind", "reminder", "remember"]
+    reminder_keywords = ["remind", "reminder", "remember", "remmber", "remindd"]
+    question_keywords = ["what", "how", "why", "when"]
 
-    @staticmethod
-    def parse_message(text: str) -> dict:
+    def __init__(self, llm_client: LLMClient):
+        self.llm = llm_client
+
+    def parse_message(self, text: str) -> dict:
         """
-        Returns structured intent data:
-        - intent: 'reminder' / 'chat' / 'unknown'
-        - action: task description (if reminder)
-        - time: ISO string (if reminder)
+        LLM-based parsing: returns structured intent data.
+        Fallback to chat if LLM output is invalid.
+        """
+        prompt = f"""
+        You are an NLP parser for a WhatsApp assistant.
+        Return **valid JSON only** with these fields:
+
+        {{
+          "intent": "reminder" | "todo" | "note" | "meeting" | "question" | "chat",
+          "action": "<short task or summary>",
+          "time": "<ISO8601 datetime if applicable, else null>"
+        }}
+
+        Notes:
+        - "reminder": user says "remind", "reminder", etc.
+        - "todo": short tasks without specific time
+        - "note": general info to remember
+        - "meeting": message mentions meeting, call, event with time
+        - "question": questions ("what", "how", etc.)
+        - "chat": everything else
+        - If time missing for reminders or meetings, assume now + 1 minute
+
+        Message: "{text}"
+        """
+
+        raw_response = self.llm.generate(prompt)
+
+        try:
+            data = json.loads(raw_response)
+        except Exception:
+            # fallback to rules if LLM output invalid
+            data = self.parse_message_rule(text)
+
+        # default time for reminders/meetings
+        if data.get("intent") in ["reminder", "meeting"] and not data.get("time"):
+            data["time"] = (datetime.now() + timedelta(minutes=1)).isoformat()
+
+        # always include raw text
+        data["raw"] = text
+        return data
+
+    def parse_message_rule(self, text: str) -> dict:
+        """
+        Rule-based NLP parsing with support for:
+        reminder, todo, note, meeting, question, chat
         """
         text_lower = text.lower()
 
-        # Check for reminder intent
-        if any(word in text_lower for word in NLPService.reminder_keywords):
-            # Extract time (basic: look for 'at HH' or 'at HH:MM')
+        # Reminder detection
+        if any(word in text_lower for word in self.reminder_keywords):
             time_match = re.search(r"at (\d{1,2})(?::(\d{2}))?", text_lower)
             if time_match:
                 hour = int(time_match.group(1))
                 minute = int(time_match.group(2) or 0)
                 now = datetime.now()
-                reminder_time = datetime(
-                    year=now.year,
-                    month=now.month,
-                    day=now.day,
-                    hour=hour,
-                    minute=minute
-                )
-                # If time already passed today, assume tomorrow
-                if reminder_time < now:
-                    reminder_time += timedelta(days=1)
-                time_iso = reminder_time.isoformat()
-
+                dt = datetime(now.year, now.month, now.day, hour, minute)
+                if dt < now:
+                    dt += timedelta(days=1)
+                time_iso = dt.isoformat()
             else:
-                # Default time: now + 1 minute
                 time_iso = (datetime.now() + timedelta(minutes=1)).isoformat()
 
-            # Extract action (remove "remind me to" or "reminder to")
-            action = re.sub(r"(remind me to |reminder to )", "", text_lower, flags=re.I).strip()
-        
-            return {
-                "intent": "reminder",
-                "action": action,
-                "time": time_iso
-            }
+            # If it's just a note without "remind me", classify as note
+            if "remember" in text_lower:
+                intent = "note"
+            else:
+                intent = "reminder"
 
-        # Could add more rules here for questions / other intents
-        if text_lower.startswith(("what", "how", "why", "when")):
-            return {"intent": "question", "text": text}
-        
-        return {"intent": "chat", "text": text}
+            action = re.sub(r"(remind me to |reminder to )", "", text_lower, flags=re.I).strip()
+            return {"intent": intent, "action": action, "time": time_iso, "raw": text}
+
+        # Meeting detection
+        if "meeting" in text_lower or "call" in text_lower or "appointment" in text_lower:
+            # try to extract time
+            time_match = re.search(r"at (\d{1,2})(?::(\d{2}))?", text_lower)
+            if time_match:
+                hour = int(time_match.group(1))
+                minute = int(time_match.group(2) or 0)
+                now = datetime.now()
+                dt = datetime(now.year, now.month, now.day, hour, minute)
+                if dt < now:
+                    dt += timedelta(days=1)
+                time_iso = dt.isoformat()
+            else:
+                time_iso = (datetime.now() + timedelta(minutes=1)).isoformat()
+            return {"intent": "meeting", "action": text, "time": time_iso, "raw": text}
+
+        # Question detection
+        if any(text_lower.startswith(word) for word in self.question_keywords):
+            return {"intent": "question", "action": text, "time": None, "raw": text}
+
+        # Todo detection: short tasks without time keywords
+        if len(text.split()) < 10 and not any(word in text_lower for word in ["meeting", "remind", "remember"]):
+            return {"intent": "todo", "action": text, "time": None, "raw": text}
+
+        # Default to chat
+        return {"intent": "chat", "action": text, "time": None, "raw": text}

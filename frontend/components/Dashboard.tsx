@@ -1,15 +1,15 @@
 import { UpcomingTasks } from "./UpcomingTasks";
-import { LegalInsights } from "./LegalInsights";
 import { CaseProgress } from "./CaseProgress";
 import { QuickActions } from "./QuickActions";
 import { RecentDocuments } from "./RecentDocuments";
+import { StickyNotes } from "./StickyNotes";
 
 interface DashboardProps {
   userName: string;
   greeting: string;
 }
 
-export function Dashboard({ userName, greeting }: DashboardProps) {
+export function Dashboard({ userName, greeting }: Readonly<DashboardProps>) {
   return (
     <div className="space-y-6">
       {/* Main Greeting */}
@@ -18,7 +18,7 @@ export function Dashboard({ userName, greeting }: DashboardProps) {
           {greeting}, {userName}!
         </h2>
         <p className="text-base sm:text-lg text-gray-600">
-          How can I assist you with your legal work today?
+          What can I help you with today?
         </p>
       </div>
 
@@ -37,7 +37,7 @@ export function Dashboard({ userName, greeting }: DashboardProps) {
         
         {/* Right Column */}
         <div className="lg:order-3 space-y-4 sm:space-y-6">
-          <LegalInsights />
+          <StickyNotes />
           <CaseProgress />
         </div>
       </div>

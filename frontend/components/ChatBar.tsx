@@ -30,7 +30,7 @@ export function ChatBar({ onNavigateToChat }: ChatBarProps) {
 
   return (
     <motion.div 
-      className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-gray-900/20 to-transparent backdrop-blur-xl"
+      className="fixed bottom-0 left-0 right-0 z-50 p-4"
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -50,7 +50,7 @@ export function ChatBar({ onNavigateToChat }: ChatBarProps) {
             {/* AI Indicator */}
             <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-amber-100/80 to-yellow-100/80 rounded-xl border border-amber-200/50">
               <Sparkles className="w-4 h-4 text-amber-600" />
-              <span className="text-xs font-medium text-amber-700">AI Legal Assistant</span>
+              <span className="text-xs font-medium text-amber-700">Kakille AI</span>
             </div>
 
             {/* Chat Input */}
@@ -59,7 +59,7 @@ export function ChatBar({ onNavigateToChat }: ChatBarProps) {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask me anything about legal matters..."
+                placeholder="What's on your mind today?"
                 className="flex-1 border-0 bg-transparent placeholder:text-gray-500 focus-visible:ring-0 px-0"
               />
               

@@ -18,9 +18,9 @@ export function Header() {
     <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 bg-gradient-to-br from-gray-700 to-gray-900 rounded-lg flex items-center justify-center shadow-lg">
-          <span className="text-white text-sm font-semibold">L</span>
+          <span className="text-white text-sm font-semibold">K</span>
         </div>
-        <h1 className="text-xl font-semibold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">LexisAI</h1>
+        <h1 className="text-xl font-semibold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">Kakille AI</h1>
       </div>
       
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-sm text-gray-500">

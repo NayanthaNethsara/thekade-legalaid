@@ -4,7 +4,6 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { GlassCard } from "./GlassCard";
 import { motion, AnimatePresence } from "framer-motion";
-
 interface Message {
   id: string;
   content: string;
@@ -15,15 +14,15 @@ interface Message {
 const initialMessages: Message[] = [
   {
     id: "1",
-    content: "Hello! I'm your AI legal assistant. I can help you with contract analysis, legal research, case summaries, and much more. What can I assist you with today?",
+    content: "Hey there! I'm Kakille AI, your legal assistant. Whether you need help with contracts, research, case analysis, or just want to brainstorm—I'm here for you. What would you like to work on?",
     sender: "ai",
     timestamp: new Date(Date.now() - 300000),
   },
 ];
 
 export function ChatWindow() {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-  const [isTyping, setIsTyping] = useState(false);
+  const [messages] = useState<Message[]>(initialMessages);
+  const [isTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -50,7 +49,7 @@ export function ChatWindow() {
             <Bot className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">AI Legal Assistant</h3>
+            <h3 className="font-semibold text-gray-900">Kakille AI</h3>
             <p className="text-sm text-gray-600">Online • Ready to help</p>
           </div>
         </div>

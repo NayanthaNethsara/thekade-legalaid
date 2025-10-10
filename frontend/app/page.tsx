@@ -1,17 +1,15 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Users, Calendar, Search, Briefcase, MessageCircle } from "lucide-react";
 import { Header } from "./../components/Header";
 import { Sidebar } from "./../components/Sidebar";
 import { Dashboard } from "./../components/Dashboard";
 import { ChatWindow } from "./../components/ChatWindow";
 import { ChatBar } from "./../components/ChatBar";
 import { Forum } from "./../components/Forum";
-import { PlaceholderPage } from "./../components/PlaceholderPage";
 import { DocumentsPage } from "./../components/DocumentsPage";
-import { CalendarPage } from "@/components/CalendarPage";
-import { ResearchPage } from "@/components/ResearchPage";
+import { CalendarPage } from "./../components/CalendarPage";
+import { ResearchPage } from "./../components/ResearchPage";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState("dashboard");
@@ -60,10 +58,12 @@ export default function App() {
       }}
     >
       {/* Sidebar */}
-    <Sidebar currentPage={currentPage} onNavigateAction={setCurrentPage} />
+    <div className="fixed top-0 left-0 h-screen z-50">
+      <Sidebar currentPage={currentPage} onNavigateAction={setCurrentPage} />
+    </div>
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+  <div className="flex-1 flex flex-col min-w-0 ml-16">
         <div className="flex-1 p-4 sm:p-6 lg:p-8 pb-32 overflow-auto">
           <div className="max-w-7xl mx-auto">
             <Header />
@@ -86,13 +86,7 @@ export default function App() {
       </div>
 
       {/* Bottom floating decoration */}
-      <div 
-        className="fixed bottom-0 right-0 w-64 h-64 sm:w-96 sm:h-96 opacity-10 pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle, rgba(212, 175, 55, 0.3) 0%, transparent 70%)',
-          filter: 'blur(40px)',
-        }}
-      />
+      
     </div>
   );
 }

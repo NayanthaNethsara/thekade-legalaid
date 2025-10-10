@@ -43,6 +43,10 @@ export function Sidebar({ currentPage, onNavigateAction }: SidebarProps) {
         <div
           className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
+          role="button"
+          tabIndex={0}
+          aria-label="Close sidebar overlay"
+          onKeyDown={e => (e.key === "Enter" || e.key === " ") && setIsMobileOpen(false)}
         />
       )}
 

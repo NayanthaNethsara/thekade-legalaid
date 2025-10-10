@@ -70,7 +70,7 @@ export function CalendarPage() {
     year: "numeric",
   });
 
-  const upcomingEvents = events.sort((a, b) => 
+  const sortedEvents = [...events].sort((a, b) => 
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
@@ -172,7 +172,7 @@ export function CalendarPage() {
           <GlassCard>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Events</h3>
             <div className="space-y-3">
-              {upcomingEvents.map((event, index) => (
+              {sortedEvents.map((event, index) => (
                 <motion.div
                   key={event.id}
                   initial={{ opacity: 0, x: 20 }}

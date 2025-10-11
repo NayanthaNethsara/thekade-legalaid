@@ -1,10 +1,16 @@
 from fastapi import FastAPI
-from app.api import whatsapp
-from app.api import note
+from app.api import whatsapp, note, auth
 
-app = FastAPI()
+app = FastAPI(
+    title="Legal Aid API",
+    description="Legal Aid WhatsApp Bot with JWT Authentication",
+    version="1.0.0"
+)
 
-# Existing routers
+# Authentication router
+app.include_router(auth.router)
+
+# Existing routers  
 app.include_router(whatsapp.router)
 
 # Notes router

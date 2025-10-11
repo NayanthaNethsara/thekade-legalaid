@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     VERIFY_TOKEN: str
     N8N_WEBHOOK_URL: str
     GEMINI_API_KEY: str
+    DATABASE_URL: str
 
     class Config:
         env_file = ".env"

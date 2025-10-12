@@ -11,6 +11,7 @@ class NLPService:
 
     reminder_keywords = ["remind", "reminder", "remember", "remmber", "remindd"]
     question_keywords = ["what", "how", "why", "when"]
+    booking_keywords = ["book", "reserve", "schedule", "appointment"]
 
     def __init__(self, llm_client):
         self.llm = llm_client
@@ -111,3 +112,32 @@ class NLPService:
 
         # Default to chat
         return {"intent": "chat", "action": text, "time": None, "raw": text}
+    
+    
+    @staticmethod
+    def parse_booking(text: str) -> dict:
+        """
+        Demo parser for bookings.
+        If text is not a booking, defaults to chat.
+        """
+        text_lower = text.lower()
+
+        if any(word in text_lower for word in NLPService.booking_keywords):
+            time_match = re.search(r"at (\d{1,2})(?::(\d{2}))?", text_lower)
+            if time_match:
+                hour = int(time_match.group(1))
+                minute = int(time_match.group(2) or 0)
+                now = datetime.now()
+                dt = datetime(now.year, now.month, now.day, hour, minute)
+                if dt < now:
+                    dt += timedelta(days=1)
+                time_iso = dt.isoformat()
+            else:
+                time_iso = (datetime.now() + timedelta(minutes=1)).isoformat()
+
+            action = re.sub(r"(book|reserve|schedule|appointment) ", "", text_lower).strip()
+            return {"intent": "booking", "action": action, "time": time_iso, "raw": text}
+
+        return {"intent": "chat", "action": text, "time": None, "raw": text}
+    
+    

@@ -1,6 +1,6 @@
-# Talvin WhatsApp Gateway
+# WhatsApp Gateway
 
-A NestJS-based gateway service that bridges WhatsApp Cloud API with AI workers through AWS SQS message queues.
+A NestJS-based gateway service that bridges WhatsApp Cloud API with AI workers through Apache Kafka message queues.
 
 ## Overview
 
@@ -8,9 +8,9 @@ This service handles bidirectional message flow between WhatsApp and AI processi
 
 - Receives incoming WhatsApp messages via webhook
 - Validates Meta webhook signatures
-- Routes text messages to SQS incoming queue for AI processing
-- Routes media files (image, video, audio, document) to S3 and file queue for AI processing
-- Consumes responses from SQS outgoing queue
+- Routes text messages to Kafka incoming topic for AI processing
+- Routes media files (image, video, audio, document) to Azure Blob Storage and file metadata topic for AI processing
+- Consumes responses from Kafka outgoing topic
 - Sends processed messages back to WhatsApp users
 
 ## Architecture
@@ -27,11 +27,11 @@ WhatsApp Cloud API
         v
    [Message Router]
         |
-        +-- Text Message --> [SQS Incoming Queue] --> AI Worker
+        +-- Text Message --> [Kafka Incoming Topic] --> AI Worker
         |
-        +-- Media Files --> [Download from WhatsApp] --> [Upload to S3] --> [SQS Incoming File Queue] --> AI Worker
+        +-- Media Files --> [Download from WhatsApp] --> [Upload to Azure Blob] --> [Kafka Incoming File Topic] --> AI Worker
 
-AI Worker --> [SQS Outgoing Queue] --> [SQS Consumer] --> WhatsApp Cloud API
+AI Worker --> [Kafka Outgoing Topic] --> [Kafka Consumer] --> WhatsApp Cloud API
 ```
 
 ## Technology Stack
@@ -39,7 +39,8 @@ AI Worker --> [SQS Outgoing Queue] --> [SQS Consumer] --> WhatsApp Cloud API
 - NestJS 11.x
 - Fastify (HTTP adapter)
 - TypeScript (strict mode)
-- AWS SDK v3 (SQS)
+- KafkaJS (Apache Kafka client)
+- @azure/storage-blob (Azure Blob Storage)
 - WhatsApp Cloud API v21.0
 - Pino (logging)
 
@@ -47,7 +48,8 @@ AI Worker --> [SQS Outgoing Queue] --> [SQS Consumer] --> WhatsApp Cloud API
 
 - Node.js 18+ or 20+
 - pnpm package manager
-- AWS account with SQS access
+- Apache Kafka cluster (or local instance)
+- Azure Storage Account
 - Meta Developer account
 - WhatsApp Business API access
 
@@ -66,19 +68,17 @@ META_APP_SECRET=your_app_secret
 # WhatsApp Cloud API
 WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
 WHATSAPP_ACCESS_TOKEN=your_access_token
+WHATSAPP_BUSINESS_ACCOUNT_ID=your_business_account_id
 
-# AWS Configuration
-AWS_REGION=ap-southeast-1
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
+# Kafka Configuration
+KAFKA_BROKER_URL=localhost:9092
+KAFKA_TOPIC_INCOMING=whatsapp.incoming.messages
+KAFKA_TOPIC_INCOMING_FILE=whatsapp.incoming.files
+KAFKA_TOPIC_OUTGOING=whatsapp.outgoing.messages
 
-# SQS Queue URLs (FIFO queues)
-INCOMING_QUEUE_URL=https://sqs.region.amazonaws.com/account-id/incoming-queue.fifo
-OUTGOING_QUEUE_URL=https://sqs.region.amazonaws.com/account-id/outgoing-queue.fifo
-INCOMING_FILE_QUEUE_URL=https://sqs.region.amazonaws.com/account-id/incoming-file-queue.fifo
-
-# S3 Bucket for media files
-AWS_S3_BUCKET_NAME=your-media-bucket-name
+# Azure Blob Storage Configuration
+AZURE_STORAGE_CONNECTION_STRING=your_connection_string
+AZURE_STORAGE_CONTAINER_NAME=whatsapp-media
 ```
 
 ## Installation
@@ -140,26 +140,25 @@ Returns service health status.
 2. Meta sends webhook POST request
 3. Service validates signature using META_APP_SECRET
 4. **Text messages:**
-   - Sent to SQS incoming queue for AI processing
+   - Sent to Kafka incoming topic for AI processing
    - Message marked as read with typing indicator
 5. **Media files (image, video, audio, document):**
    - Downloaded from WhatsApp Cloud API
-   - Uploaded to S3 bucket
-   - S3 URL sent to SQS incoming file queue for AI processing
+   - Uploaded to Azure Blob Storage container
+   - Blob URL and metadata sent to Kafka incoming file topic
    - Message marked as read with typing indicator
 
 ### Outgoing Messages
 
 1. AI worker processes incoming message
-2. AI worker sends response to SQS outgoing queue
-3. SQS consumer polls the queue
+2. AI worker sends response to Kafka outgoing topic
+3. Kafka consumer reads the message
 4. Message is normalized and sent via WhatsApp API
-5. Successfully sent messages are deleted from queue
-6. Failed messages have extended visibility timeout for retry
+5. Successful messages are logged
 
 ## Message Format
 
-### Incoming Queue (to AI Worker)
+### Incoming Topic (to AI Worker)
 
 ```json
 {
@@ -178,7 +177,7 @@ Returns service health status.
 }
 ```
 
-### Outgoing Queue (from AI Worker)
+### Outgoing Topic (from AI Worker)
 
 Supports multiple formats:
 
@@ -192,15 +191,6 @@ Supports multiple formats:
 }
 ```
 
-Or legacy format:
-
-```json
-{
-  "recipient": "1234567890",
-  "text": "Response message"
-}
-```
-
 ## Project Structure
 
 ```
@@ -210,14 +200,15 @@ src/
 │   └── logger/         # Logging configuration
 ├── config/             # Configuration management
 ├── modules/
-│   ├── aws/           # AWS client provider
-│   ├── health/        # Health check endpoint
-│   ├── sqs/           # SQS producers and consumers
-│   ├── webhook/       # WhatsApp webhook handlers
-│   └── whatsapp/      # WhatsApp API service
+│   ├── azure/          # Azure Blob Storage service
+│   ├── health/         # Health check endpoint
+│   ├── kafka/          # Kafka producers and consumers
+│   │   ├── dto/        # Kafka message DTOs
+│   │   └── ...
+│   ├── webhook/        # WhatsApp webhook handlers
+│   └── whatsapp/       # WhatsApp API service
 ├── types/             # Shared TypeScript types
 │   ├── fastify.d.ts  # Fastify type augmentation
-│   ├── sqs.types.ts  # SQS message types
 │   └── whatsapp.types.ts # WhatsApp API types
 └── main.ts           # Application entry point
 ```
@@ -253,37 +244,18 @@ pnpm test:cov
 pnpm test:watch
 ```
 
-## AWS SQS Setup
+## Kafka Setup
 
-### Queue Configuration
+Ensure you have a Kafka broker running and accessible via `KAFKA_BROKER_URL`. The service will automatically connect to the broker.
 
-Both queues must be FIFO queues:
+The topics specified in `.env` should exist or be auto-created by the broker (depending on broker configuration).
 
-1. Create incoming queue: `talvin-wa-incoming-messages.fifo`
-2. Create outgoing queue: `talvin-wa-outgoing-messages.fifo`
+## Azure Setup
 
-### IAM Permissions
-
-Required permissions for the service:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "sqs:SendMessage",
-        "sqs:ReceiveMessage",
-        "sqs:DeleteMessage",
-        "sqs:DeleteMessageBatch",
-        "sqs:ChangeMessageVisibility"
-      ],
-      "Resource": ["arn:aws:sqs:region:account-id:queue-name.fifo"]
-    }
-  ]
-}
-```
+1. Create an Azure Storage Account.
+2. Get the Connection String from "Access keys".
+3. Create a Container (e.g., `whatsapp-media`) with appropriate access level (usually Blob or Container level if direct access is needed, or Private if accessed only via SAS - current implementation assumes public read for simplicity but can be updated).
+4. Update `.env` with `AZURE_STORAGE_CONNECTION_STRING` and `AZURE_STORAGE_CONTAINER_NAME`.
 
 ## WhatsApp Setup
 
@@ -310,45 +282,6 @@ The service uses Pino for structured logging with the following levels:
 - `debug`: Detailed debugging information
 
 Logs are output in JSON format for production environments.
-
-## Error Handling
-
-### Webhook Signature Validation
-
-- Invalid signatures return 403 Forbidden
-- Missing signatures return 403 Forbidden
-
-### Message Processing
-
-- Invalid message formats are logged and deleted from queue
-- Failed WhatsApp API calls trigger retry via SQS visibility timeout
-- Malformed JSON is caught and logged
-
-### SQS Polling
-
-- Continuous long polling (20 second wait time)
-- Automatic retry on connection errors
-- Batch processing with error isolation
-
-## Troubleshooting
-
-### Webhook Not Receiving Messages
-
-- Verify webhook URL is publicly accessible
-- Check META_VERIFY_TOKEN matches Meta configuration
-- Verify signature validation is working
-
-### SQS Messages Not Processing
-
-- Check AWS credentials and permissions
-- Verify queue URLs are correct
-- Check queue visibility timeout settings
-
-### WhatsApp API Errors
-
-- Verify WHATSAPP_ACCESS_TOKEN is valid
-- Check WHATSAPP_PHONE_NUMBER_ID is correct
-- Review Meta API error responses in logs
 
 ## License
 

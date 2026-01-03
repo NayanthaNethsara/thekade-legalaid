@@ -1,0 +1,54 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+.next
+coverage
+.nyc_output
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.production.local
+
+# IDE files
+.vscode
+.idea
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Temporary files
+tmp
+temp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Test files
+**/*.spec.ts
+**/*.test.ts
+test/
+tests/
+__tests__/
+
+# Documentation
+*.md
+docs/
+
+apps/*/node_modules
+packages/*/node_modules

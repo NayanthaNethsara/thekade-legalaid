@@ -15,6 +15,10 @@ export default () => ({
   },
   kafka: {
     brokerUrl: process.env.KAFKA_BROKER_URL,
+    username: process.env.KAFKA_USERNAME || '$ConnectionString',
+    password: process.env.KAFKA_PASSWORD,
+    ssl: process.env.KAFKA_SSL !== 'false',
+    saslMechanism: process.env.KAFKA_SASL_MECHANISM || 'plain',
     topics: {
       incoming: process.env.KAFKA_TOPIC_INCOMING,
       incomingFile: process.env.KAFKA_TOPIC_INCOMING_FILE,

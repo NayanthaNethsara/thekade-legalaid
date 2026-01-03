@@ -40,7 +40,8 @@ class KafkaService:
             settings.KAFKA_TOPIC_INCOMING,
             **connection_params,
             group_id="conv-service-group",
-            value_deserializer=lambda x: json.loads(x.decode("utf-8"))
+            value_deserializer=lambda x: json.loads(x.decode("utf-8")),
+            auto_offset_reset="earliest"
         )
         await self.consumer.start()
         logger.info("Kafka consumer and producer started")

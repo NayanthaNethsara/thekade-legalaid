@@ -22,11 +22,27 @@ export class KafkaService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn('KAFKA_BROKER_URL not configured');
     }
 
-    this.kafka = new Kafka({
+    const username = this.configService.get<string>('kafka.username');
+    const password = this.configService.get<string>('kafka.password');
+    const ssl = this.configService.get<boolean>('kafka.ssl');
+    const saslMechanism = this.configService.get<string>('kafka.saslMechanism');
+
+    const kafkaConfig: any = {
       clientId: 'whatsapp-gateway',
       brokers: [this.brokerUrl],
       logLevel: logLevel.ERROR,
-    });
+      ssl,
+    };
+
+    if (username && password) {
+      kafkaConfig.sasl = {
+        mechanism: saslMechanism,
+        username,
+        password,
+      };
+    }
+
+    this.kafka = new Kafka(kafkaConfig);
 
     this.producer = this.kafka.producer();
     this.consumer = this.kafka.consumer({ groupId: 'whatsapp-gateway-group' });

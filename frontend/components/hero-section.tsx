@@ -1,15 +1,43 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Menu, X, Search, MessageCircle, Users } from 'lucide-react'
+import { ArrowRight, Menu, X, Search, MessageCircle, Users, Briefcase, Handshake, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AnimatedGroup } from '@/components/ui/animated-group'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+import { motion, useInView } from 'framer-motion'
 
 import { Footer } from './footer';
 
+
+const Counter = ({ target, suffix = '' }: { target: number; suffix?: string }) => {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true });
+
+  useEffect(() => {
+    if (isInView) {
+      const duration = 3000; 
+      const steps = 60;
+      const increment = target / steps;
+      let current = 0;
+      const timer = setInterval(() => {
+        current += increment;
+        if (current >= target) {
+          setCount(target);
+          clearInterval(timer);
+        } else {
+          setCount(Math.floor(current));
+        }
+      }, duration / steps);
+      return () => clearInterval(timer);
+    }
+  }, [isInView, target]);
+
+  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
+};
 
 const transitionVariants = {
     item: {
@@ -325,6 +353,88 @@ export function HeroSection() {
                         </AnimatedGroup>
                     </div>
                 </section>
+
+                {/* Statistics Section */}
+                <AnimatedGroup
+                    variants={{
+                        container: {
+                            visible: {
+                                transition: {
+                                    staggerChildren: 0.1,
+                                    delayChildren: 0.8,
+                                },
+                            },
+                        },
+                        item: transitionVariants.item,
+                    }}
+                >
+                    <section className="py-16 w-full">
+                        <div className="mx-auto max-w-7xl px-6">
+                            <div className="text-center mb-12">
+                                <h2 className="text-3xl font-bold text-foreground mb-4">Trusted by Thousands</h2>
+                                <p className="text-lg text-muted-foreground">Join the growing community accessing quality legal aid</p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="text-center border rounded-lg p-6 shadow-sm hover:scale-105 hover:shadow-xl transition-all duration-500 group">
+                                    <motion.div 
+                                        className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 group-hover:rotate-3 transition-transform"
+                                        animate={{ y: [0, -5, 0] }} 
+                                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                    >
+                                        <Briefcase className="w-10 h-10 text-primary" />
+                                    </motion.div>
+                                    <div className="text-4xl font-bold text-primary mb-2"><Counter target={10000} suffix="+" /></div>
+                                    <div className="text-muted-foreground">Cases Assisted</div>
+                                </div>
+                                <div className="text-center border rounded-lg p-6 shadow-sm hover:scale-105 hover:shadow-xl transition-all duration-500 group">
+                                    <motion.div 
+                                        className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 group-hover:rotate-3 transition-transform"
+                                        animate={{ y: [0, -5, 0] }} 
+                                        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+                                    >
+                                        <Handshake className="w-10 h-10 text-primary" />
+                                    </motion.div>
+                                    <div className="text-4xl font-bold text-primary mb-2"><Counter target={500} suffix="+" /></div>
+                                    <div className="text-muted-foreground">Lawyers Connected</div>
+                                </div>
+                                <div className="text-center border rounded-lg p-6 shadow-sm hover:scale-105 hover:shadow-xl transition-all duration-500 group relative">
+                                    <motion.div 
+                                        className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 group-hover:rotate-3 transition-transform"
+                                        animate={{ y: [0, -5, 0] }} 
+                                        transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+                                    >
+                                        <Star className="w-10 h-10 text-primary" />
+                                    </motion.div>
+                                    <div className="text-4xl font-bold text-primary mb-2"><Counter target={95} suffix="%" /></div>
+                                    <div className="text-muted-foreground mb-3">Satisfaction Rate</div>
+                                    <div className="flex justify-center space-x-1">
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star key={i} className={`w-4 h-4 ${i < 4 ? 'text-yellow-400 fill-current' : i === 4 ? 'text-yellow-400 fill-current opacity-50' : 'text-gray-300'}`} />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </AnimatedGroup>
+
+                {/* Final CTA Banner */}
+                <AnimatedGroup variants={{ item: transitionVariants.item }}>
+                    <section className="py-16 w-full bg-primary/5">
+                        <div className="mx-auto max-w-4xl px-6 text-center">
+                            <h2 className="text-3xl font-bold text-foreground mb-4">Ready to Get Legal Help?</h2>
+                            <p className="text-lg text-muted-foreground mb-8">Start your free consultation today and connect with experienced legal professionals.</p>
+                            <Button
+                                asChild
+                                size="lg"
+                                className="px-8 py-3 text-lg">
+                                <Link href="/register">
+                                    Start Your Free Consultation
+                                </Link>
+                            </Button>
+                        </div>
+                    </section>
+                </AnimatedGroup>
             </main>
 
             <Footer />

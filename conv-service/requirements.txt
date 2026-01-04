@@ -5,3 +5,14 @@ pydantic-settings
 python-dotenv
 aiokafka
 asyncio
+
+# RAG & Vector dependencies
+pgvector
+psycopg[binary]
+openai
+tiktoken
+pypdf
+python-docx
+pytesseract
+pillow
+redis

@@ -175,3 +175,59 @@ If you want, I can:
 - create a short `docs/README-rag-quickstart.md` with step-by-step run instructions.
 
 Created by: repository assistant
+
+---
+
+## Phased Implementation (pre-fed corpus only)
+
+This project will use a pre-fed, trusted legal corpus only. The following phased plan assumes no automatic inclusion of user uploads into the authoritative RAG dataset; only documents explicitly vetted and marked `trusted` by an admin will be indexed and used for answers.
+
+Phase 0 — Planning & corpus curation
+- Identify and gather the authoritative Sri Lanka legal materials (road laws, criminal law statutes, official PDFs).
+- Decide scope (statutes vs. case law vs. guidance documents) and create a trusted corpus folder.
+- Define success criteria (accuracy thresholds, expected citation recall) and privacy constraints.
+
+Phase 1 — Infra & schema
+- Provision Postgres with `pgvector` enabled and create the `documents`/`document_chunks` schema via Alembic migration.
+- Provision Redis for chat/session cache and ensure Kafka topics exist: `indexing.trusted_files`, `rag.queries`, `whatsapp.outgoing.messages`.
+- Add required env vars to `conv-service` config: `DATABASE_URL`, `VECTOR_DIM`, `OPENAI_API_KEY`, `RAG_TOP_K`.
+
+Phase 2 — Admin pre-feed tooling & bulk index
+- Implement an admin CLI (`tools/bulk_index.py`) and/or small admin UI that allows devs to register/upload trusted PDFs to Azure Blob and mark them `trusted`.
+- The CLI should support local folders containing Sri Lanka law PDFs, run OCR/extraction, and either upload to blob and emit messages to `indexing.trusted_files` or call an indexer API directly.
+
+Phase 3 — Indexer & vector storage
+- Implement `conv-service/app/indexer.py` that consumes `indexing.trusted_files`, extracts text, chunks the text, calls the embedding API in batches, and upserts chunks via `app/storage/pgvector.py`.
+- Implement `app/storage/pgvector.py` with `upsert_document`, `upsert_chunks`, `query_similar_chunks`.
+- Add unit tests for chunking/embedding/upsert.
+
+Phase 4 — RAG query handler
+- Implement `/api/rag/query` (HTTP) or a `rag.queries` Kafka consumer that embeds incoming questions, queries `document_chunks` for top-K similar chunks, assembles a prompt with explicit citation metadata, calls the LLM, and returns/publishes the answer.
+- Ensure responses include structured citations (source, document id, chunk index, and a short excerpt).
+
+Phase 5 — Relevance tuning & evaluation
+- Create an evaluation set of Q/A pairs from the Sri Lanka corpus and measure retrieval+generation accuracy.
+- Add a simple reranker (lexical or cross-encoder) to improve final ordering.
+
+Phase 6 — Security, privacy, and operations
+- Add role-based access to the admin pre-feed tooling so only authorized devs can mark `trusted` documents.
+- Implement PII detection and redaction on the ingestion path if needed.
+- Add monitoring (query latency, index size), backups, and reindexing runbooks.
+
+Phase 7 — Docs & demo
+- Add `docs/README-rag-quickstart.md` showing how to bulk-index the Sri Lanka corpus and run sample queries.
+- Provide a demo script that indexes a small set of statutes and runs example questions.
+
+## How the pre-fed-only RAG system will work (simple)
+- Devs curate and mark a set of trusted Sri Lanka legal documents (road law, criminal statutes) using the admin CLI/UI; these documents are uploaded to Azure Blob and registered to the `indexing.trusted_files` topic.
+- The indexer consumes `indexing.trusted_files`, extracts text, chunks and embeds each chunk, and stores embeddings + metadata in Postgres (`document_chunks`).
+- When a user asks a question, the RAG handler embeds the query, retrieves the top-K relevant chunks from `document_chunks`, composes a prompt that includes those chunks with citations, calls the LLM, and returns the answer plus citations.
+
+### Key design choices for reliability and legal correctness
+- Use explicit citations for each supporting chunk so answers can be traced back to statutes or documents.
+- Keep the authoritative legal corpus separate and `trusted` by design — no automatic inclusion of user uploads.
+- Add a lightweight reranker and conservative prompt templates to reduce hallucinations.
+
+---
+
+If you'd like, I can now scaffold the admin bulk-index CLI and `conv-service/app/indexer.py` + `app/storage/pgvector.py` as a next step.

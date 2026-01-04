@@ -1,4 +1,3 @@
-from .kafka import KafkaService
-from .message_processor import MessageProcessor
+from .user import UserService
 
-__all__ = ["KafkaService", "MessageProcessor"]
+__all__ = ["UserService"]

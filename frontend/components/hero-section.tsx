@@ -1,19 +1,43 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { 
-    ArrowRight, 
-    Menu, 
-    X
-} from 'lucide-react'
+import { ArrowRight, Menu, X, Search, MessageCircle, Users, Briefcase, Handshake, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AnimatedGroup } from '@/components/ui/animated-group'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+import { motion, useInView } from 'framer-motion'
 
 import { Footer } from './footer';
 
+
+const Counter = ({ target, suffix = '' }: { target: number; suffix?: string }) => {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true });
+
+  useEffect(() => {
+    if (isInView) {
+      const duration = 3000; 
+      const steps = 60;
+      const increment = target / steps;
+      let current = 0;
+      const timer = setInterval(() => {
+        current += increment;
+        if (current >= target) {
+          setCount(target);
+          clearInterval(timer);
+        } else {
+          setCount(Math.floor(current));
+        }
+      }, duration / steps);
+      return () => clearInterval(timer);
+    }
+  }, [isInView, target]);
+
+  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
+};
 
 const transitionVariants = {
     item: {
@@ -72,7 +96,7 @@ const HeroHeader = () => {
                 data-state={menuState && 'active'}
                 className="fixed z-20 w-full px-2 group">
                 <div className={cn('mx-auto mt-2 max-w-6xl px-6 transition-all duration-300 lg:px-12', isScrolled && 'bg-background/50 max-w-4xl rounded-2xl border backdrop-blur-lg lg:px-5')}>
-                    <div className="relative flex flex-wrap items-center justify-between gap-6 py-3 lg:gap-0 lg:py-4">
+                    <div className="relative flex flex-wrap items-center justify-between gap-6 py-2 lg:gap-0 lg:py-0">
                         <div className="flex w-full justify-between lg:w-auto">
                             <Link
                                 href="/"
@@ -194,13 +218,15 @@ export function HeroSection() {
                             }}
                             className="absolute inset-0 -z-20"
                         >
-                            {/* Replaced with Unsplash Image */}
-                            <img
-                                src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
-                                alt="Abstract tech background"
-                                className="absolute inset-x-0 top-56 -z-20 hidden lg:top-32 dark:block opacity-40 mask-image-gradient"
-                                style={{ maskImage: 'linear-gradient(to bottom, black, transparent)' }}
-                            />
+                                            {/* Background image optimized with next/image for better LCP */}
+                                            <Image
+                                                src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
+                                                alt="Abstract tech background"
+                                                fill
+                                                priority
+                                                className="absolute inset-x-0 top-56 -z-20 hidden lg:top-32 dark:block opacity-40 mask-image-gradient object-cover"
+                                                style={{ objectPosition: '50% 10%', maskImage: 'linear-gradient(to bottom, black, transparent)' }}
+                                            />
                         </AnimatedGroup>
                         <div aria-hidden className="absolute inset-0 -z-10 size-full [background:radial-gradient(125%_125%_at_50%_100%,transparent_0%,var(--background)_75%)]" />
                         <div className="mx-auto max-w-7xl px-6">
@@ -271,6 +297,7 @@ export function HeroSection() {
                                             <span className="text-nowrap">Learn More</span>
                                         </Link>
                                     </Button>
+                                    {/* WhatsApp moved to floating FAB for better visibility */}
                                     </>
                                 </AnimatedGroup>
                             </div>
@@ -289,14 +316,129 @@ export function HeroSection() {
                                 item: transitionVariants.item,
                             }}
                         >
-                            {/* Empty for now, can add more animated content here */}
-                            <></>
+                            {/* Features grid */}
+                            <section className="mt-12 mb-12 w-full">
+                                <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                                        {[
+                                            {
+                                                icon: <Search className="w-14 h-7 text-primary" />,
+                                                title: 'CaseFinder™',
+                                                desc: 'AI search that finds relevant precedents and extracts concise summaries.'
+                                            },
+                                            {
+                                                icon: <MessageCircle className="w-14 h-7 text-primary" />,
+                                                title: 'DraftMate',
+                                                desc: 'Assistive drafting: generate and polish legal text with context-aware suggestions.'
+                                            },
+                                            {
+                                                icon: <Users className="w-14 h-7 text-primary" />,
+                                                title: 'MatchRight',
+                                                desc: 'Smart matching to connect you with the best-suited lawyers.'
+                                            }
+                                        ].map((f) => (
+                                            <div key={f.title} className="flex items-start gap-4 p-4 rounded-lg hover:bg-muted/50 hover:shadow-md hover:scale-105 transition-all duration-300 overflow-hidden">
+                                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary/10 to-primary/5 ring-1 ring-primary/10 hover:scale-110 transition-transform">
+                                                    {f.icon}
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-foreground hover:text-primary transition-colors">{f.title}</h3>
+                                                    <p className="mt-2 text-sm text-muted-foreground max-w-prose">{f.desc}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
                         </AnimatedGroup>
                     </div>
                 </section>
+
+                {/* Statistics Section */}
+                <AnimatedGroup
+                    variants={{
+                        container: {
+                            visible: {
+                                transition: {
+                                    staggerChildren: 0.1,
+                                    delayChildren: 0.8,
+                                },
+                            },
+                        },
+                        item: transitionVariants.item,
+                    }}
+                >
+                    <section className="py-16 w-full">
+                        <div className="mx-auto max-w-7xl px-6">
+                            <div className="text-center mb-12">
+                                <h2 className="text-3xl font-bold text-foreground mb-4">Trusted by Thousands</h2>
+                                <p className="text-lg text-muted-foreground">Join the growing community accessing quality legal aid</p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="text-center border rounded-lg p-6 shadow-sm hover:scale-105 hover:shadow-xl transition-all duration-500 group">
+                                    <motion.div 
+                                        className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 group-hover:rotate-3 transition-transform"
+                                        animate={{ y: [0, -5, 0] }} 
+                                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                    >
+                                        <Briefcase className="w-10 h-10 text-primary" />
+                                    </motion.div>
+                                    <div className="text-4xl font-bold text-primary mb-2"><Counter target={10000} suffix="+" /></div>
+                                    <div className="text-muted-foreground">Cases Assisted</div>
+                                </div>
+                                <div className="text-center border rounded-lg p-6 shadow-sm hover:scale-105 hover:shadow-xl transition-all duration-500 group">
+                                    <motion.div 
+                                        className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 group-hover:rotate-3 transition-transform"
+                                        animate={{ y: [0, -5, 0] }} 
+                                        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+                                    >
+                                        <Handshake className="w-10 h-10 text-primary" />
+                                    </motion.div>
+                                    <div className="text-4xl font-bold text-primary mb-2"><Counter target={500} suffix="+" /></div>
+                                    <div className="text-muted-foreground">Lawyers Connected</div>
+                                </div>
+                                <div className="text-center border rounded-lg p-6 shadow-sm hover:scale-105 hover:shadow-xl transition-all duration-500 group relative">
+                                    <motion.div 
+                                        className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 group-hover:rotate-3 transition-transform"
+                                        animate={{ y: [0, -5, 0] }} 
+                                        transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+                                    >
+                                        <Star className="w-10 h-10 text-primary" />
+                                    </motion.div>
+                                    <div className="text-4xl font-bold text-primary mb-2"><Counter target={95} suffix="%" /></div>
+                                    <div className="text-muted-foreground mb-3">Satisfaction Rate</div>
+                                    <div className="flex justify-center space-x-1">
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star key={i} className={`w-4 h-4 ${i < 4 ? 'text-yellow-400 fill-current' : i === 4 ? 'text-yellow-400 fill-current opacity-50' : 'text-gray-300'}`} />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </AnimatedGroup>
+
+                {/* Final CTA Banner */}
+                <AnimatedGroup variants={{ item: transitionVariants.item }}>
+                    <section className="py-16 w-full bg-primary/5">
+                        <div className="mx-auto max-w-4xl px-6 text-center">
+                            <h2 className="text-3xl font-bold text-foreground mb-4">Ready to Get Legal Help?</h2>
+                            <p className="text-lg text-muted-foreground mb-8">Start your free consultation today and connect with experienced legal professionals.</p>
+                            <Button
+                                asChild
+                                size="lg"
+                                className="px-8 py-3 text-lg">
+                                <Link href="/register">
+                                    Start Your Free Consultation
+                                </Link>
+                            </Button>
+                        </div>
+                    </section>
+                </AnimatedGroup>
             </main>
 
             <Footer />
+            
         </div>
     );
 }

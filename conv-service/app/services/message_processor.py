@@ -1,6 +1,9 @@
 from app.services.kafka import KafkaService
 from app.core.config import settings
 from app.utils.logger import setup_logger
+from app.core.graph import GraphContext, NodeGraph
+from app.nodes.onboarding import OnboardingNode
+from app.core.db import SessionLocal
 import logging
 
 logger = setup_logger(__name__)
@@ -8,11 +11,11 @@ logger = setup_logger(__name__)
 class MessageProcessor:
     def __init__(self, kafka_service: KafkaService):
         self.kafka_service = kafka_service
+        self.node_graph = NodeGraph()
 
     async def process(self, message: dict):
         """
-        Process incoming Kafka messages.
-        This method allows for scalable processing logic (e.g., routing based on type).
+        Process incoming Kafka messages using the Node Graph.
         """
         logger.info(f"Processing message: {message}")
         
@@ -21,21 +24,17 @@ class MessageProcessor:
             if not message.get("from"):
                 logger.warning("Message missing 'from' field, skipping.")
                 return
-            
-            await self.send_echo_reply(message)
+
+            with SessionLocal() as db:
+                context = GraphContext(
+                    message=message,
+                    db=db,
+                    kafka_service=self.kafka_service
+                )
+                
+                # Start processing at OnboardingNode
+                initial_node = OnboardingNode()
+                await self.node_graph.run(context, initial_node)
 
         except Exception as e:
             logger.error(f"Error processing message: {e}", exc_info=True)
-
-    async def send_echo_reply(self, original_message: dict):
-        from_number = original_message.get("from")
-        
-        response = {
-            "to": from_number,
-            "type": "text",
-            "content": {
-                "text": "we got ur msgs"
-            }
-        }
-        
-        await self.kafka_service.send_message(settings.KAFKA_TOPIC_OUTGOING, response)

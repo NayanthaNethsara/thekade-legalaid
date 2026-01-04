@@ -2,11 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { 
-    ArrowRight, 
-    Menu, 
-    X
-} from 'lucide-react'
+import { ArrowRight, Menu, X, Search, MessageCircle, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AnimatedGroup } from '@/components/ui/animated-group'
 import { cn } from '@/lib/utils'
@@ -72,7 +68,7 @@ const HeroHeader = () => {
                 data-state={menuState && 'active'}
                 className="fixed z-20 w-full px-2 group">
                 <div className={cn('mx-auto mt-2 max-w-6xl px-6 transition-all duration-300 lg:px-12', isScrolled && 'bg-background/50 max-w-4xl rounded-2xl border backdrop-blur-lg lg:px-5')}>
-                    <div className="relative flex flex-wrap items-center justify-between gap-6 py-3 lg:gap-0 lg:py-4">
+                    <div className="relative flex flex-wrap items-center justify-between gap-6 py-2 lg:gap-0 lg:py-0">
                         <div className="flex w-full justify-between lg:w-auto">
                             <Link
                                 href="/"
@@ -194,13 +190,15 @@ export function HeroSection() {
                             }}
                             className="absolute inset-0 -z-20"
                         >
-                            {/* Replaced with Unsplash Image */}
-                            <img
-                                src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
-                                alt="Abstract tech background"
-                                className="absolute inset-x-0 top-56 -z-20 hidden lg:top-32 dark:block opacity-40 mask-image-gradient"
-                                style={{ maskImage: 'linear-gradient(to bottom, black, transparent)' }}
-                            />
+                                            {/* Background image optimized with next/image for better LCP */}
+                                            <Image
+                                                src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
+                                                alt="Abstract tech background"
+                                                fill
+                                                priority
+                                                className="absolute inset-x-0 top-56 -z-20 hidden lg:top-32 dark:block opacity-40 mask-image-gradient object-cover"
+                                                style={{ objectPosition: '50% 10%', maskImage: 'linear-gradient(to bottom, black, transparent)' }}
+                                            />
                         </AnimatedGroup>
                         <div aria-hidden className="absolute inset-0 -z-10 size-full [background:radial-gradient(125%_125%_at_50%_100%,transparent_0%,var(--background)_75%)]" />
                         <div className="mx-auto max-w-7xl px-6">
@@ -271,6 +269,7 @@ export function HeroSection() {
                                             <span className="text-nowrap">Learn More</span>
                                         </Link>
                                     </Button>
+                                    {/* WhatsApp moved to floating FAB for better visibility */}
                                     </>
                                 </AnimatedGroup>
                             </div>
@@ -289,14 +288,47 @@ export function HeroSection() {
                                 item: transitionVariants.item,
                             }}
                         >
-                            {/* Empty for now, can add more animated content here */}
-                            <></>
+                            {/* Features grid */}
+                            <section className="mt-12 mb-12 w-full">
+                                <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                                        {[
+                                            {
+                                                icon: <Search className="w-14 h-7 text-primary" />,
+                                                title: 'CaseFinder™',
+                                                desc: 'AI search that finds relevant precedents and extracts concise summaries.'
+                                            },
+                                            {
+                                                icon: <MessageCircle className="w-14 h-7 text-primary" />,
+                                                title: 'DraftMate',
+                                                desc: 'Assistive drafting: generate and polish legal text with context-aware suggestions.'
+                                            },
+                                            {
+                                                icon: <Users className="w-14 h-7 text-primary" />,
+                                                title: 'MatchRight',
+                                                desc: 'Smart matching to connect you with the best-suited lawyers.'
+                                            }
+                                        ].map((f) => (
+                                            <div key={f.title} className="flex items-start gap-4 p-4 rounded-lg hover:bg-muted/50 hover:shadow-md hover:scale-105 transition-all duration-300 overflow-hidden">
+                                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary/10 to-primary/5 ring-1 ring-primary/10 hover:scale-110 transition-transform">
+                                                    {f.icon}
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-foreground hover:text-primary transition-colors">{f.title}</h3>
+                                                    <p className="mt-2 text-sm text-muted-foreground max-w-prose">{f.desc}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
                         </AnimatedGroup>
                     </div>
                 </section>
             </main>
 
             <Footer />
+            
         </div>
     );
 }

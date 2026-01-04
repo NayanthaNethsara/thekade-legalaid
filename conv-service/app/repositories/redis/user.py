@@ -6,7 +6,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-class UserCacheService:
+class UserRedisRepository:
     def __init__(self, redis_client: RedisClient):
         self.redis = redis_client
         self.cache_key = "users_cache"
@@ -16,7 +16,7 @@ class UserCacheService:
         try:
             data_str = await self.redis.hget(self.cache_key, phone_number)
             if not data_str:
-                logger.info(f"Cache miss for {phone_number}")
+                logger.debug(f"Cache miss for {phone_number}")
                 return None
 
             data = json.loads(data_str)
@@ -27,13 +27,13 @@ class UserCacheService:
                 await self.redis.hdel(self.cache_key, phone_number)
                 return None
 
-            logger.info(f"Cache hit for {phone_number}")
+            logger.debug(f"Cache hit for {phone_number}")
             # Refresh TTL
             await self.set_user(phone_number, data["data"])
             
             return data["data"]
         except Exception as e:
-            logger.error(f"UserCacheService get error: {e}")
+            logger.error(f"UserRedisRepository get error: {e}")
             return None
 
     async def set_user(self, phone_number: str, user_data: Dict[str, Any]):
@@ -45,4 +45,4 @@ class UserCacheService:
             }
             await self.redis.hset(self.cache_key, phone_number, json.dumps(payload))
         except Exception as e:
-            logger.error(f"UserCacheService set error: {e}")
+            logger.error(f"UserRedisRepository set error: {e}")

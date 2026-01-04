@@ -1,3 +1,4 @@
+from typing import Optional
 from app.core.graph import Node, GraphContext
 from app.utils.logger import setup_logger
 
@@ -12,12 +13,12 @@ class OnboardingNode(Node):
             logger.error("No phone number found in message context")
             return None
 
-        # Check if user exists using repository
-        user = await context.user_repo.get_by_phone_number(phone_number)
+        # Check if user exists using service
+        user = await context.user_service.get_user_by_phone(phone_number)
         
         if not user:
             logger.info(f"Creating new user for {phone_number}")
-            user = await context.user_repo.create(phone_number)
+            user = await context.user_service.create_user(phone_number)
         else:
             logger.info(f"User found: {user.id}")
 

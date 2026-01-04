@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.services.kafka import KafkaService
 
+from app.repositories.user import UserRepository
+
 class GraphContext:
     def __init__(
         self,
@@ -14,6 +16,7 @@ class GraphContext:
         self.message = message
         self.db = db
         self.kafka_service = kafka_service
+        self.user_repo = UserRepository(db)
         self.user: Optional[User] = None
 
 class Node(ABC):

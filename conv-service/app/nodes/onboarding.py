@@ -1,7 +1,5 @@
 from app.core.graph import Node, GraphContext
-from app.models.user import User
 from app.utils.logger import setup_logger
-from sqlalchemy.future import select
 
 logger = setup_logger(__name__)
 
@@ -14,21 +12,12 @@ class OnboardingNode(Node):
             logger.error("No phone number found in message context")
             return None
 
-        # Check if user exists
-        # In synchronous SQLAlchemy with session, we typically iterate or use scalars().first()
-        # Since we are in an async function but using sync DB driver (psycopg2),
-        # strictly speaking we should be careful, but for this worker it's likely running in a thread pool 
-        # or we accept blocking calls if we didn't setup async sqlalchemy.
-        # Given setup was 'sqlalchemy', 'psycopg2-binary' (sync), we will use standard blocking calls.
-        
-        user = context.db.query(User).filter(User.phone_number == phone_number).first()
+        # Check if user exists using repository
+        user = context.user_repo.get_by_phone_number(phone_number)
         
         if not user:
             logger.info(f"Creating new user for {phone_number}")
-            user = User(phone_number=phone_number)
-            context.db.add(user)
-            context.db.commit()
-            context.db.refresh(user)
+            user = context.user_repo.create(phone_number)
         else:
             logger.info(f"User found: {user.id}")
 

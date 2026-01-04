@@ -13,18 +13,14 @@ class OnboardingNode(Node):
             return None
 
         # Check if user exists using repository
-        user = context.user_repo.get_by_phone_number(phone_number)
+        user = await context.user_repo.get_by_phone_number(phone_number)
         
         if not user:
             logger.info(f"Creating new user for {phone_number}")
-            user = context.user_repo.create(phone_number)
+            user = await context.user_repo.create(phone_number)
         else:
             logger.info(f"User found: {user.id}")
 
         context.user = user
-        
-        # For now, we stop here or return a simplified 'EchoNode' if we wanted to replicate previous behavior.
-        # But the request was just to "pipeline to node graph, first node is onboarding".
-        # We can implement a simple 'Echo' logic here or return None.
-        # Let's return None for now as we don't have other nodes.
+            
         return None

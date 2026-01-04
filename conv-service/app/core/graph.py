@@ -2,21 +2,24 @@ from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.models.user import User
-from app.services.kafka import KafkaService
+from app.core.kafka import KafkaService
 
 from app.repositories.user import UserRepository
+from app.services.cache.user import UserCacheService
 
 class GraphContext:
     def __init__(
         self,
         message: Dict[str, Any],
         db: Session,
-        kafka_service: KafkaService
+        kafka_service: KafkaService,
+        user_cache: UserCacheService
     ):
         self.message = message
         self.db = db
         self.kafka_service = kafka_service
-        self.user_repo = UserRepository(db)
+        self.user_cache = user_cache
+        self.user_repo = UserRepository(db, user_cache)
         self.user: Optional[User] = None
 
 class Node(ABC):

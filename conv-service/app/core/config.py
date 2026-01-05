@@ -19,9 +19,9 @@ class Settings(BaseSettings):
     KAFKA_SASL_MECHANISM: str = "PLAIN"
     
     # RAG & Vector Search
-    OPENAI_API_KEY: str = ""
-    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
-    VECTOR_DIM: int = 1536
+    GEMINI_API_KEY: str = ""
+    GEMINI_EMBEDDING_MODEL: str = "models/embedding-001"
+    VECTOR_DIM: int = 768  # Gemini embedding-001 dimension
     CHUNK_SIZE: int = 1000  # tokens
     CHUNK_OVERLAP: int = 200  # tokens
     RAG_TOP_K: int = 5

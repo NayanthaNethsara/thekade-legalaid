@@ -51,14 +51,14 @@ def upgrade() -> None:
     chunks_exists = result.scalar()
     
     if not chunks_exists:
-        # Create document_chunks table with vector column
+        # Create document_chunks table with vector column (768 dimensions for Gemini)
         op.execute("""
             CREATE TABLE document_chunks (
                 id BIGSERIAL PRIMARY KEY,
                 document_id BIGINT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
                 chunk_index INT NOT NULL,
                 text TEXT NOT NULL,
-                embedding vector(1536) NOT NULL,
+                embedding vector(768) NOT NULL,
                 metadata JSONB,
                 created_at TIMESTAMPTZ DEFAULT now() NOT NULL
             )

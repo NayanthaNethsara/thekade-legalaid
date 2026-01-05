@@ -1,11 +1,11 @@
 """
-Embedding client for generating text embeddings via OpenAI API.
+Embedding client for generating text embeddings via Google Gemini API.
 Includes batching, retry logic, and optional caching.
 """
 import logging
 import time
 from typing import List, Optional
-from openai import OpenAI
+import google.generativeai as genai
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -24,12 +24,13 @@ class EmbeddingClient:
         Initialize the embedding client.
         
         Args:
-            api_key: OpenAI API key (uses settings.OPENAI_API_KEY if not provided)
-            model: Embedding model (uses settings.OPENAI_EMBEDDING_MODEL if not provided)
+            api_key: Gemini API key (uses settings.GEMINI_API_KEY if not provided)
+            model: Embedding model (uses settings.GEMINI_EMBEDDING_MODEL if not provided)
             batch_size: Maximum texts to embed in a single API call
         """
-        self.client = OpenAI(api_key=api_key or settings.OPENAI_API_KEY)
-        self.model = model or settings.OPENAI_EMBEDDING_MODEL
+        api_key = api_key or settings.GEMINI_API_KEY
+        genai.configure(api_key=api_key)
+        self.model = model or settings.GEMINI_EMBEDDING_MODEL
         self.batch_size = batch_size
         logger.info(f"EmbeddingClient initialized: model={self.model}, batch_size={batch_size}")
     
@@ -61,20 +62,28 @@ class EmbeddingClient:
         
         all_embeddings = []
         
-        # Process in batches
+        # Process in batches (Gemini can handle batches)
         for i in range(0, len(texts), self.batch_size):
             batch = texts[i:i + self.batch_size]
             logger.info(f"Embedding batch {i//self.batch_size + 1} ({len(batch)} texts)")
             
             for attempt in range(retry_count):
                 try:
-                    response = self.client.embeddings.create(
+                    # Gemini embed_content supports batching
+                    result = genai.embed_content(
                         model=self.model,
-                        input=batch
+                        content=batch,
+                        task_type="retrieval_document"
                     )
                     
-                    # Extract embeddings in order
-                    batch_embeddings = [item.embedding for item in response.data]
+                    # Extract embeddings
+                    if isinstance(result['embedding'][0], list):
+                        # Multiple texts - result is list of embeddings
+                        batch_embeddings = result['embedding']
+                    else:
+                        # Single text - wrap in list
+                        batch_embeddings = [result['embedding']]
+                    
                     all_embeddings.extend(batch_embeddings)
                     
                     logger.info(f"Successfully embedded {len(batch)} texts (dim={len(batch_embeddings[0])})")
@@ -96,7 +105,7 @@ class EmbeddingClient:
         Get the embedding dimension for the current model.
         
         Returns:
-            Embedding dimension (e.g., 1536 for text-embedding-3-small)
+            Embedding dimension (768 for Gemini embedding-001)
         """
         # Use settings or test with a small string
         test_embedding = self.embed_text("test")

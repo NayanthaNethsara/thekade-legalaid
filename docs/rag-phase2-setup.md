@@ -41,12 +41,12 @@ Create or update `conv-service/.env` with the following variables:
 DATABASE_URL=postgresql://user:password@localhost:5432/legalaid
 DIRECT_URL=postgresql://user:password@localhost:5432/legalaid
 
-# OpenAI for embeddings
-OPENAI_API_KEY=sk-...
+# Google Gemini for embeddings (FREE!)
+GEMINI_API_KEY=AIzaSyC...
 
 # Embedding configuration
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-VECTOR_DIM=1536
+GEMINI_EMBEDDING_MODEL=models/embedding-001
+VECTOR_DIM=768
 CHUNK_SIZE=1000
 CHUNK_OVERLAP=200
 
@@ -69,13 +69,21 @@ pip install -r requirements.txt
 ```
 
 Key dependencies include:
-- `openai` — for embedding generation
+- `google-generativeai` — for Gemini embeddings (FREE!)
 - `tiktoken` — for token counting
 - `pypdf` — for PDF text extraction
 - `python-docx` — for DOCX text extraction
 - `pgvector`, `psycopg` — for vector storage
 - `azure-storage-blob` — for blob uploads (optional)
 - `kafka-python` — for event emission (optional)
+
+### 4. Get Free Gemini API Key
+1. Go to https://aistudio.google.com/app/apikey
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy and paste into `.env` as `GEMINI_API_KEY=...`
+
+See [GEMINI-SETUP.md](../conv-service/GEMINI-SETUP.md) for detailed instructions.
 
 ---
 
@@ -271,10 +279,11 @@ LIMIT 5;
 **Solution:** Use an OCR tool (Adobe Acrobat, Tesseract) to add a text layer before indexing
 
 ### Issue: "Failed to generate embeddings"
-**Cause:** OpenAI API key invalid or rate limit exceeded  
+**Cause:** Gemini API key invalid or rate limit exceeded  
 **Solution:** 
-- Verify `OPENAI_API_KEY` in `.env`
-- Check your OpenAI usage limits and billing status
+- Get a free API key from https://aistudio.google.com/app/apikey
+- Verify `GEMINI_API_KEY` in `.env`
+- Gemini free tier: 15 requests/minute (sufficient for most use cases)
 - Add retry/backoff logic (already implemented in `EmbeddingClient`)
 
 ### Issue: "Azure Blob upload failed"
@@ -301,14 +310,17 @@ LIMIT 5;
 
 ## Cost Estimates
 
-### OpenAI API Costs (text-embedding-3-small)
-- **Pricing:** ~$0.02 per 1M tokens
-- **Example corpus:** 15 PDFs, ~500K tokens total
-- **Estimated cost:** $0.01 (negligible)
+### Google Gemini API (FREE!)
+- **Pricing:** $0.00 for embeddings (completely free)
+- **Free Tier:** 15 requests/minute, 1500 requests/day
+- **Example corpus:** 15 PDFs = ~15 minutes to process
+- **Estimated cost:** $0.00
 
 For larger corpora:
-- 1000 PDFs (~30M tokens): ~$0.60
-- 10,000 PDFs (~300M tokens): ~$6.00
+- 1000 PDFs (~1000 requests): FREE (may take ~1 hour due to rate limits)
+- 10,000 PDFs: FREE (process over several days or use paid tier)
+
+**No credit card required!** 🎉
 
 ### Azure Blob Storage Costs
 - **Storage:** ~$0.018 per GB/month

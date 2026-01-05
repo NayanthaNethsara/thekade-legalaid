@@ -9,7 +9,7 @@ asyncio
 # RAG & Vector dependencies
 pgvector
 psycopg[binary]
-openai
+google-generativeai
 tiktoken
 pypdf
 python-docx

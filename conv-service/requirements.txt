@@ -16,3 +16,8 @@ python-docx
 pytesseract
 pillow
 redis
+
+# Azure and Kafka for Phase 2
+azure-storage-blob
+kafka-python
+tqdm

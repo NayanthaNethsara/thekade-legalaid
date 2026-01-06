@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     KAFKA_PASSWORD: str = ""
     KAFKA_SSL: bool = False
     KAFKA_SASL_MECHANISM: str = "PLAIN"
+    
+    GEMINI_API_KEY: str = ""
 
     class Config:
         env_file = ".env"

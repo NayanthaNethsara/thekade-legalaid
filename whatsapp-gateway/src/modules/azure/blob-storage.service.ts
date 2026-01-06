@@ -17,7 +17,8 @@ export class BlobStorageService {
       this.configService.get<string>('azure.containerName') || '';
 
     if (!connectionString) {
-      throw new Error('Azure Storage connection string not configured');
+      this.logger.warn('Azure Storage connection string not configured');
+      return;
     }
 
     if (!this.containerName) {
@@ -44,8 +45,9 @@ export class BlobStorageService {
     mimeType: string,
     folder: string = 'media',
   ): Promise<string> {
-    if (!this.containerName) {
-      throw new Error('Azure Storage container name not configured');
+    if (!this.containerName || !this.containerClient) {
+      this.logger.error('Azure Storage not configured');
+      throw new Error('Azure Storage not configured');
     }
 
     try {

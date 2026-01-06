@@ -23,7 +23,7 @@ export class WebhookService {
     private readonly configService: ConfigService,
     private readonly incomingMessageProducer: IncomingMessageProducer,
     private readonly incomingFileProducer: IncomingFileProducer,
-    private readonly blobStorageService: BlobStorageService,
+    // private readonly blobStorageService: BlobStorageService,
   ) {}
 
   /**
@@ -354,14 +354,15 @@ export class WebhookService {
       const fileExtension = mimeType?.split('/')[1] || type;
       const fileName =
         filename || `${type}-${messageId}.${fileExtension}`.substring(0, 100);
-      const blobUrl = await this.blobStorageService.uploadFile(
-        fileBuffer,
-        fileName,
-        mimeType || 'application/octet-stream',
-        'temp',
-      );
+      // const blobUrl = await this.blobStorageService.uploadFile(
+      //   fileBuffer,
+      //   fileName,
+      //   mimeType || 'application/octet-stream',
+      // 'temp',
+      // );
+      const blobUrl = 'http://localhost:dummy/file'; // Dummy URL for now
 
-      this.logger.log(`File uploaded to Azure Blob Storage: ${blobUrl}`);
+      // this.logger.log(`File uploaded to Azure Blob Storage: ${blobUrl}`);
 
       // Send to incoming file queue
       await this.incomingFileProducer.sendFileMessage({

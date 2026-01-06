@@ -18,7 +18,7 @@ class EmbeddingClient:
         self,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
-        batch_size: int = 100
+        batch_size: int = 50  # Gemini can handle larger batches
     ):
         """
         Initialize the embedding client.
@@ -26,7 +26,7 @@ class EmbeddingClient:
         Args:
             api_key: Gemini API key (uses settings.GEMINI_API_KEY if not provided)
             model: Embedding model (uses settings.GEMINI_EMBEDDING_MODEL if not provided)
-            batch_size: Maximum texts to embed in a single API call
+            batch_size: Maximum texts to embed in a single API call (50 is good for Gemini)
         """
         api_key = api_key or settings.GEMINI_API_KEY
         genai.configure(api_key=api_key)
@@ -61,43 +61,53 @@ class EmbeddingClient:
             return []
         
         all_embeddings = []
+        total_batches = (len(texts) + self.batch_size - 1) // self.batch_size
         
-        # Process in batches (Gemini can handle batches)
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i:i + self.batch_size]
-            logger.info(f"Embedding batch {i//self.batch_size + 1} ({len(batch)} texts)")
+        logger.info(f"Generating embeddings for {len(texts)} texts in {total_batches} batches...")
+        
+        # Process in batches (Gemini can handle batch requests)
+        for batch_num in range(0, len(texts), self.batch_size):
+            batch = texts[batch_num:batch_num + self.batch_size]
+            batch_idx = batch_num // self.batch_size + 1
+            
+            logger.info(f"Processing batch {batch_idx}/{total_batches} ({len(batch)} texts)...")
             
             for attempt in range(retry_count):
                 try:
-                    # Gemini embed_content supports batching
+                    # Use batch embedding for efficiency
                     result = genai.embed_content(
                         model=self.model,
                         content=batch,
                         task_type="retrieval_document"
                     )
                     
-                    # Extract embeddings
+                    # Extract embeddings from result
                     if isinstance(result['embedding'][0], list):
-                        # Multiple texts - result is list of embeddings
+                        # Already a list of embeddings
                         batch_embeddings = result['embedding']
                     else:
-                        # Single text - wrap in list
+                        # Single embedding, wrap in list
                         batch_embeddings = [result['embedding']]
                     
                     all_embeddings.extend(batch_embeddings)
                     
-                    logger.info(f"Successfully embedded {len(batch)} texts (dim={len(batch_embeddings[0])})")
+                    logger.info(f"✅ Batch {batch_idx}/{total_batches} complete ({len(batch_embeddings)} embeddings, dim={len(batch_embeddings[0])})")
+                    
+                    # Small delay between batches to respect rate limits
+                    if batch_idx < total_batches:
+                        time.sleep(1)
                     break
                     
                 except Exception as e:
                     if attempt < retry_count - 1:
                         wait_time = 2 ** attempt  # Exponential backoff
-                        logger.warning(f"Embedding failed (attempt {attempt + 1}/{retry_count}): {e}. Retrying in {wait_time}s...")
+                        logger.warning(f"Batch {batch_idx} failed (attempt {attempt + 1}/{retry_count}): {e}. Retrying in {wait_time}s...")
                         time.sleep(wait_time)
                     else:
-                        logger.error(f"Embedding failed after {retry_count} attempts: {e}")
+                        logger.error(f"Batch {batch_idx} failed after {retry_count} attempts: {e}")
                         raise
         
+        logger.info(f"✅ All embeddings complete! Generated {len(all_embeddings)} embeddings")
         return all_embeddings
     
     def get_dimension(self) -> int:

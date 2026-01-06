@@ -59,8 +59,15 @@ class TextChunker:
         chunks = []
         start_idx = 0
         chunk_index = 0
+        prev_start = -1
         
         while start_idx < total_tokens:
+            # Safety check: prevent infinite loop
+            if start_idx == prev_start:
+                logger.error(f"Infinite loop detected at index {start_idx}, breaking")
+                break
+            prev_start = start_idx
+            
             # Calculate end index
             end_idx = min(start_idx + self.chunk_size, total_tokens)
             
@@ -84,12 +91,21 @@ class TextChunker:
             
             chunk_index += 1
             
+            # Progress logging every 10 chunks
+            if chunk_index % 10 == 0:
+                logger.info(f"  ... processed {chunk_index} chunks ({start_idx}/{total_tokens} tokens)")
+            
             # Move start index forward, accounting for overlap
+            # If we're at the end, break
+            if end_idx >= total_tokens:
+                break
+                
             start_idx = end_idx - self.chunk_overlap
             
-            # Prevent infinite loop if overlap >= chunk_size
-            if start_idx <= start_idx - self.chunk_overlap:
-                break
+            # Ensure we're making progress
+            if self.chunk_overlap >= self.chunk_size:
+                logger.warning(f"Overlap ({self.chunk_overlap}) >= chunk size ({self.chunk_size}), using no overlap")
+                start_idx = end_idx
         
-        logger.info(f"Created {len(chunks)} chunks from {total_tokens} tokens")
+        logger.info(f"✅ Created {len(chunks)} chunks from {total_tokens} tokens")
         return chunks

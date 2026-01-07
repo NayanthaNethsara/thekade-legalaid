@@ -16,7 +16,7 @@ def test_health():
 
 def test_stats():
     """Test stats endpoint."""
-    response = requests.get(f"{BASE_URL}/api/rag/stats")
+    response = requests.get(f"{BASE_URL}/api/v1/rag/stats")
     print("RAG Stats:")
     print(json.dumps(response.json(), indent=2))
     print()
@@ -32,7 +32,7 @@ def test_query(question: str):
     print("Querying RAG system...")
     
     response = requests.post(
-        f"{BASE_URL}/api/rag/query",
+        f"{BASE_URL}/api/v1/rag/query",
         json=payload
     )
     
@@ -64,10 +64,10 @@ if __name__ == "__main__":
     
     # Test queries
     questions = [
-        "What is the speed limit on highways in Sri Lanka?",
-        "What are the penalties for drunk driving?",
-        "What is the process for arresting a suspect in Sri Lanka?",
-        "Can police search a vehicle without a warrant?"
+        "According to the Motor Traffic Act, what is the penalty for driving a motor vehicle without proper registration?",
+        "Under the Code of Criminal Procedure, in what situations can a police officer arrest a person without a warrant?",
+        "If a driver causes a serious road accident, how do the Motor Traffic Act and the Code of Criminal Procedure apply together in handling the case?",
+        "Is community service mentioned as a possible punishment in the provided laws? If yes, under which section; if not, state that it is not mentioned."
     ]
     
     for question in questions:

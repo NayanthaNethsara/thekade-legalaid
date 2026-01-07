@@ -84,7 +84,18 @@ async def root():
     }
 
 
-@app.post("/api/rag/query", response_model=QueryResponse)
+@app.get("/api/v1/rag/health")
+async def health_check():
+    """Health check endpoint for RAG service."""
+    return {
+        "status": "ok",
+        "service": "LegalAid RAG API",
+        "version": "1.0.0",
+        "model": settings.GEMINI_EMBEDDING_MODEL
+    }
+
+
+@app.post("/api/v1/rag/query", response_model=QueryResponse)
 async def query_rag(request: QueryRequest):
     """
     Query the RAG system with a legal question.
@@ -107,7 +118,7 @@ async def query_rag(request: QueryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/rag/stats", response_model=StatsResponse)
+@app.get("/api/v1/rag/stats", response_model=StatsResponse)
 async def get_stats():
     """
     Get RAG system statistics.

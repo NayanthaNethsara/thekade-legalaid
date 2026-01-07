@@ -3,7 +3,8 @@ LLM client for RAG answer generation using Google Gemini.
 """
 import logging
 from typing import List, Dict, Any, Optional
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -25,8 +26,8 @@ class LLMClient:
             model: Gemini model to use for generation
         """
         api_key = api_key or settings.GEMINI_API_KEY
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model)
+        self.client = genai.Client(api_key=api_key)
+        self.model_name = model
         logger.info(f"LLMClient initialized: model={model}")
     
     def generate_answer(
@@ -54,9 +55,10 @@ class LLMClient:
         logger.info(f"Generating answer for question: {question[:100]}...")
         
         try:
-            response = self.model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
                     max_output_tokens=max_tokens,
                     temperature=temperature,
                 )

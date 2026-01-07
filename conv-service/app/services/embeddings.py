@@ -5,7 +5,8 @@ Includes batching, retry logic, and optional caching.
 import logging
 import time
 from typing import List, Optional
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ class EmbeddingClient:
             batch_size: Maximum texts to embed in a single API call (50 is good for Gemini)
         """
         api_key = api_key or settings.GEMINI_API_KEY
-        genai.configure(api_key=api_key)
+        self.client = genai.Client(api_key=api_key)
         self.model = model or settings.GEMINI_EMBEDDING_MODEL
         self.batch_size = batch_size
         logger.info(f"EmbeddingClient initialized: model={self.model}, batch_size={batch_size}")
@@ -75,19 +76,13 @@ class EmbeddingClient:
             for attempt in range(retry_count):
                 try:
                     # Use batch embedding for efficiency
-                    result = genai.embed_content(
+                    result = self.client.models.embed_content(
                         model=self.model,
-                        content=batch,
-                        task_type="retrieval_document"
+                        contents=batch
                     )
                     
                     # Extract embeddings from result
-                    if isinstance(result['embedding'][0], list):
-                        # Already a list of embeddings
-                        batch_embeddings = result['embedding']
-                    else:
-                        # Single embedding, wrap in list
-                        batch_embeddings = [result['embedding']]
+                    batch_embeddings = [emb.values for emb in result.embeddings]
                     
                     all_embeddings.extend(batch_embeddings)
                     

@@ -1,8 +1,12 @@
 # Retrieval-Augmented Generation (RAG) — Technical Architecture
 
-Status: Draft
+Status: ✅ **Phases 1-4 Complete** | Last Updated: January 8, 2026
 
-This document describes a concrete RAG design that extends the existing `conv-service` in this repository and uses PostgreSQL + `pgvector` as the vector store. It is targeted for the current codebase (frontend, `whatsapp-gateway`, `conv-service`) and assumes Kafka and hosted infra are available.
+This document describes the RAG system that extends the existing `conv-service` in this repository and uses PostgreSQL + `pgvector` as the vector store.
+
+**🎉 Current Status**: The RAG system is fully operational with 217 chunks indexed from Sri Lankan legal documents. Frontend integration complete with React hooks and UI components. Google Gemini API migration complete.
+
+**📖 See [RAG-INTEGRATION-STATUS.md](RAG-INTEGRATION-STATUS.md) for detailed implementation status and next steps.**
 
 ---
 

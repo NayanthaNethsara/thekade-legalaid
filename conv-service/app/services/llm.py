@@ -15,7 +15,7 @@ class LLMClient:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "models/gemini-2.0-flash-exp"
+        model: str = "models/gemini-2.5-flash"
     ):
         """
         Initialize the LLM client.

@@ -122,6 +122,33 @@ class AzureBlobUploader:
         }
         return extension_map.get(file_path.suffix.lower(), 'application/octet-stream')
     
+    def download_blob(self, blob_name: str) -> Optional[bytes]:
+        """
+        Download a blob from storage.
+        
+        Args:
+            blob_name: Name of blob to download
+            
+        Returns:
+            Blob content as bytes, or None if failed
+        """
+        if not self.blob_service_client:
+            logger.warning("Cannot download blob - no connection configured")
+            return None
+        
+        try:
+            blob_client = self.blob_service_client.get_blob_client(
+                container=self.container_name,
+                blob=blob_name
+            )
+            downloader = blob_client.download_blob()
+            data = downloader.readall()
+            logger.info(f"Downloaded blob: {blob_name} ({len(data)} bytes)")
+            return data
+        except Exception as e:
+            logger.error(f"Failed to download blob {blob_name}: {e}")
+            return None
+    
     def delete_blob(self, blob_name: str) -> bool:
         """
         Delete a blob from storage.
@@ -147,3 +174,36 @@ class AzureBlobUploader:
         except Exception as e:
             logger.error(f"Failed to delete blob {blob_name}: {e}")
             return False
+
+
+def download_blob_to_bytes(blob_url: str) -> Optional[bytes]:
+    """
+    Download a blob from a full URL.
+    
+    Args:
+        blob_url: Full URL to the blob
+        
+    Returns:
+        Blob content as bytes, or None if failed
+    """
+    try:
+        from urllib.parse import urlparse
+        
+        # Parse the URL to extract container and blob name
+        parsed_url = urlparse(blob_url)
+        path_parts = parsed_url.path.lstrip('/').split('/', 1)
+        
+        if len(path_parts) != 2:
+            logger.error(f"Invalid blob URL format: {blob_url}")
+            return None
+        
+        container_name = path_parts[0]
+        blob_name = path_parts[1]
+        
+        # Create uploader with the container name and download
+        uploader = AzureBlobUploader(container_name=container_name)
+        return uploader.download_blob(blob_name)
+        
+    except Exception as e:
+        logger.error(f"Failed to download blob from URL {blob_url}: {e}")
+        return None

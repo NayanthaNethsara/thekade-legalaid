@@ -51,7 +51,7 @@ def upgrade() -> None:
     chunks_exists = result.scalar()
     
     if not chunks_exists:
-        # Create document_chunks table with vector column (768 dimensions for Gemini)
+        # Create document_chunks table with vector column (matches settings.VECTOR_DIM)
         op.execute("""
             CREATE TABLE document_chunks (
                 id BIGSERIAL PRIMARY KEY,

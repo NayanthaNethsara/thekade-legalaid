@@ -21,3 +21,8 @@ redis
 azure-storage-blob
 kafka-python
 tqdm
+
+# FastAPI for REST API
+fastapi
+uvicorn[standard]
+pydantic

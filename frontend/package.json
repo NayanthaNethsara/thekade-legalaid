@@ -4,9 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

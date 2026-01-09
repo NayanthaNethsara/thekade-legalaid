@@ -5,4 +5,25 @@ pydantic-settings
 python-dotenv
 aiokafka
 asyncio
+
+# RAG & Vector dependencies
+pgvector
+psycopg[binary]
+google-genai
+tiktoken
+pypdf
+python-docx
+pytesseract
+pillow
+redis
+
+# Azure and Kafka for Phase 2
+azure-storage-blob
+kafka-python
+tqdm
+
+# FastAPI for REST API
+fastapi
+uvicorn[standard]
+pydantic
 redis

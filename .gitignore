@@ -68,3 +68,11 @@ secrets.json
 
 # Logs
 *.log
+
+# n8n local data and Postgres DB files
+n8n-legalaid/postgres_data/
+n8n-legalaid/n8n_data/
+
+# Next.js build / local
+.next/
+node_modules/

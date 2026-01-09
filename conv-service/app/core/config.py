@@ -4,6 +4,7 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
     DIRECT_URL: str
+    REDIS_URL: str = "redis://localhost:6379/0"
     
     # Kafka
     KAFKA_BROKER_URL: str = "localhost:9092"

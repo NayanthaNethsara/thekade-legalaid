@@ -26,3 +26,4 @@ tqdm
 fastapi
 uvicorn[standard]
 pydantic
+redis

@@ -1,5 +1,5 @@
-from app.services.kafka import KafkaService
-from app.services.message_processor import MessageProcessor
+from app.core.kafka import KafkaService
+from app.processors.message_processor import MessageProcessor
 import asyncio
 from app.core.config import settings
 from app.utils.logger import setup_logger
@@ -18,6 +18,7 @@ async def main():
     except KeyboardInterrupt:
         pass
     finally:
+        await message_processor.shutdown()
         await kafka_service.stop()
 
 if __name__ == "__main__":

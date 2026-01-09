@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Send, Paperclip, Mic, Sparkles } from "lucide-react";
+import { Send, Paperclip, Mic, Sparkles, Image as ImageIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { motion } from "framer-motion";
+import { Popover } from "@headlessui/react";
 
 interface ChatBarProps {
   onNavigateToChat: () => void;
@@ -63,13 +64,52 @@ export function ChatBar({ onNavigateToChat }: ChatBarProps) {
                 className="flex-1 border-0 bg-transparent placeholder:text-gray-500 focus-visible:ring-0 px-0"
               />
               
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-8 h-8 p-0 hover:bg-gray-100/60"
-              >
-                <Paperclip className="w-4 h-4 text-gray-600" />
-              </Button>
+              <Popover className="relative">
+                {({ open }) => (
+                  <>
+                    <Popover.Button
+                      type="button"
+                      className="w-8 h-8 p-0 flex items-center justify-center rounded hover:bg-gray-100/60"
+                      aria-label="Add attachment"
+                    >
+                      <Paperclip className="w-4 h-4 text-gray-600" />
+                    </Popover.Button>
+                    {open && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        className="absolute left-0 bottom-12 z-50 bg-white border rounded-xl shadow-lg p-2 flex flex-col gap-1 min-w-[160px]"
+                      >
+                        <button
+                          type="button"
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+                          // onClick={handleFileUpload}
+                        >
+                          <Paperclip className="w-4 h-4 text-primary" />
+                          Upload File
+                        </button>
+                        <button
+                          type="button"
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+                          // onClick={handleImageUpload}
+                        >
+                          <ImageIcon className="w-4 h-4 text-primary" />
+                          Upload Image
+                        </button>
+                        <button
+                          type="button"
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+                          // onClick={handleVoiceInput}
+                        >
+                          <Mic className="w-4 h-4 text-primary" />
+                          Voice Input
+                        </button>
+                      </motion.div>
+                    )}
+                  </>
+                )}
+              </Popover>
               
               <Button
                 variant="ghost"

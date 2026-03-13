@@ -1,3 +1,4 @@
+from .conversation import ConversationRedisRepository
 from .user import UserRedisRepository
 
-__all__ = ["UserRedisRepository"]
+__all__ = ["ConversationRedisRepository", "UserRedisRepository"]

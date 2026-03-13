@@ -6,13 +6,12 @@ Flow:
                     →  NATS (whatsapp.outgoing.messages)
                     →  WhatsApp gateway  →  user
 
-Conversation memory is kept per-user (phone number = thread_id) using
-LangGraph's MemorySaver (in-process for now; swap for RedisSaver in prod).
+Conversation memory is kept per-user (phone number = thread_id) in Redis via
+LangGraph checkpoints, with an additional Redis transcript cache for recent turns.
 """
 
 import asyncio
-
-from langgraph.checkpoint.redis.aio import AsyncRedisSaver
+from importlib import import_module
 
 from app.agent.graph import create_graph
 from app.agent.tools import load_mcp_tools
@@ -23,6 +22,11 @@ from app.services import ConversationService, DocumentService
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+
+def get_async_redis_saver():
+    redis_checkpoint_module = import_module("langgraph.checkpoint.redis.aio")
+    return redis_checkpoint_module.AsyncRedisSaver
 
 
 async def consume_subject(
@@ -40,9 +44,10 @@ async def main():
 
     tools = await load_mcp_tools()
     graph_builder = create_graph(tools)
+    async_redis_saver = get_async_redis_saver()
 
     # Redis-backed checkpointer — persists conversation history per user (thread_id = phone)
-    async with AsyncRedisSaver.from_conn_string(settings.REDIS_URL) as checkpointer:
+    async with async_redis_saver.from_conn_string(settings.REDIS_URL) as checkpointer:
         agent = graph_builder.compile(checkpointer=checkpointer)
 
         nats_service = NatsService()

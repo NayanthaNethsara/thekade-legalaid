@@ -4,7 +4,7 @@ from langchain_core.tools import BaseTool
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from app.agent.nodes import echo_agent_node
+from app.agent.nodes import build_chat_agent_node
 from app.agent.routing import route_after_agent
 from app.agent.state import AgentState
 
@@ -12,7 +12,7 @@ from app.agent.state import AgentState
 def build_chat_workflow(tools: List[BaseTool]) -> StateGraph:
     """Create the chat workflow by composing nodes and routing rules."""
     builder = StateGraph(AgentState)
-    builder.add_node("agent", echo_agent_node)
+    builder.add_node("agent", build_chat_agent_node(tools))
 
     if tools:
         builder.add_node("tools", ToolNode(tools))

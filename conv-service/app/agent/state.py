@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 from langgraph.graph import MessagesState
 
 
@@ -11,3 +11,4 @@ class AgentState(MessagesState):
     """
     user_phone: str
     user_id: Optional[str]
+    recent_messages: list[dict[str, Any]]

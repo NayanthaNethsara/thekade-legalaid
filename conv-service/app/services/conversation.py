@@ -1,13 +1,13 @@
 from typing import Any, Optional
 
-from langchain_core.messages import AIMessage, HumanMessage
-
 from app.core.config import settings
 from app.core.db import SessionLocal
 from app.core.nats import NatsService
 from app.core.redis import RedisClient
+from app.repositories.redis.conversation import ConversationRedisRepository
 from app.repositories.redis.user import UserRedisRepository
 from app.repositories.user import UserRepository
+from app.services.chat_orchestrator import ChatOrchestrator
 from app.services.user import UserService
 from app.utils.logger import setup_logger
 from app.utils.queue_messages import build_outgoing_text_message, extract_incoming_text
@@ -20,6 +20,10 @@ class ConversationService:
         self.agent = agent
         self.nats_service = nats_service
         self.redis_client = redis_client
+        self.chat_orchestrator = ChatOrchestrator(
+            agent,
+            ConversationRedisRepository(redis_client),
+        )
 
     async def _get_or_create_user_id(self, phone: str) -> str:
         with SessionLocal() as db:
@@ -46,25 +50,15 @@ class ConversationService:
 
         logger.info(f"[{phone}] → {text[:100]}")
 
-        config = {"configurable": {"thread_id": phone}}
-        state = {
-            "messages": [HumanMessage(content=text)],
-            "user_phone": phone,
-            "user_id": user_id,
-        }
-
-        result = await self.agent.ainvoke(state, config=config)
-
-        ai_messages = [
-            message_item
-            for message_item in result["messages"]
-            if isinstance(message_item, AIMessage) and message_item.content
-        ]
-        if not ai_messages:
+        reply = await self.chat_orchestrator.run(
+            thread_id=phone,
+            user_id=user_id,
+            text=text,
+        )
+        if not reply:
             logger.warning(f"Agent produced no reply for {phone}")
             return
 
-        reply = str(ai_messages[-1].content)
         await self.nats_service.send_message(
             settings.NATS_SUBJECT_OUTGOING_TEXT,
             build_outgoing_text_message(phone, reply),

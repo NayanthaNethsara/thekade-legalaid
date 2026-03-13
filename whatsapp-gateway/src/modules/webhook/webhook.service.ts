@@ -198,9 +198,7 @@ export class WebhookService {
       to: metadata.phone_number_id,
       timestamp: message.timestamp,
       type: 'text',
-      content: {
-        text: textContent,
-      },
+      content: textContent,
       context: message.context
         ? {
             messageId: message.context.id,
@@ -233,6 +231,14 @@ export class WebhookService {
     }
 
     const interactiveContent = message.interactive;
+    const selectedText =
+      interactiveContent.button_reply?.title ||
+      interactiveContent.list_reply?.title;
+
+    if (!selectedText) {
+      this.logger.warn(`Interactive message ${messageId} has no selected text`);
+      return;
+    }
 
     this.logger.log(
       `Received interactive ${interactiveContent.type} from ${from}`,
@@ -247,17 +253,8 @@ export class WebhookService {
       from,
       to: metadata.phone_number_id,
       timestamp: message.timestamp,
-      type: 'interactive',
-      content: {
-        interactive: {
-          type:
-            interactiveContent.type === 'button_reply'
-              ? 'button_reply'
-              : 'list_reply',
-          buttonReply: interactiveContent.button_reply,
-          listReply: interactiveContent.list_reply,
-        },
-      },
+      type: 'text',
+      content: selectedText,
       context: message.context
         ? {
             messageId: message.context.id,

@@ -9,6 +9,10 @@ import { NatsService } from './nats.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { OutgoingWhatsAppMessageDto } from './dto/nats-message.dto';
 
+type LegacyOutgoingWhatsAppMessage = OutgoingWhatsAppMessageDto & {
+  text?: string;
+};
+
 @Injectable()
 export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OutgoingMessageConsumer.name);
@@ -48,11 +52,13 @@ export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
           this.logger.log(`Raw message body: ${messageContent}`);
           this.logger.log('==============================');
 
-          const parsedMessage = payload as OutgoingWhatsAppMessageDto;
+          const parsedMessage = this.normalizeOutgoingMessage(
+            payload as LegacyOutgoingWhatsAppMessage,
+          );
 
           // Simple validation
-          if (!parsedMessage.to) {
-            this.logger.error('Invalid message: missing recipient');
+          if (!parsedMessage) {
+            this.logger.error('Invalid message: unsupported outgoing payload');
             return;
           }
 
@@ -73,6 +79,43 @@ export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     // NATS service handles disconnection
+  }
+
+  private normalizeOutgoingMessage(
+    payload: LegacyOutgoingWhatsAppMessage,
+  ): OutgoingWhatsAppMessageDto | null {
+    const content = payload.content ?? {};
+    const normalizedType = payload.type ?? 'text';
+    const normalizedText = content.text ?? payload.text;
+
+    if (!payload.to) {
+      return null;
+    }
+
+    if (normalizedType === 'interactive' && content.interactive) {
+      return {
+        to: payload.to,
+        type: 'interactive',
+        content: {
+          text: normalizedText,
+          interactive: content.interactive,
+        },
+        replyToMessageId: payload.replyToMessageId,
+      };
+    }
+
+    if (!normalizedText) {
+      return null;
+    }
+
+    return {
+      to: payload.to,
+      type: 'text',
+      content: {
+        text: normalizedText,
+      },
+      replyToMessageId: payload.replyToMessageId,
+    };
   }
 
   /**

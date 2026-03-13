@@ -3,41 +3,8 @@ export interface IncomingWhatsAppMessageDto {
   from: string;
   to: string;
   timestamp: string;
-  type:
-    | 'text'
-    | 'image'
-    | 'video'
-    | 'audio'
-    | 'document'
-    | 'location'
-    | 'contacts'
-    | 'interactive'
-    | 'button';
-  content: {
-    text?: string;
-    mediaId?: string;
-    mimeType?: string;
-    caption?: string;
-    filename?: string;
-    location?: {
-      latitude: number;
-      longitude: number;
-      name?: string;
-      address?: string;
-    };
-    interactive?: {
-      type: string;
-      buttonReply?: {
-        id: string;
-        title: string;
-      };
-      listReply?: {
-        id: string;
-        title: string;
-        description?: string;
-      };
-    };
-  };
+  type: 'text';
+  content: string;
   context?: {
     messageId: string;
     from: string;

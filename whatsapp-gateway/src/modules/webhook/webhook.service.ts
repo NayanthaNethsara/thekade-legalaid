@@ -7,6 +7,7 @@ import type {
   WhatsAppValue,
   WhatsAppMessage,
   WhatsAppMetadata,
+  MessageContext,
 } from './dto/webhook-event.dto';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { IncomingDocumentProducer } from '../nats/incoming-document-producer';
@@ -15,10 +16,19 @@ import { IncomingFileProducer } from '../nats/incoming-file-producer';
 import { IncomingVoiceProducer } from '../nats/incoming-voice-producer';
 import { BlobStorageService } from '../azure/blob-storage.service';
 import {
+  IncomingFileMessageDto,
   IncomingDocumentMessageDto,
   IncomingWhatsAppMessageDto,
   IncomingVoiceMessageDto,
 } from '../nats/dto/nats-message.dto';
+
+type UploadableMessageType = 'image' | 'video' | 'audio' | 'document';
+type MediaDetails = {
+  mediaId: string;
+  mimeType: string | null;
+  caption: string | null;
+  filename: string | null;
+};
 
 @Injectable()
 export class WebhookService {
@@ -33,6 +43,81 @@ export class WebhookService {
     private readonly incomingVoiceProducer: IncomingVoiceProducer,
     private readonly blobStorageService: BlobStorageService,
   ) {}
+
+  private buildContext(
+    context: MessageContext | undefined,
+  ): IncomingWhatsAppMessageDto['context'] {
+    if (!context) {
+      return null;
+    }
+
+    return {
+      messageId: context.id,
+      from: context.from,
+    };
+  }
+
+  private extractMediaDetails(
+    message: WhatsAppMessage,
+    expectedType: UploadableMessageType,
+  ): MediaDetails | null {
+    switch (expectedType) {
+      case 'image': {
+        const mediaId = message.image?.id;
+        if (!mediaId) {
+          return null;
+        }
+
+        return {
+          mediaId,
+          mimeType: message.image?.mime_type ?? null,
+          caption: message.image?.caption ?? null,
+          filename: null,
+        };
+      }
+      case 'video': {
+        const mediaId = message.video?.id;
+        if (!mediaId) {
+          return null;
+        }
+
+        return {
+          mediaId,
+          mimeType: message.video?.mime_type ?? null,
+          caption: message.video?.caption ?? null,
+          filename: null,
+        };
+      }
+      case 'audio': {
+        const mediaId = message.audio?.id;
+        if (!mediaId) {
+          return null;
+        }
+
+        return {
+          mediaId,
+          mimeType: message.audio?.mime_type ?? null,
+          caption: null,
+          filename: null,
+        };
+      }
+      case 'document': {
+        const mediaId = message.document?.id;
+        if (!mediaId) {
+          return null;
+        }
+
+        return {
+          mediaId,
+          mimeType: message.document?.mime_type ?? null,
+          caption: message.document?.caption ?? null,
+          filename: message.document?.filename ?? null,
+        };
+      }
+      default:
+        return null;
+    }
+  }
 
   /**
    * Type guard to validate webhook payload structure
@@ -211,12 +296,7 @@ export class WebhookService {
       timestamp: message.timestamp,
       type: 'text',
       content: textContent,
-      context: message.context
-        ? {
-            messageId: message.context.id,
-            from: message.context.from,
-          }
-        : undefined,
+      context: this.buildContext(message.context),
       metadata: {
         phoneNumberId: metadata.phone_number_id,
         displayPhoneNumber: metadata.display_phone_number,
@@ -267,12 +347,7 @@ export class WebhookService {
       timestamp: message.timestamp,
       type: 'text',
       content: selectedText,
-      context: message.context
-        ? {
-            messageId: message.context.id,
-            from: message.context.from,
-          }
-        : undefined,
+      context: this.buildContext(message.context),
       metadata: {
         phoneNumberId: metadata.phone_number_id,
         displayPhoneNumber: metadata.display_phone_number,
@@ -286,17 +361,28 @@ export class WebhookService {
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
   ): Promise<void> {
+    if (message.type !== 'audio') {
+      this.logger.warn(
+        `Unexpected message type for voice handler: ${message.type}`,
+      );
+      return;
+    }
+
     const voiceMessage = await this.buildUploadedMediaMessage(
       message,
       metadata,
+      'audio',
     );
     if (!voiceMessage || voiceMessage.type !== 'audio') {
       return;
     }
 
-    await this.incomingVoiceProducer.sendVoiceMessage(
-      voiceMessage as IncomingVoiceMessageDto,
-    );
+    const typedVoiceMessage: IncomingVoiceMessageDto = {
+      ...voiceMessage,
+      type: 'audio',
+    };
+
+    await this.incomingVoiceProducer.sendVoiceMessage(typedVoiceMessage);
     this.logger.log(
       `Audio message sent to voice queue: ${voiceMessage.messageId}`,
     );
@@ -306,16 +392,29 @@ export class WebhookService {
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
   ): Promise<void> {
+    if (message.type !== 'document') {
+      this.logger.warn(
+        `Unexpected message type for document handler: ${message.type}`,
+      );
+      return;
+    }
+
     const documentMessage = await this.buildUploadedMediaMessage(
       message,
       metadata,
+      'document',
     );
     if (!documentMessage || documentMessage.type !== 'document') {
       return;
     }
 
+    const typedDocumentMessage: IncomingDocumentMessageDto = {
+      ...documentMessage,
+      type: 'document',
+    };
+
     await this.incomingDocumentProducer.sendDocumentMessage(
-      documentMessage as IncomingDocumentMessageDto,
+      typedDocumentMessage,
     );
     this.logger.log(
       `Document message sent to document queue: ${documentMessage.messageId}`,
@@ -325,55 +424,28 @@ export class WebhookService {
   private async buildUploadedMediaMessage(
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
-  ) {
-    const { id: messageId, from, type } = message;
-    this.logger.log(`Received ${type} message from ${from}: ${messageId}`);
+    expectedType: UploadableMessageType,
+  ): Promise<IncomingFileMessageDto | null> {
+    const { id: messageId, from } = message;
+    this.logger.log(
+      `Received ${expectedType} message from ${from}: ${messageId}`,
+    );
 
     try {
-      let mediaId: string | undefined;
-      let mimeType: string | undefined;
-      let caption: string | undefined;
-      let filename: string | undefined;
-
-      switch (type) {
-        case 'image':
-          mediaId = message.image?.id;
-          mimeType = message.image?.mime_type;
-          caption = message.image?.caption;
-          break;
-        case 'video':
-          mediaId = message.video?.id;
-          mimeType = message.video?.mime_type;
-          caption = message.video?.caption;
-          break;
-        case 'audio':
-          mediaId = message.audio?.id;
-          mimeType = message.audio?.mime_type;
-          break;
-        case 'document':
-          mediaId = message.document?.id;
-          mimeType = message.document?.mime_type;
-          caption = message.document?.caption;
-          filename = message.document?.filename;
-          break;
-        default:
-          this.logger.warn(`Unsupported media type: ${type}`);
-          await this.whatsappService.sendTextMessage(
-            from,
-            `Sorry, ${type} messages are not supported yet.`,
-          );
-          return null;
-      }
-
-      if (!mediaId) {
-        this.logger.error(`No media ID found for ${type} message`);
+      const mediaDetails = this.extractMediaDetails(message, expectedType);
+      if (!mediaDetails) {
+        this.logger.error(`No media ID found for ${expectedType} message`);
         return null;
       }
 
       await this.whatsappService.markMessageAsRead(messageId, true);
-      this.logger.log(`Downloading ${type} from WhatsApp (ID: ${mediaId})`);
+      this.logger.log(
+        `Downloading ${expectedType} from WhatsApp (ID: ${mediaDetails.mediaId})`,
+      );
 
-      const fileBuffer = await this.whatsappService.downloadMedia(mediaId);
+      const fileBuffer = await this.whatsappService.downloadMedia(
+        mediaDetails.mediaId,
+      );
       const maxFileSize = 10 * 1024 * 1024;
       if (fileBuffer.length > maxFileSize) {
         this.logger.warn(
@@ -381,7 +453,7 @@ export class WebhookService {
         );
         await this.whatsappService.sendTextMessage(
           from,
-          `Sorry, your ${type} file is too large. Maximum file size is 10MB. Please send a smaller file.`,
+          `Sorry, your ${expectedType} file is too large. Maximum file size is 10MB. Please send a smaller file.`,
         );
         return null;
       }
@@ -390,13 +462,15 @@ export class WebhookService {
         `Downloaded ${fileBuffer.length} bytes, uploading to Azure Blob Storage`,
       );
 
-      const fileExtension = mimeType?.split('/')[1] || type;
+      const fileExtension =
+        mediaDetails.mimeType?.split('/')[1] ?? expectedType;
       const fileName =
-        filename || `${type}-${messageId}.${fileExtension}`.substring(0, 100);
+        mediaDetails.filename ||
+        `${expectedType}-${messageId}.${fileExtension}`.substring(0, 100);
       const blobUrl = await this.blobStorageService.uploadFile(
         fileBuffer,
         fileName,
-        mimeType || 'application/octet-stream',
+        mediaDetails.mimeType ?? 'application/octet-stream',
         'temp',
       );
 
@@ -407,11 +481,11 @@ export class WebhookService {
         from,
         to: metadata.phone_number_id,
         timestamp: message.timestamp,
-        type,
+        type: expectedType,
         fileUrl: blobUrl,
-        mimeType,
-        caption,
-        filename,
+        mimeType: mediaDetails.mimeType,
+        caption: mediaDetails.caption,
+        filename: mediaDetails.filename,
         metadata: {
           phoneNumberId: metadata.phone_number_id,
           displayPhoneNumber: metadata.display_phone_number,
@@ -419,13 +493,13 @@ export class WebhookService {
       };
     } catch (error) {
       this.logger.error(
-        `Failed to process ${type} message: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to process ${expectedType} message: ${error instanceof Error ? error.message : 'Unknown error'}`,
         error instanceof Error ? error.stack : '',
       );
 
       await this.whatsappService.sendTextMessage(
         from,
-        `Sorry, there was an error processing your ${type} file. Please try again.`,
+        `Sorry, there was an error processing your ${expectedType} file. Please try again.`,
       );
       return null;
     }
@@ -438,9 +512,17 @@ export class WebhookService {
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
   ): Promise<void> {
+    if (message.type !== 'image' && message.type !== 'video') {
+      this.logger.warn(
+        `Unexpected message type for file handler: ${message.type}`,
+      );
+      return;
+    }
+
     const uploadedMessage = await this.buildUploadedMediaMessage(
       message,
       metadata,
+      message.type,
     );
     if (!uploadedMessage) {
       return;

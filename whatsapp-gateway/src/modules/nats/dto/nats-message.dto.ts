@@ -5,10 +5,10 @@ export interface IncomingWhatsAppMessageDto {
   timestamp: string;
   type: 'text';
   content: string;
-  context?: {
+  context: {
     messageId: string;
     from: string;
-  };
+  } | null;
   metadata: {
     phoneNumberId: string;
     displayPhoneNumber: string;
@@ -111,9 +111,9 @@ export interface IncomingFileMessageDto {
   timestamp: string;
   type: 'image' | 'video' | 'audio' | 'document';
   fileUrl: string;
-  mimeType?: string;
-  caption?: string;
-  filename?: string;
+  mimeType: string | null;
+  caption: string | null;
+  filename: string | null;
   metadata: {
     phoneNumberId: string;
     displayPhoneNumber: string;

@@ -49,9 +49,9 @@ This project uses Alembic for database migrations.
 - `app/`: Application code
   - `core/`: Configuration and database setup
   - `models/`: Database models
-  - `services/`: Business logic (embeddings, Kafka, message processing)
+  - `services/`: Business logic (embeddings, NATS JetStream, message processing)
   - `storage/`: Vector storage layer (pgvector)
-  - `utils/`: Utilities (text extraction, chunking, Azure Blob, Kafka emitter)
+  - `utils/`: Utilities (text extraction, chunking, Azure Blob, NATS JetStream emitter)
 - `alembic/`: Migration scripts
 - `bulk_index.py`: CLI tool for bulk indexing trusted documents (Phase 2)
 - `examples_bulk_index.py`: Usage examples for bulk indexing
@@ -73,10 +73,10 @@ alembic upgrade head
 #    - DATABASE_URL
 #    - OPENAI_API_KEY
 #    - AZURE_STORAGE_CONNECTION_STRING (optional)
-#    - KAFKA_BROKER_URL (optional)
+#    - NATS_URL (optional)
 
 # 3. Index your legal corpus
-python bulk_index.py f:\legal-corpus --upload-to-blob --emit-kafka-events
+python bulk_index.py f:\legal-corpus --upload-to-blob --emit-nats-events
 ```
 
 **Features:**
@@ -85,7 +85,7 @@ python bulk_index.py f:\legal-corpus --upload-to-blob --emit-kafka-events
 - Generates embeddings via OpenAI API
 - Stores vectors in PostgreSQL with pgvector
 - Optional Azure Blob backup of source documents
-- Optional Kafka event emission for tracking
+- Optional NATS JetStream event emission for tracking
 
 **Documentation:**
 - [RAG Architecture Overview](../docs/rag-architecture.md)
@@ -108,6 +108,6 @@ python bulk_index.py f:\legal-corpus \
   --chunk-size 1000 \
   --chunk-overlap 200 \
   --upload-to-blob \
-  --emit-kafka-events
+  --emit-nats-events
 ```
 

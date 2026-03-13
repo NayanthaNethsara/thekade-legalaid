@@ -1,39 +1,39 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
-    # Database
+    # ----------------------------------------------------------------- Database
     DATABASE_URL: str
-    DIRECT_URL: str
+    DIRECT_URL: str = ""
+
+    # -------------------------------------------------------------------- Redis
     REDIS_URL: str = "redis://localhost:6379/0"
-    
-    # Kafka
-    KAFKA_BROKER_URL: str = "localhost:9092"
-    KAFKA_TOPIC_INCOMING: str = "whatsapp.incoming.messages"
-    KAFKA_TOPIC_INCOMING_FILE: str = "whatsapp.incoming.files"
-    KAFKA_TOPIC_OUTGOING: str = "whatsapp.outgoing.messages"
-    KAFKA_TOPIC_INDEXING_TRUSTED: str = "indexing.trusted_files"
-    KAFKA_TOPIC_RAG_QUERIES: str = "rag.queries"
-    
-    KAFKA_USERNAME: str = ""
-    KAFKA_PASSWORD: str = ""
-    KAFKA_SSL: bool = False
-    KAFKA_SASL_MECHANISM: str = "PLAIN"
-    
-    # RAG & Vector Search
+
+    # --------------------------------------------------------------- NATS/JetStream
+    NATS_URL: str = "nats://localhost:4222"
+    NATS_STREAM_NAME: str = "LEGALAID_EVENTS"
+    NATS_SUBJECT_INCOMING_TEXT: str = "whatsapp.incoming.text"
+    NATS_SUBJECT_INCOMING_VOICE: str = "whatsapp.incoming.voice"
+    NATS_SUBJECT_INCOMING_DOCUMENT: str = "whatsapp.incoming.document"
+    NATS_SUBJECT_INCOMING_FILE: str = "whatsapp.incoming.files"
+    NATS_SUBJECT_OUTGOING_TEXT: str = "whatsapp.outgoing.text"
+    NATS_SUBJECT_OUTGOING_MEDIA: str = "whatsapp.outgoing.media"
+    NATS_SUBJECT_INCOMING: str = ""
+    NATS_SUBJECT_OUTGOING: str = ""
+
+    # --------------------------------------------------------- LLM (Google Gemini)
     GEMINI_API_KEY: str = ""
-    GEMINI_EMBEDDING_MODEL: str = "models/embedding-001"
-    VECTOR_DIM: int = 768  # Gemini embedding-001 dimension
-    CHUNK_SIZE: int = 1000  # tokens
-    CHUNK_OVERLAP: int = 200  # tokens
-    RAG_TOP_K: int = 5
-    
-    # Redis (optional, for caching and session)
-    REDIS_URL: str = ""
-    
-    # Azure Storage (for blob downloads)
-    AZURE_STORAGE_CONNECTION_STRING: str = ""
+    GEMINI_MODEL: str = "gemini-1.5-flash"
+
+    # ------------------------------------------------------------ MCP Tool Server
+    # URL of the task-mcp MCP server (SSE transport).
+    # Leave empty to run the agent without tool support.
+    MCP_SERVER_URL: Optional[str] = None
 
     class Config:
         env_file = ".env"
+
 
 settings = Settings()

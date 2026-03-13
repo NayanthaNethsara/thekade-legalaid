@@ -1,0 +1,78 @@
+services:
+  nats:
+    image: nats:2.11-alpine
+    command: ["-js", "-m", "8222", "-sd", "/data"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: legalaid
+      POSTGRES_USER: legalaid
+      POSTGRES_PASSWORD: legalaid
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U legalaid"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis/redis-stack-server:7.4.0-v6
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  whatsapp-gateway:
+    build:
+      context: ./whatsapp-gateway
+    env_file:
+      - ./whatsapp-gateway/.env
+    environment:
+      NATS_URL: nats://nats:4222
+    depends_on:
+      - nats
+    ports:
+      - "3000:3000"
+
+  conv-agent:
+    image: python:3.11-slim
+    working_dir: /app
+    env_file:
+      - ./conv-service/.env
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgresql://legalaid:legalaid@postgres:5432/legalaid
+      DIRECT_URL: postgresql://legalaid:legalaid@postgres:5432/legalaid
+      REDIS_URL: redis://redis:6379/0
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      alembic upgrade head &&
+      python -m app.main"
+    volumes:
+      - ./conv-service:/app
+    depends_on:
+      nats:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  nats_data:
+  postgres_data:
+  redis_data:

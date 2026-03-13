@@ -139,7 +139,7 @@ curl http://localhost:8000/api/v1/rag/stats
 ```
 
 ## 🎯 Next Steps
-1. 🚧 WhatsApp Integration (Kafka)
+1. 🚧 WhatsApp Integration (NATS JetStream)
 2. 💾 Redis Session Management
 3. 📈 Evaluation Metrics
 4. 🔒 Security Hardening

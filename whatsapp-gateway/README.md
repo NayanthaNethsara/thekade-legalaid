@@ -1,6 +1,6 @@
 # WhatsApp Gateway
 
-A NestJS-based gateway service that bridges WhatsApp Cloud API with AI workers through Apache Kafka message queues.
+A NestJS-based gateway service that bridges WhatsApp Cloud API with AI workers through NATS JetStream message queues.
 
 ## Overview
 
@@ -8,9 +8,9 @@ This service handles bidirectional message flow between WhatsApp and AI processi
 
 - Receives incoming WhatsApp messages via webhook
 - Validates Meta webhook signatures
-- Routes text messages to Kafka incoming topic for AI processing
+- Routes text messages to NATS JetStream incoming topic for AI processing
 - Routes media files (image, video, audio, document) to Azure Blob Storage and file metadata topic for AI processing
-- Consumes responses from Kafka outgoing topic
+- Consumes responses from NATS JetStream outgoing topic
 - Sends processed messages back to WhatsApp users
 
 ## Architecture
@@ -27,11 +27,11 @@ WhatsApp Cloud API
         v
    [Message Router]
         |
-        +-- Text Message --> [Kafka Incoming Topic] --> AI Worker
+        +-- Text Message --> [NATS JetStream Incoming Topic] --> AI Worker
         |
-        +-- Media Files --> [Download from WhatsApp] --> [Upload to Azure Blob] --> [Kafka Incoming File Topic] --> AI Worker
+        +-- Media Files --> [Download from WhatsApp] --> [Upload to Azure Blob] --> [NATS JetStream Incoming File Topic] --> AI Worker
 
-AI Worker --> [Kafka Outgoing Topic] --> [Kafka Consumer] --> WhatsApp Cloud API
+AI Worker --> [NATS JetStream Outgoing Topic] --> [NATS JetStream Consumer] --> WhatsApp Cloud API
 ```
 
 ## Technology Stack
@@ -39,7 +39,7 @@ AI Worker --> [Kafka Outgoing Topic] --> [Kafka Consumer] --> WhatsApp Cloud API
 - NestJS 11.x
 - Fastify (HTTP adapter)
 - TypeScript (strict mode)
-- KafkaJS (Apache Kafka client)
+- nats (NATS JetStream client)
 - @azure/storage-blob (Azure Blob Storage)
 - WhatsApp Cloud API v21.0
 - Pino (logging)
@@ -48,7 +48,7 @@ AI Worker --> [Kafka Outgoing Topic] --> [Kafka Consumer] --> WhatsApp Cloud API
 
 - Node.js 18+ or 20+
 - pnpm package manager
-- Apache Kafka cluster (or local instance)
+- NATS JetStream cluster (or local instance)
 - Azure Storage Account
 - Meta Developer account
 - WhatsApp Business API access
@@ -70,11 +70,11 @@ WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
 WHATSAPP_ACCESS_TOKEN=your_access_token
 WHATSAPP_BUSINESS_ACCOUNT_ID=your_business_account_id
 
-# Kafka Configuration
-KAFKA_BROKER_URL=localhost:9092
-KAFKA_TOPIC_INCOMING=whatsapp.incoming.messages
-KAFKA_TOPIC_INCOMING_FILE=whatsapp.incoming.files
-KAFKA_TOPIC_OUTGOING=whatsapp.outgoing.messages
+# NATS JetStream Configuration
+NATS_URL=nats://localhost:4222
+NATS_SUBJECT_INCOMING=whatsapp.incoming.messages
+NATS_SUBJECT_INCOMING_FILE=whatsapp.incoming.files
+NATS_SUBJECT_OUTGOING=whatsapp.outgoing.messages
 
 # Azure Blob Storage Configuration
 AZURE_STORAGE_CONNECTION_STRING=your_connection_string
@@ -140,19 +140,19 @@ Returns service health status.
 2. Meta sends webhook POST request
 3. Service validates signature using META_APP_SECRET
 4. **Text messages:**
-   - Sent to Kafka incoming topic for AI processing
+   - Sent to NATS JetStream incoming topic for AI processing
    - Message marked as read with typing indicator
 5. **Media files (image, video, audio, document):**
    - Downloaded from WhatsApp Cloud API
    - Uploaded to Azure Blob Storage container
-   - Blob URL and metadata sent to Kafka incoming file topic
+   - Blob URL and metadata sent to NATS JetStream incoming file topic
    - Message marked as read with typing indicator
 
 ### Outgoing Messages
 
 1. AI worker processes incoming message
-2. AI worker sends response to Kafka outgoing topic
-3. Kafka consumer reads the message
+2. AI worker sends response to NATS JetStream outgoing topic
+3. NATS JetStream consumer reads the message
 4. Message is normalized and sent via WhatsApp API
 5. Successful messages are logged
 
@@ -202,8 +202,8 @@ src/
 ├── modules/
 │   ├── azure/          # Azure Blob Storage service
 │   ├── health/         # Health check endpoint
-│   ├── kafka/          # Kafka producers and consumers
-│   │   ├── dto/        # Kafka message DTOs
+│   ├── nats/          # NATS JetStream producers and consumers
+│   │   ├── dto/        # NATS JetStream message DTOs
 │   │   └── ...
 │   ├── webhook/        # WhatsApp webhook handlers
 │   └── whatsapp/       # WhatsApp API service
@@ -244,9 +244,9 @@ pnpm test:cov
 pnpm test:watch
 ```
 
-## Kafka Setup
+## NATS JetStream Setup
 
-Ensure you have a Kafka broker running and accessible via `KAFKA_BROKER_URL`. The service will automatically connect to the broker.
+Ensure you have a NATS JetStream broker running and accessible via `NATS_URL`. The service will automatically connect to the broker.
 
 The topics specified in `.env` should exist or be auto-created by the broker (depending on broker configuration).
 

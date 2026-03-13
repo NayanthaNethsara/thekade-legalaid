@@ -44,3 +44,24 @@ def build_outgoing_text_message(phone: str, text: str) -> dict:
         "type": "text",
         "content": {"text": text},
     }
+
+
+def build_outgoing_media_message(
+    phone: str,
+    media_type: str,
+    media_reference: str,
+    caption: Optional[str] = None,
+    filename: Optional[str] = None,
+) -> dict:
+    """Build a normalized outbound media payload for the gateway media queue."""
+    content = {"mediaUrl": media_reference}
+    if caption:
+        content["caption"] = caption
+    if filename:
+        content["filename"] = filename
+
+    return {
+        "to": phone,
+        "type": media_type,
+        "content": content,
+    }

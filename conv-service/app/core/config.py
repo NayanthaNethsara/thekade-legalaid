@@ -14,9 +14,14 @@ class Settings(BaseSettings):
     # --------------------------------------------------------------- NATS/JetStream
     NATS_URL: str = "nats://localhost:4222"
     NATS_STREAM_NAME: str = "LEGALAID_EVENTS"
-    NATS_SUBJECT_INCOMING: str = "whatsapp.incoming.messages"
+    NATS_SUBJECT_INCOMING_TEXT: str = "whatsapp.incoming.text"
+    NATS_SUBJECT_INCOMING_VOICE: str = "whatsapp.incoming.voice"
+    NATS_SUBJECT_INCOMING_DOCUMENT: str = "whatsapp.incoming.document"
     NATS_SUBJECT_INCOMING_FILE: str = "whatsapp.incoming.files"
-    NATS_SUBJECT_OUTGOING: str = "whatsapp.outgoing.messages"
+    NATS_SUBJECT_OUTGOING_TEXT: str = "whatsapp.outgoing.text"
+    NATS_SUBJECT_OUTGOING_MEDIA: str = "whatsapp.outgoing.media"
+    NATS_SUBJECT_INCOMING: str = ""
+    NATS_SUBJECT_OUTGOING: str = ""
 
     # --------------------------------------------------------- LLM (Google Gemini)
     GEMINI_API_KEY: str = ""

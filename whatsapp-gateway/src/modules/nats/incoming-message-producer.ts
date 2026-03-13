@@ -13,11 +13,11 @@ export class IncomingMessageProducer {
     private readonly configService: ConfigService,
   ) {
     this.subject =
-      this.configService.get<string>('nats.subjects.incoming') || '';
+      this.configService.get<string>('nats.subjects.incomingText') || '';
 
     if (!this.subject) {
       this.logger.warn(
-        'NATS_SUBJECT_INCOMING not configured. Set NATS_SUBJECT_INCOMING in environment',
+        'NATS_SUBJECT_INCOMING_TEXT not configured. Set NATS_SUBJECT_INCOMING_TEXT in environment',
       );
     }
   }

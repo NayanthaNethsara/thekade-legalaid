@@ -17,9 +17,22 @@ export default () => ({
     url: process.env.NATS_URL,
     streamName: process.env.NATS_STREAM_NAME || 'LEGALAID_EVENTS',
     subjects: {
-      incoming: process.env.NATS_SUBJECT_INCOMING,
+      incomingText:
+        process.env.NATS_SUBJECT_INCOMING_TEXT ||
+        process.env.NATS_SUBJECT_INCOMING ||
+        'whatsapp.incoming.text',
+      incomingVoice:
+        process.env.NATS_SUBJECT_INCOMING_VOICE || 'whatsapp.incoming.voice',
+      incomingDocument:
+        process.env.NATS_SUBJECT_INCOMING_DOCUMENT ||
+        'whatsapp.incoming.document',
       incomingFile: process.env.NATS_SUBJECT_INCOMING_FILE,
-      outgoing: process.env.NATS_SUBJECT_OUTGOING,
+      outgoingText:
+        process.env.NATS_SUBJECT_OUTGOING_TEXT ||
+        process.env.NATS_SUBJECT_OUTGOING ||
+        'whatsapp.outgoing.text',
+      outgoingMedia:
+        process.env.NATS_SUBJECT_OUTGOING_MEDIA || 'whatsapp.outgoing.media',
     },
   },
 });

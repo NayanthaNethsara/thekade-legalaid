@@ -17,10 +17,18 @@ class NatsService:
 
     def _all_subjects(self) -> list[str]:
         subjects = [
-            settings.NATS_SUBJECT_INCOMING,
+            settings.NATS_SUBJECT_INCOMING_TEXT,
+            settings.NATS_SUBJECT_INCOMING_VOICE,
+            settings.NATS_SUBJECT_INCOMING_DOCUMENT,
             settings.NATS_SUBJECT_INCOMING_FILE,
-            settings.NATS_SUBJECT_OUTGOING,
+            settings.NATS_SUBJECT_OUTGOING_TEXT,
+            settings.NATS_SUBJECT_OUTGOING_MEDIA,
         ]
+
+        if settings.NATS_SUBJECT_INCOMING:
+            subjects.append(settings.NATS_SUBJECT_INCOMING)
+        if settings.NATS_SUBJECT_OUTGOING:
+            subjects.append(settings.NATS_SUBJECT_OUTGOING)
 
         # Optional legacy subjects (if present in environment/settings)
         maybe_indexing = getattr(settings, "NATS_SUBJECT_INDEXING_TRUSTED", None)
@@ -115,7 +123,7 @@ class NatsService:
     ):
         try:
             if callable(topic_or_callback):
-                subject = settings.NATS_SUBJECT_INCOMING
+                subject = settings.NATS_SUBJECT_INCOMING_TEXT
                 async for payload in self._message_generator(subject):
                     await topic_or_callback(payload)
                 return

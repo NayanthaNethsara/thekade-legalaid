@@ -66,7 +66,7 @@ class ConversationService:
 
         reply = str(ai_messages[-1].content)
         await self.nats_service.send_message(
-            settings.NATS_SUBJECT_OUTGOING,
+            settings.NATS_SUBJECT_OUTGOING_TEXT,
             build_outgoing_text_message(phone, reply),
         )
         logger.info(f"[{phone}] ← {reply[:100]}")

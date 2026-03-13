@@ -9,10 +9,16 @@ import type {
   WhatsAppMetadata,
 } from './dto/webhook-event.dto';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { IncomingDocumentProducer } from '../nats/incoming-document-producer';
 import { IncomingMessageProducer } from '../nats/incoming-message-producer';
 import { IncomingFileProducer } from '../nats/incoming-file-producer';
+import { IncomingVoiceProducer } from '../nats/incoming-voice-producer';
 import { BlobStorageService } from '../azure/blob-storage.service';
-import { IncomingWhatsAppMessageDto } from '../nats/dto/nats-message.dto';
+import {
+  IncomingDocumentMessageDto,
+  IncomingWhatsAppMessageDto,
+  IncomingVoiceMessageDto,
+} from '../nats/dto/nats-message.dto';
 
 @Injectable()
 export class WebhookService {
@@ -21,8 +27,10 @@ export class WebhookService {
   constructor(
     private readonly whatsappService: WhatsAppService,
     private readonly configService: ConfigService,
+    private readonly incomingDocumentProducer: IncomingDocumentProducer,
     private readonly incomingMessageProducer: IncomingMessageProducer,
     private readonly incomingFileProducer: IncomingFileProducer,
+    private readonly incomingVoiceProducer: IncomingVoiceProducer,
     private readonly blobStorageService: BlobStorageService,
   ) {}
 
@@ -151,10 +159,14 @@ export class WebhookService {
       case 'button':
         await this.handleInteractiveMessage(message, metadata);
         break;
+      case 'audio':
+        await this.handleVoiceMessage(message, metadata);
+        break;
+      case 'document':
+        await this.handleDocumentMessage(message, metadata);
+        break;
       case 'image':
       case 'video':
-      case 'audio':
-      case 'document':
       case 'location':
         await this.handleNonTextMessage(message, metadata);
         break;
@@ -270,18 +282,54 @@ export class WebhookService {
     await this.incomingMessageProducer.sendMessage(incomingMessageDto);
   }
 
-  /**
-   * Handle media messages (image, video, audio, document) - download, upload to S3, and send to file queue
-   */
-  private async handleNonTextMessage(
+  private async handleVoiceMessage(
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
   ): Promise<void> {
+    const voiceMessage = await this.buildUploadedMediaMessage(
+      message,
+      metadata,
+    );
+    if (!voiceMessage || voiceMessage.type !== 'audio') {
+      return;
+    }
+
+    await this.incomingVoiceProducer.sendVoiceMessage(
+      voiceMessage as IncomingVoiceMessageDto,
+    );
+    this.logger.log(
+      `Audio message sent to voice queue: ${voiceMessage.messageId}`,
+    );
+  }
+
+  private async handleDocumentMessage(
+    message: WhatsAppMessage,
+    metadata: WhatsAppMetadata,
+  ): Promise<void> {
+    const documentMessage = await this.buildUploadedMediaMessage(
+      message,
+      metadata,
+    );
+    if (!documentMessage || documentMessage.type !== 'document') {
+      return;
+    }
+
+    await this.incomingDocumentProducer.sendDocumentMessage(
+      documentMessage as IncomingDocumentMessageDto,
+    );
+    this.logger.log(
+      `Document message sent to document queue: ${documentMessage.messageId}`,
+    );
+  }
+
+  private async buildUploadedMediaMessage(
+    message: WhatsAppMessage,
+    metadata: WhatsAppMetadata,
+  ) {
     const { id: messageId, from, type } = message;
     this.logger.log(`Received ${type} message from ${from}: ${messageId}`);
 
     try {
-      // Get media details based on type
       let mediaId: string | undefined;
       let mimeType: string | undefined;
       let caption: string | undefined;
@@ -314,24 +362,19 @@ export class WebhookService {
             from,
             `Sorry, ${type} messages are not supported yet.`,
           );
-          return;
+          return null;
       }
 
       if (!mediaId) {
         this.logger.error(`No media ID found for ${type} message`);
-        return;
+        return null;
       }
 
-      // Mark as read and show typing indicator while processing
       await this.whatsappService.markMessageAsRead(messageId, true);
-
       this.logger.log(`Downloading ${type} from WhatsApp (ID: ${mediaId})`);
 
-      // Download media from WhatsApp
       const fileBuffer = await this.whatsappService.downloadMedia(mediaId);
-
-      // Check file size (10MB limit)
-      const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+      const maxFileSize = 10 * 1024 * 1024;
       if (fileBuffer.length > maxFileSize) {
         this.logger.warn(
           `File size ${fileBuffer.length} bytes exceeds 10MB limit`,
@@ -340,14 +383,13 @@ export class WebhookService {
           from,
           `Sorry, your ${type} file is too large. Maximum file size is 10MB. Please send a smaller file.`,
         );
-        return;
+        return null;
       }
 
       this.logger.log(
         `Downloaded ${fileBuffer.length} bytes, uploading to Azure Blob Storage`,
       );
 
-      // Upload to Azure Blob Storage
       const fileExtension = mimeType?.split('/')[1] || type;
       const fileName =
         filename || `${type}-${messageId}.${fileExtension}`.substring(0, 100);
@@ -360,8 +402,7 @@ export class WebhookService {
 
       this.logger.log(`File uploaded to Azure Blob Storage: ${blobUrl}`);
 
-      // Send to incoming file queue
-      await this.incomingFileProducer.sendFileMessage({
+      return {
         messageId,
         from,
         to: metadata.phone_number_id,
@@ -375,19 +416,45 @@ export class WebhookService {
           phoneNumberId: metadata.phone_number_id,
           displayPhoneNumber: metadata.display_phone_number,
         },
-      });
-
-      this.logger.log(`${type} message processed and sent to file queue`);
+      };
     } catch (error) {
       this.logger.error(
         `Failed to process ${type} message: ${error instanceof Error ? error.message : 'Unknown error'}`,
         error instanceof Error ? error.stack : '',
       );
 
-      // Send error message to user
       await this.whatsappService.sendTextMessage(
         from,
         `Sorry, there was an error processing your ${type} file. Please try again.`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Handle media messages (image, video, audio, document) - download, upload to S3, and send to file queue
+   */
+  private async handleNonTextMessage(
+    message: WhatsAppMessage,
+    metadata: WhatsAppMetadata,
+  ): Promise<void> {
+    const uploadedMessage = await this.buildUploadedMediaMessage(
+      message,
+      metadata,
+    );
+    if (!uploadedMessage) {
+      return;
+    }
+
+    try {
+      await this.incomingFileProducer.sendFileMessage(uploadedMessage);
+      this.logger.log(
+        `${uploadedMessage.type} message processed and sent to legacy file queue`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to publish legacy file queue message: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error instanceof Error ? error.stack : '',
       );
     }
   }

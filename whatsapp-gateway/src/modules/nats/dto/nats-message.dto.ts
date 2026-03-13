@@ -15,6 +15,29 @@ export interface IncomingWhatsAppMessageDto {
   };
 }
 
+export interface IncomingVoiceMessageDto extends IncomingFileMessageDto {
+  type: 'audio';
+}
+
+export interface IncomingDocumentMessageDto extends IncomingFileMessageDto {
+  type: 'document';
+}
+
+export interface OutgoingTextMessageDto {
+  to: string;
+  type: 'text';
+  content: {
+    text: string;
+  };
+  replyToMessageId?: string;
+}
+
+export interface OutgoingMediaMessageDto {
+  to: string;
+  type: 'image' | 'video' | 'audio' | 'document' | 'template' | 'interactive';
+  content: OutgoingWhatsAppMessageDto['content'];
+  replyToMessageId?: string;
+}
 export interface OutgoingWhatsAppMessageDto {
   to: string;
   type:

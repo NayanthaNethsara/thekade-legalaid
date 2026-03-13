@@ -15,14 +15,23 @@ export class HealthController {
         nats: {
           url: this.configService.get<string>('nats.url'),
           streamName: this.configService.get<string>('nats.streamName'),
-          incomingSubject: this.configService.get<string>(
-            'nats.subjects.incoming',
+          incomingTextSubject: this.configService.get<string>(
+            'nats.subjects.incomingText',
           ),
-          incomingFileSubject: this.configService.get<string>(
+          incomingVoiceSubject: this.configService.get<string>(
+            'nats.subjects.incomingVoice',
+          ),
+          incomingDocumentSubject: this.configService.get<string>(
+            'nats.subjects.incomingDocument',
+          ),
+          incomingLegacyFileSubject: this.configService.get<string>(
             'nats.subjects.incomingFile',
           ),
-          outgoingSubject: this.configService.get<string>(
-            'nats.subjects.outgoing',
+          outgoingTextSubject: this.configService.get<string>(
+            'nats.subjects.outgoingText',
+          ),
+          outgoingMediaSubject: this.configService.get<string>(
+            'nats.subjects.outgoingMedia',
           ),
         },
         azure: {

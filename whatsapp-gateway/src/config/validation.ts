@@ -8,8 +8,9 @@ export const validationSchema = Joi.object({
   WHATSAPP_ACCESS_TOKEN: Joi.string().required(),
   AZURE_STORAGE_CONNECTION_STRING: Joi.string().required(),
   AZURE_STORAGE_CONTAINER_NAME: Joi.string().required(),
-  KAFKA_BROKER_URL: Joi.string().required(),
-  KAFKA_TOPIC_INCOMING: Joi.string().required(),
-  KAFKA_TOPIC_INCOMING_FILE: Joi.string().required(),
-  KAFKA_TOPIC_OUTGOING: Joi.string().required(),
+  NATS_URL: Joi.string().required(),
+  NATS_STREAM_NAME: Joi.string().default('LEGALAID_EVENTS'),
+  NATS_SUBJECT_INCOMING: Joi.string().required(),
+  NATS_SUBJECT_INCOMING_FILE: Joi.string().required(),
+  NATS_SUBJECT_OUTGOING: Joi.string().required(),
 });

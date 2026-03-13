@@ -1,5 +1,5 @@
 """
-RAG Query consumer that processes queries from Kafka and responds via Kafka.
+RAG Query consumer that processes queries from NATS JetStream and responds via NATS.
 This enables async query processing for WhatsApp and other sources.
 
 Usage:
@@ -15,7 +15,7 @@ from typing import Dict, Any
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from app.services.kafka import KafkaService
+from app.core.nats import NatsService
 from app.services.rag_service import RAGService
 from app.core.config import settings
 from app.utils.logger import setup_logger
@@ -37,17 +37,17 @@ def signal_handler(signum, frame):
 
 async def consume_rag_queries():
     """
-    Main worker loop that consumes RAG queries from Kafka and responds.
+    Main worker loop that consumes RAG queries from NATS JetStream and responds.
     """
     global should_stop
     
     logger.info("Starting RAG query consumer...")
-    logger.info(f"Kafka broker: {settings.KAFKA_BROKER_URL}")
-    logger.info(f"Consuming from: {settings.KAFKA_TOPIC_RAG_QUERIES}")
-    logger.info(f"Publishing to: {settings.KAFKA_TOPIC_OUTGOING}")
+    logger.info(f"NATS server: {settings.NATS_URL}")
+    logger.info(f"Consuming from: {settings.NATS_SUBJECT_RAG_QUERIES}")
+    logger.info(f"Publishing to: {settings.NATS_SUBJECT_OUTGOING}")
     
     # Initialize services
-    kafka_service = KafkaService()
+    nats_service = NatsService()
     rag_service = RAGService()
     
     # Stats tracking
@@ -57,7 +57,9 @@ async def consume_rag_queries():
     
     try:
         # Start consuming messages
-        async for message in kafka_service.consume_messages(settings.KAFKA_TOPIC_RAG_QUERIES):
+        await nats_service.start()
+
+        async for message in nats_service.consume_messages(settings.NATS_SUBJECT_RAG_QUERIES):
             if should_stop:
                 logger.info("Stop signal received, breaking consumer loop...")
                 break
@@ -90,7 +92,7 @@ async def consume_rag_queries():
                     for citation in citations[:3]:  # Show top 3 sources
                         citation_text += f"• {citation['filename']}\n"
                 
-                # Send response back via Kafka
+                # Send response back via NATS JetStream
                 response_message = {
                     "to": user_id,
                     "type": "text",
@@ -104,8 +106,8 @@ async def consume_rag_queries():
                     }
                 }
                 
-                await kafka_service.send_message(
-                    settings.KAFKA_TOPIC_OUTGOING,
+                await nats_service.send_message(
+                    settings.NATS_SUBJECT_OUTGOING,
                     response_message
                 )
                 
@@ -133,8 +135,8 @@ async def consume_rag_queries():
                 }
                 
                 try:
-                    await kafka_service.send_message(
-                        settings.KAFKA_TOPIC_OUTGOING,
+                    await nats_service.send_message(
+                        settings.NATS_SUBJECT_OUTGOING,
                         error_message
                     )
                 except Exception as send_error:
@@ -155,6 +157,8 @@ async def consume_rag_queries():
         raise
     
     finally:
+        await nats_service.stop()
+
         # Log final stats
         logger.info("=" * 60)
         logger.info("RAG query consumer shutdown complete")

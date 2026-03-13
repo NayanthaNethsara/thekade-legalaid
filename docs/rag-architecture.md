@@ -12,15 +12,15 @@ This document describes the RAG system that extends the existing `conv-service` 
 
 ## Goals
 - Add RAG capabilities so user queries (from the frontend or WhatsApp) can return contextually accurate answers with citations drawn from uploaded documents/media.
-- Reuse existing flows: Azure Blob (already used by `whatsapp-gateway`) and Kafka topics already present.
+- Reuse existing flows: Azure Blob (already used by `whatsapp-gateway`) and NATS JetStream topics already present.
 - Store vectors in Postgres using `pgvector` for operational simplicity and integration with existing relational data.
 
 ## High-level Components
 
-- Ingestion (existing): `whatsapp-gateway` uploads media to Azure Blob and emits Kafka messages with file metadata. The frontend can also upload documents (via a API route) and reuse the same flow.
-- Indexer (new within `conv-service`): consumes an indexing Kafka topic, downloads blobs, extracts text, chunks and creates embeddings, and upserts vectors into Postgres (`pgvector`).
+- Ingestion (existing): `whatsapp-gateway` uploads media to Azure Blob and emits NATS JetStream messages with file metadata. The frontend can also upload documents (via a API route) and reuse the same flow.
+- Indexer (new within `conv-service`): consumes an indexing NATS JetStream topic, downloads blobs, extracts text, chunks and creates embeddings, and upserts vectors into Postgres (`pgvector`).
 - Vector DB (Postgres + pgvector): stores document chunks, embeddings, and provenance metadata.
-- RAG Query Handler (extend `conv-service`): handles queries by retrieving top‑k vectors, assembling prompt with chat history, calling the LLM provider, and producing an outgoing message to Kafka for delivery.
+- RAG Query Handler (extend `conv-service`): handles queries by retrieving top‑k vectors, assembling prompt with chat history, calling the LLM provider, and producing an outgoing message to NATS JetStream for delivery.
 - LLM & Embeddings: hosted provider (OpenAI / Azure OpenAI recommended). Embeddings dimension typically 1536 for OpenAI `text-embedding-3-small`/`text-embedding-3-large` etc.
 - Cache/Session: Redis for short-term chat history and caching of embeddings or results (optional but recommended).
 
@@ -28,7 +28,7 @@ This document describes the RAG system that extends the existing `conv-service` 
 
 1. Upload/Receive:
    - User uploads doc via frontend or sends media via WhatsApp.
-   - `whatsapp-gateway` stores blob in Azure and emits a Kafka message to `whatsapp.incoming.files` (or a new `indexing.files` topic) containing `blob_url`, `message_id`, `from`, `timestamp`, and metadata.
+   - `whatsapp-gateway` stores blob in Azure and emits a NATS JetStream message to `whatsapp.incoming.files` (or a new `indexing.files` topic) containing `blob_url`, `message_id`, `from`, `timestamp`, and metadata.
 
 2. Indexing pipeline (indexer worker in `conv-service`):
    - Indexer consumes the file topic.
@@ -38,11 +38,11 @@ This document describes the RAG system that extends the existing `conv-service` 
    - Upsert chunk records into Postgres (see schema below) with `embedding` stored as a `vector` column.
 
 3. Query (frontend or WhatsApp):
-   - User query reaches the hosted API (RAG endpoint) or enqueues a `rag.queries` Kafka message.
+   - User query reaches the hosted API (RAG endpoint) or enqueues a `rag.queries` NATS JetStream message.
    - RAG handler retrieves last N chat messages (from Redis or Postgres), computes query embedding, performs ANN search via Postgres `ORDER BY embedding <=> query_embedding LIMIT k`.
    - Compose prompt with retrieved chunks (include citations: `source_url`, `document_id`, `chunk_id`) and user context.
    - Call LLM for answer generation; include citation tags in the output.
-   - Emit outgoing message to Kafka `whatsapp.outgoing.messages` for `whatsapp-gateway` to send back to the user, and return a response to the frontend if requested.
+   - Emit outgoing message to NATS JetStream `whatsapp.outgoing.messages` for `whatsapp-gateway` to send back to the user, and return a response to the frontend if requested.
 
 ## Postgres + pgvector Schema (recommended)
 
@@ -122,7 +122,7 @@ LIMIT 10;
 1. Add an Indexer worker inside `conv-service`:
    - New module: `conv-service/app/indexer.py` or extend `app/services/message_processor.py` to route indexing events.
    - Consumes `whatsapp.incoming.files` (or `indexing.files`) and `frontend.uploads` (if present).
-   - Uses existing `app/core/config.py` settings for `KAFKA_BROKER_URL` and add new envs for `OPENAI_API_KEY`, `VECTOR_DIM`, `PG_DSN`, `REDIS_URL`.
+   - Uses existing `app/core/config.py` settings for `NATS_URL` and add new envs for `OPENAI_API_KEY`, `VECTOR_DIM`, `PG_DSN`, `REDIS_URL`.
    - Implements extractors for common file types (PDF/DOCX/HTML/Images via Tesseract).
    - Chunking & embedding logic; batch embedding requests to reduce cost.
 
@@ -131,7 +131,7 @@ LIMIT 10;
    - Use `sqlalchemy` with `pgvector` extension or `psycopg` with proper binary passing.
 
 3. Add RAG query handler (in `conv-service`):
-   - Add REST endpoint `/api/rag/query` or consume `rag.queries` Kafka topic.
+   - Add REST endpoint `/api/rag/query` or consume `rag.queries` NATS JetStream topic.
    - On query: compute query embedding, call `query_similar_chunks`, assemble prompt and call LLM.
    - Produce answer with citations and push result to `whatsapp.outgoing.messages` topic (so `whatsapp-gateway` sends it) and return response to frontend.
 
@@ -149,7 +149,7 @@ LIMIT 10;
 - `CHUNK_SIZE` (e.g., 1000 tokens)
 - `CHUNK_OVERLAP` (e.g., 200 tokens)
 - `RAG_TOP_K` (e.g., 5)
-- `KAFKA_BROKER_URL` (existing)
+- `NATS_URL` (existing)
 - `AZURE_STORAGE_CONNECTION_STRING` (existing)
 - `REDIS_URL` (optional for session/cache)
 
@@ -163,7 +163,7 @@ LIMIT 10;
 
 - Unit tests: embedding, chunking, upsert, retrieval correctness.
 - Integration tests: index sample documents, run a set of queries and assert that returned citations include expected documents.
-- E2E smoke: UI → API → produce outgoing Kafka message → gateway → confirmation.
+- E2E smoke: UI → API → produce outgoing NATS JetStream message → gateway → confirmation.
 
 ## Operational notes
 
@@ -193,7 +193,7 @@ Phase 0 — Planning & corpus curation
 
 Phase 1 — Infra & schema
 - Provision Postgres with `pgvector` enabled and create the `documents`/`document_chunks` schema via Alembic migration.
-- Provision Redis for chat/session cache and ensure Kafka topics exist: `indexing.trusted_files`, `rag.queries`, `whatsapp.outgoing.messages`.
+- Provision Redis for chat/session cache and ensure NATS JetStream topics exist: `indexing.trusted_files`, `rag.queries`, `whatsapp.outgoing.messages`.
 - Add required env vars to `conv-service` config: `DATABASE_URL`, `VECTOR_DIM`, `OPENAI_API_KEY`, `RAG_TOP_K`.
 
 Phase 2 — Admin pre-feed tooling & bulk index
@@ -206,7 +206,7 @@ Phase 3 — Indexer & vector storage
 - Add unit tests for chunking/embedding/upsert.
 
 Phase 4 — RAG query handler
-- Implement `/api/rag/query` (HTTP) or a `rag.queries` Kafka consumer that embeds incoming questions, queries `document_chunks` for top-K similar chunks, assembles a prompt with explicit citation metadata, calls the LLM, and returns/publishes the answer.
+- Implement `/api/rag/query` (HTTP) or a `rag.queries` NATS JetStream consumer that embeds incoming questions, queries `document_chunks` for top-K similar chunks, assembles a prompt with explicit citation metadata, calls the LLM, and returns/publishes the answer.
 - Ensure responses include structured citations (source, document id, chunk index, and a short excerpt).
 
 Phase 5 — Relevance tuning & evaluation

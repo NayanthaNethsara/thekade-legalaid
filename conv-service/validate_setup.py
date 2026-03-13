@@ -277,7 +277,7 @@ def test_configuration():
         ("CHUNK_SIZE", settings.CHUNK_SIZE, False),
         ("CHUNK_OVERLAP", settings.CHUNK_OVERLAP, False),
         ("RAG_TOP_K", settings.RAG_TOP_K, False),
-        ("KAFKA_BROKER_URL", settings.KAFKA_BROKER_URL, False),
+        ("NATS_URL", settings.NATS_URL, False),
         ("AZURE_STORAGE_CONNECTION_STRING", settings.AZURE_STORAGE_CONNECTION_STRING, False),
     ]
     

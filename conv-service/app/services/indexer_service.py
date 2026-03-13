@@ -1,5 +1,5 @@
 """
-Indexer service for consuming Kafka indexing events and storing document embeddings.
+Indexer service for consuming NATS indexing events and storing document embeddings.
 This service implements Phase 3 of the RAG architecture.
 """
 import logging
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class IndexerService:
-    """Service for indexing documents from Kafka events."""
+    """Service for indexing documents from NATS events."""
     
     def __init__(
         self,
@@ -42,7 +42,7 @@ class IndexerService:
     
     async def process_indexing_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Process an indexing event from Kafka.
+        Process an indexing event from NATS.
         
         Expected event format:
         {

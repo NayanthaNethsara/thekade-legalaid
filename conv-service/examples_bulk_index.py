@@ -17,15 +17,15 @@ print("Command:")
 print('  python bulk_index.py f:\\legal-corpus --upload-to-blob')
 print()
 
-# Example 3: Emit Kafka events for monitoring
+# Example 3: Emit NATS events for monitoring
 # Good for tracking indexing operations
-print("Example 3: With Kafka event tracking")
+print("Example 3: With NATS event tracking")
 print("Command:")
-print('  python bulk_index.py f:\\legal-corpus --emit-kafka-events')
+print('  python bulk_index.py f:\\legal-corpus --emit-nats-events')
 print()
 
 # Example 4: Full production setup
-# Azure backup + Kafka tracking + custom source label
+# Azure backup + NATS tracking + custom source label
 print("Example 4: Full production setup")
 print("Command:")
 print('  python bulk_index.py f:\\legal-corpus \\')
@@ -33,7 +33,7 @@ print('    --source "sri-lanka-legal-corpus-v1" \\')
 print('    --chunk-size 1000 \\')
 print('    --chunk-overlap 200 \\')
 print('    --upload-to-blob \\')
-print('    --emit-kafka-events')
+print('    --emit-nats-events')
 print()
 
 # Example 5: Custom chunking for specific document types

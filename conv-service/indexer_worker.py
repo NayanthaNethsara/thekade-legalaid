@@ -1,5 +1,5 @@
 """
-Indexer worker that consumes Kafka indexing events.
+Indexer worker that consumes NATS JetStream indexing events.
 This script runs as a standalone process to index documents into the vector database.
 
 Usage:
@@ -14,7 +14,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from app.services.kafka import KafkaService
+from app.core.nats import NatsService
 from app.services.indexer_service import IndexerService
 from app.core.config import settings
 from app.utils.logger import setup_logger
@@ -36,16 +36,16 @@ def signal_handler(signum, frame):
 
 async def consume_indexing_events():
     """
-    Main worker loop that consumes indexing events from Kafka.
+    Main worker loop that consumes indexing events from NATS JetStream.
     """
     global should_stop
     
     logger.info("Starting indexer worker...")
-    logger.info(f"Kafka broker: {settings.KAFKA_BROKER_URL}")
-    logger.info(f"Consuming from topic: {settings.KAFKA_TOPIC_INDEXING_TRUSTED}")
+    logger.info(f"NATS server: {settings.NATS_URL}")
+    logger.info(f"Consuming from subject: {settings.NATS_SUBJECT_INDEXING_TRUSTED}")
     
     # Initialize services
-    kafka_service = KafkaService()
+    nats_service = NatsService()
     indexer_service = IndexerService()
     
     # Stats tracking
@@ -55,7 +55,9 @@ async def consume_indexing_events():
     
     try:
         # Start consuming messages
-        async for message in kafka_service.consume_messages(settings.KAFKA_TOPIC_INDEXING_TRUSTED):
+        await nats_service.start()
+
+        async for message in nats_service.consume_messages(settings.NATS_SUBJECT_INDEXING_TRUSTED):
             if should_stop:
                 logger.info("Stop signal received, breaking consumer loop...")
                 break
@@ -98,6 +100,8 @@ async def consume_indexing_events():
         raise
     
     finally:
+        await nats_service.stop()
+
         # Log final stats
         logger.info("=" * 60)
         logger.info("Indexer worker shutdown complete")

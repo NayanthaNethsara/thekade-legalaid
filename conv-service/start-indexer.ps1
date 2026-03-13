@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 # Start the RAG Indexer Worker
-# This worker consumes indexing events from Kafka and indexes documents into the vector database
+# This worker consumes indexing events from NATS JetStream and indexes documents into the vector database
 
 Write-Host "=" * 60 -ForegroundColor Cyan
 Write-Host "Starting RAG Indexer Worker" -ForegroundColor Cyan

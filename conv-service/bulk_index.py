@@ -18,7 +18,7 @@ from app.utils.chunking import TextChunker
 from app.services.embeddings import EmbeddingClient
 from app.storage.pgvector import PgVectorStore
 from app.utils.azure_storage import AzureBlobUploader
-from app.utils.kafka_emitter import IndexingEventEmitter
+from app.utils.nats_emitter import IndexingEventEmitter
 
 # Setup logging
 logging.basicConfig(
@@ -59,7 +59,7 @@ def index_document(
 ) -> dict:
     """
     Index a single document: extract, chunk, embed, and store.
-    Optionally uploads to Azure Blob and emits Kafka event.
+    Optionally uploads to Azure Blob and emits NATS event.
     
     Args:
         file_path: Path to document
@@ -67,7 +67,7 @@ def index_document(
         embedder: Embedding client instance
         store: Vector store instance
         blob_uploader: Optional Azure Blob uploader
-        event_emitter: Optional Kafka event emitter
+        event_emitter: Optional NATS event emitter
         source: Source identifier for the document
         
     Returns:
@@ -134,7 +134,7 @@ def index_document(
         
         logger.info(f"✅ Indexed {file_path.name}: document_id={doc_id}, chunks={chunk_count}")
         
-        # 7. Emit Kafka event (if emitter provided)
+        # 7. Emit NATS event (if emitter provided)
         if event_emitter:
             try:
                 event_emitter.emit_indexing_event(
@@ -150,7 +150,7 @@ def index_document(
                     }
                 )
             except Exception as e:
-                logger.warning(f"Failed to emit Kafka event (continuing anyway): {e}")
+                logger.warning(f"Failed to emit NATS event (continuing anyway): {e}")
         
         return {
             "status": "success",
@@ -197,9 +197,9 @@ def main():
         help="Upload documents to Azure Blob Storage before indexing"
     )
     parser.add_argument(
-        "--emit-kafka-events",
+        "--emit-nats-events",
         action="store_true",
-        help="Emit indexing events to Kafka topic"
+        help="Emit indexing events to NATS subject"
     )
     
     args = parser.parse_args()
@@ -231,14 +231,14 @@ def main():
         except Exception as e:
             logger.warning(f"Failed to initialize Azure Blob uploader: {e}")
     
-    # Initialize optional Kafka event emitter
+    # Initialize optional NATS event emitter
     event_emitter = None
-    if args.emit_kafka_events:
+    if args.emit_nats_events:
         try:
             event_emitter = IndexingEventEmitter()
-            logger.info("Kafka event emitter initialized")
+            logger.info("NATS event emitter initialized")
         except Exception as e:
-            logger.warning(f"Failed to initialize Kafka event emitter: {e}")
+            logger.warning(f"Failed to initialize NATS event emitter: {e}")
     
     # Get documents
     documents = get_documents_from_directory(args.directory)
@@ -255,7 +255,7 @@ def main():
     logger.info(f"  Chunk size: {args.chunk_size} tokens")
     logger.info(f"  Chunk overlap: {args.chunk_overlap} tokens")
     logger.info(f"  Upload to blob: {args.upload_to_blob}")
-    logger.info(f"  Emit Kafka events: {args.emit_kafka_events}")
+    logger.info(f"  Emit NATS events: {args.emit_nats_events}")
     logger.info(f"{'='*60}\n")
     
     # Index all documents

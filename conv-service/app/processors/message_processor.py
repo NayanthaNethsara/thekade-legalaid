@@ -1,4 +1,4 @@
-from app.core.kafka import KafkaService
+from app.core.nats import NatsService
 from app.core.config import settings
 from app.utils.logger import setup_logger
 from app.core.graph import GraphContext, NodeGraph
@@ -12,8 +12,8 @@ from app.repositories.user import UserRepository
 logger = setup_logger(__name__)
 
 class MessageProcessor:
-    def __init__(self, kafka_service: KafkaService):
-        self.kafka_service = kafka_service
+    def __init__(self, nats_service: NatsService):
+        self.nats_service = nats_service
         self.node_graph = NodeGraph()
         self.redis_client = RedisClient.get_instance()
         
@@ -22,7 +22,7 @@ class MessageProcessor:
 
     async def process(self, message: dict):
         """
-        Process incoming Kafka messages using the Node Graph.
+        Process incoming NATS messages using the Node Graph.
         """
         logger.info(f"Processing message: {message}")
         
@@ -38,7 +38,7 @@ class MessageProcessor:
                 context = GraphContext(
                     message=message,
                     db=db,
-                    kafka_service=self.kafka_service,
+                    nats_service=self.nats_service,
                     user_service=user_service
                 )
                 

@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 # Start the RAG Query Consumer
-# This worker consumes RAG queries from Kafka and responds with answers
+# This worker consumes RAG queries from NATS JetStream and responds with answers
 
 Write-Host "=" * 60 -ForegroundColor Cyan
 Write-Host "Starting RAG Query Consumer" -ForegroundColor Cyan

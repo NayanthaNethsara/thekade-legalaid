@@ -6,18 +6,14 @@ class Settings(BaseSettings):
     DIRECT_URL: str
     REDIS_URL: str = "redis://localhost:6379/0"
     
-    # Kafka
-    KAFKA_BROKER_URL: str = "localhost:9092"
-    KAFKA_TOPIC_INCOMING: str = "whatsapp.incoming.messages"
-    KAFKA_TOPIC_INCOMING_FILE: str = "whatsapp.incoming.files"
-    KAFKA_TOPIC_OUTGOING: str = "whatsapp.outgoing.messages"
-    KAFKA_TOPIC_INDEXING_TRUSTED: str = "indexing.trusted_files"
-    KAFKA_TOPIC_RAG_QUERIES: str = "rag.queries"
-    
-    KAFKA_USERNAME: str = ""
-    KAFKA_PASSWORD: str = ""
-    KAFKA_SSL: bool = False
-    KAFKA_SASL_MECHANISM: str = "PLAIN"
+    # NATS JetStream
+    NATS_URL: str = "nats://localhost:4222"
+    NATS_STREAM_NAME: str = "LEGALAID_EVENTS"
+    NATS_SUBJECT_INCOMING: str = "whatsapp.incoming.messages"
+    NATS_SUBJECT_INCOMING_FILE: str = "whatsapp.incoming.files"
+    NATS_SUBJECT_OUTGOING: str = "whatsapp.outgoing.messages"
+    NATS_SUBJECT_INDEXING_TRUSTED: str = "indexing.trusted_files"
+    NATS_SUBJECT_RAG_QUERIES: str = "rag.queries"
     
     # RAG & Vector Search
     GEMINI_API_KEY: str = ""

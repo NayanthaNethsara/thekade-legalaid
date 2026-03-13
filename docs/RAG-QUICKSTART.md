@@ -10,9 +10,9 @@ The RAG system enables AI-powered legal question answering using a curated corpu
 
 1. **Vector Database** — PostgreSQL with pgvector for document storage
 2. **Bulk Indexer** — CLI tool to index legal documents
-3. **Indexer Worker** — Kafka consumer for async indexing
+3. **Indexer Worker** — NATS JetStream consumer for async indexing
 4. **RAG API** — HTTP endpoint for synchronous queries
-5. **RAG Query Consumer** — Kafka consumer for async queries (WhatsApp)
+5. **RAG Query Consumer** — NATS JetStream consumer for async queries (WhatsApp)
 
 ---
 
@@ -22,7 +22,7 @@ The RAG system enables AI-powered legal question answering using a curated corpu
 
 - **Python 3.9+** installed
 - **PostgreSQL 12+** with superuser access
-- **Kafka** cluster running (local or hosted)
+- **NATS JetStream** cluster running (local or hosted)
 - **Gemini API Key** ([Get free key](https://aistudio.google.com/app/apikey))
 
 ### 2. Database Setup
@@ -56,11 +56,11 @@ CHUNK_SIZE=1000
 CHUNK_OVERLAP=200
 RAG_TOP_K=5
 
-# Kafka
-KAFKA_BROKER_URL=localhost:9092
-KAFKA_TOPIC_INDEXING_TRUSTED=indexing.trusted_files
-KAFKA_TOPIC_RAG_QUERIES=rag.queries
-KAFKA_TOPIC_OUTGOING=whatsapp.outgoing.messages
+# NATS JetStream
+NATS_URL=nats://localhost:4222
+NATS_SUBJECT_INDEXING_TRUSTED=indexing.trusted_files
+NATS_SUBJECT_RAG_QUERIES=rag.queries
+NATS_SUBJECT_OUTGOING=whatsapp.outgoing.messages
 
 # Azure Storage (optional, for blob uploads)
 AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;...
@@ -84,7 +84,7 @@ pip install -r requirements.txt
 python bulk_index.py f:\legal-corpus
 
 # Or with all options
-python bulk_index.py f:\legal-corpus --upload-to-blob --emit-kafka-events
+python bulk_index.py f:\legal-corpus --upload-to-blob --emit-nats-events
 ```
 
 ### 6. Start Services
@@ -127,9 +127,9 @@ curl -X POST http://localhost:8000/api/rag/query `
 
 For more details, see the phase-specific guides:
 
-- **[Phase 1: Infrastructure Setup](rag-phase1-setup.md)** — Database, Kafka, Redis setup
+- **[Phase 1: Infrastructure Setup](rag-phase1-setup.md)** — Database, NATS JetStream, Redis setup
 - **[Phase 2: Bulk Indexing](rag-phase2-setup.md)** — Admin tooling, corpus curation
-- **[Phase 3: Indexer Service](rag-phase3-setup.md)** — Kafka consumers, async processing
+- **[Phase 3: Indexer Service](rag-phase3-setup.md)** — NATS JetStream consumers, async processing
 - **[Architecture Overview](rag-architecture.md)** — System design, data flow
 
 ---
@@ -138,25 +138,25 @@ For more details, see the phase-specific guides:
 
 ### Indexing
 
-| Script | Purpose |
-|--------|---------|
-| `bulk_index.py` | Bulk index documents from a directory |
-| `start-indexer.ps1` | Start Kafka indexer worker |
+| Script              | Purpose                               |
+| ------------------- | ------------------------------------- |
+| `bulk_index.py`     | Bulk index documents from a directory |
+| `start-indexer.ps1` | Start NATS JetStream indexer worker   |
 
 ### Querying
 
-| Script | Purpose |
-|--------|---------|
-| `start-rag-api.ps1` | Start HTTP API server (port 8000) |
-| `start-rag-query-consumer.ps1` | Start Kafka query consumer |
-| `test_rag_api.py` | Test the RAG API |
+| Script                         | Purpose                             |
+| ------------------------------ | ----------------------------------- |
+| `start-rag-api.ps1`            | Start HTTP API server (port 8000)   |
+| `start-rag-query-consumer.ps1` | Start NATS JetStream query consumer |
+| `test_rag_api.py`              | Test the RAG API                    |
 
 ### Utilities
 
-| Script | Purpose |
-|--------|---------|
-| `run_rag_setup.py` | Set up database schema |
-| `check_gemini.py` | Test Gemini API connection |
+| Script             | Purpose                    |
+| ------------------ | -------------------------- |
+| `run_rag_setup.py` | Set up database schema     |
+| `check_gemini.py`  | Test Gemini API connection |
 
 ---
 
@@ -177,7 +177,7 @@ For more details, see the phase-specific guides:
          │ Events
          ▼
 ┌─────────────────────────────────────────────┐
-│             Kafka Topics                     │
+│             NATS JetStream Topics                     │
 │  • indexing.trusted_files                   │
 │  • rag.queries                              │
 │  • whatsapp.outgoing.messages               │
@@ -186,7 +186,7 @@ For more details, see the phase-specific guides:
            ▼
 ┌─────────────────┐     ┌──────────────────┐
 │ Indexer Worker  │────▶│  PostgreSQL      │
-│ (Kafka Consumer)│     │  + pgvector      │
+│ (NATS JetStream Consumer)│     │  + pgvector      │
 └─────────────────┘     └──────────────────┘
                                  ▲
                                  │
@@ -195,7 +195,7 @@ For more details, see the phase-specific guides:
     ┌──────┴──────┐                  ┌─────────┴────────┐
     │  RAG API    │                  │  RAG Query       │
     │  (HTTP)     │                  │  Consumer        │
-    │             │                  │  (Kafka)         │
+    │             │                  │  (NATS JetStream)         │
     └──────┬──────┘                  └─────────┬────────┘
            │                                   │
            ▼                                   ▼
@@ -236,14 +236,14 @@ logging.basicConfig(
 
 ```sql
 -- Count documents and chunks
-SELECT 
+SELECT
     COUNT(DISTINCT d.id) as total_documents,
     COUNT(c.id) as total_chunks
 FROM documents d
 LEFT JOIN document_chunks c ON c.document_id = d.id;
 
 -- Recent documents
-SELECT 
+SELECT
     id,
     metadata->>'filename' as filename,
     created_at
@@ -252,7 +252,7 @@ ORDER BY created_at DESC
 LIMIT 10;
 
 -- Search by filename
-SELECT * FROM documents 
+SELECT * FROM documents
 WHERE metadata->>'filename' LIKE '%criminal%';
 ```
 
@@ -263,6 +263,7 @@ WHERE metadata->>'filename' LIKE '%criminal%';
 ### Issue: "pgvector extension not found"
 
 **Solution:**
+
 ```sql
 -- Connect as superuser
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -271,23 +272,27 @@ CREATE EXTENSION IF NOT EXISTS vector;
 ### Issue: "Gemini API authentication failed"
 
 **Solution:**
+
 1. Verify API key: https://aistudio.google.com/app/apikey
 2. Check `.env` file has `GEMINI_API_KEY=AIzaSyC...`
 3. Test: `python check_gemini.py`
 
-### Issue: "Kafka connection timeout"
+### Issue: "NATS JetStream connection timeout"
 
 **Solution:**
-1. Verify Kafka is running: `telnet localhost 9092`
-2. Check `KAFKA_BROKER_URL` in `.env`
-3. Verify topics exist:
+
+1. Verify NATS JetStream is running: `telnet localhost 4222`
+2. Check `NATS_URL` in `.env`
+3. Verify stream and subjects exist:
    ```powershell
-   kafka-topics.sh --list --bootstrap-server localhost:9092
+    nats stream ls
+    nats stream info LEGALAID_EVENTS
    ```
 
 ### Issue: "No documents found" when querying
 
 **Solution:**
+
 1. Check if documents are indexed:
    ```sql
    SELECT COUNT(*) FROM documents;
@@ -301,7 +306,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 - **API Keys:** Never commit `.env` to version control
 - **Database:** Use strong passwords and connection pooling
-- **Kafka:** Enable SSL/SASL for production
+- **NATS JetStream:** Enable SSL/SASL for production
 - **Azure Storage:** Use SAS tokens with minimal permissions
 
 ---
@@ -341,16 +346,16 @@ SELECT pg_reload_conf();
 ```sql
 -- Rebuild ivfflat index with more lists for better recall
 DROP INDEX document_chunks_embedding_idx;
-CREATE INDEX document_chunks_embedding_idx 
-ON document_chunks 
-USING ivfflat (embedding vector_l2_ops) 
+CREATE INDEX document_chunks_embedding_idx
+ON document_chunks
+USING ivfflat (embedding vector_l2_ops)
 WITH (lists = 500);
 
 -- Run ANALYZE
 ANALYZE document_chunks;
 ```
 
-### Kafka
+### NATS JetStream
 
 ```properties
 # Increase batch size for better throughput

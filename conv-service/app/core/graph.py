@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.models.user import User
-from app.core.kafka import KafkaService
+from app.core.nats import NatsService
 
 from app.services.user import UserService
 
@@ -11,12 +11,12 @@ class GraphContext:
         self,
         message: Dict[str, Any],
         db: Session,
-        kafka_service: KafkaService,
+        nats_service: NatsService,
         user_service: UserService
     ):
         self.message = message
         self.db = db
-        self.kafka_service = kafka_service
+        self.nats_service = nats_service
         self.user_service = user_service
         self.user: Optional[User] = None
 

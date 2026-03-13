@@ -5,58 +5,50 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { KafkaService } from './kafka.service';
+import { NatsService } from './nats.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
-import { OutgoingWhatsAppMessageDto } from './dto/kafka-message.dto';
+import { OutgoingWhatsAppMessageDto } from './dto/nats-message.dto';
 
 @Injectable()
 export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OutgoingMessageConsumer.name);
-  private readonly topic: string;
+  private readonly subject: string;
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly kafkaService: KafkaService,
+    private readonly natsService: NatsService,
     private readonly whatsappService: WhatsAppService,
   ) {
-    this.topic = this.configService.get<string>('kafka.topics.outgoing') || '';
+    this.subject =
+      this.configService.get<string>('nats.subjects.outgoing') || '';
 
-    if (!this.topic) {
+    if (!this.subject) {
       this.logger.warn(
-        'KAFKA_TOPIC_OUTGOING not configured. Set KAFKA_TOPIC_OUTGOING in environment',
+        'NATS_SUBJECT_OUTGOING not configured. Set NATS_SUBJECT_OUTGOING in environment',
       );
     }
   }
 
   async onModuleInit() {
-    if (!this.topic) {
+    if (!this.subject) {
       this.logger.error(
-        'Outgoing Kafka topic not configured. Consumer not started.',
+        'Outgoing NATS subject not configured. Consumer not started.',
       );
       return;
     }
 
-    this.logger.log(`Starting to consume Kafka topic: ${this.topic}`);
-    const consumer = this.kafkaService.getConsumer();
-
-    await consumer.subscribe({ topic: this.topic, fromBeginning: false });
-
-    await consumer.run({
-      eachMessage: async ({ topic, partition, message }) => {
+    this.logger.log(`Starting to consume NATS subject: ${this.subject}`);
+    await this.natsService.subscribe(
+      this.subject,
+      'whatsapp_gateway_outgoing',
+      async (payload) => {
         try {
-          if (!message.value) {
-            this.logger.warn('Received message without body');
-            return;
-          }
-
-          const messageContent = message.value.toString();
-          this.logger.log('=== INCOMING KAFKA MESSAGE ===');
+          const messageContent = JSON.stringify(payload);
+          this.logger.log('=== INCOMING NATS MESSAGE ===');
           this.logger.log(`Raw message body: ${messageContent}`);
           this.logger.log('==============================');
 
-          const parsedMessage = JSON.parse(
-            messageContent,
-          ) as OutgoingWhatsAppMessageDto;
+          const parsedMessage = payload as OutgoingWhatsAppMessageDto;
 
           // Simple validation
           if (!parsedMessage.to) {
@@ -76,11 +68,11 @@ export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
           );
         }
       },
-    });
+    );
   }
 
   onModuleDestroy() {
-    // Kafka service handles disconnection
+    // NATS service handles disconnection
   }
 
   /**

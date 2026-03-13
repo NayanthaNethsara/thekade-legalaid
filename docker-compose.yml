@@ -1,0 +1,88 @@
+services:
+  nats:
+    image: nats:2.11-alpine
+    command: ["-js", "-m", "8222", "-sd", "/data"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+
+  whatsapp-gateway:
+    build:
+      context: ./whatsapp-gateway
+    env_file:
+      - ./whatsapp-gateway/.env
+    environment:
+      NATS_URL: nats://nats:4222
+    depends_on:
+      - nats
+    ports:
+      - "3000:3000"
+
+  conv-api:
+    image: python:3.11-slim
+    working_dir: /app
+    env_file:
+      - ./conv-service/.env
+    environment:
+      NATS_URL: nats://nats:4222
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      uvicorn app.api:app --host 0.0.0.0 --port 8000"
+    volumes:
+      - ./conv-service:/app
+    depends_on:
+      - nats
+    ports:
+      - "8000:8000"
+
+  conv-message-worker:
+    image: python:3.11-slim
+    working_dir: /app
+    env_file:
+      - ./conv-service/.env
+    environment:
+      NATS_URL: nats://nats:4222
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      python app/main.py"
+    volumes:
+      - ./conv-service:/app
+    depends_on:
+      - nats
+
+  conv-rag-consumer:
+    image: python:3.11-slim
+    working_dir: /app
+    env_file:
+      - ./conv-service/.env
+    environment:
+      NATS_URL: nats://nats:4222
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      python rag_query_consumer.py"
+    volumes:
+      - ./conv-service:/app
+    depends_on:
+      - nats
+    profiles: ["workers"]
+
+  conv-indexer-worker:
+    image: python:3.11-slim
+    working_dir: /app
+    env_file:
+      - ./conv-service/.env
+    environment:
+      NATS_URL: nats://nats:4222
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      python indexer_worker.py"
+    volumes:
+      - ./conv-service:/app
+    depends_on:
+      - nats
+    profiles: ["workers"]
+
+volumes:
+  nats_data:

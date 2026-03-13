@@ -9,10 +9,10 @@ import type {
   WhatsAppMetadata,
 } from './dto/webhook-event.dto';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
-import { IncomingMessageProducer } from '../kafka/incoming-message-producer';
-import { IncomingFileProducer } from '../kafka/incoming-file-producer';
+import { IncomingMessageProducer } from '../nats/incoming-message-producer';
+import { IncomingFileProducer } from '../nats/incoming-file-producer';
 import { BlobStorageService } from '../azure/blob-storage.service';
-import { IncomingWhatsAppMessageDto } from '../kafka/dto/kafka-message.dto';
+import { IncomingWhatsAppMessageDto } from '../nats/dto/nats-message.dto';
 
 @Injectable()
 export class WebhookService {

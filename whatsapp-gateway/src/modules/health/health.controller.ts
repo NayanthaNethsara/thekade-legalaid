@@ -12,16 +12,18 @@ export class HealthController {
       status: 'ok',
       timestamp: new Date().toISOString(),
       checks: {
-        kafka: {
-          brokerUrl: this.configService.get<string>('kafka.brokerUrl'),
-          username: this.configService.get<string>('kafka.username')
-            ? 'Set'
-            : 'Missing',
-          password: this.configService.get<string>('kafka.password')
-            ? 'Set'
-            : 'Missing',
-          ssl: this.configService.get<boolean>('kafka.ssl'),
-          saslMechanism: this.configService.get<string>('kafka.saslMechanism'),
+        nats: {
+          url: this.configService.get<string>('nats.url'),
+          streamName: this.configService.get<string>('nats.streamName'),
+          incomingSubject: this.configService.get<string>(
+            'nats.subjects.incoming',
+          ),
+          incomingFileSubject: this.configService.get<string>(
+            'nats.subjects.incomingFile',
+          ),
+          outgoingSubject: this.configService.get<string>(
+            'nats.subjects.outgoing',
+          ),
         },
         azure: {
           connectionString: this.configService.get<string>(

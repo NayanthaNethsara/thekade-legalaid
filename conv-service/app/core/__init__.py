@@ -1,5 +1,5 @@
 from .config import settings
 from .db import SessionLocal
-from .kafka import KafkaService
+from .nats import NatsService
 
-__all__ = ["settings", "SessionLocal", "KafkaService"]
+__all__ = ["settings", "SessionLocal", "NatsService"]

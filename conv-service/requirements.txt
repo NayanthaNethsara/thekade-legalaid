@@ -1,28 +1,26 @@
-sqlalchemy
-alembic
-psycopg2-binary
-pydantic-settings
-python-dotenv
-nats-py
-asyncio
+# ── Infrastructure ──────────────────────────────────────────────────────────
+nats-py==2.14.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
 
-# RAG & Vector dependencies
-pgvector
-psycopg[binary]
-google-genai
-tiktoken
-pypdf
-python-docx
-pytesseract
-pillow
-redis
+# ── Database (user management) ──────────────────────────────────────────────
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+psycopg2-binary>=2.9.0
+asyncpg>=0.29.0
 
-# Azure and Kafka for Phase 2
-azure-storage-blob
-tqdm
+# ── Redis (user cache + conversation checkpoint) ──────────────────────────
+redis>=5.0.0
 
-# FastAPI for REST API
-fastapi
-uvicorn[standard]
-pydantic
-redis
+# ── LangGraph agent ──────────────────────────────────────────────────────────
+langgraph>=0.2.0
+langgraph-checkpoint-redis>=0.1.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-google-genai>=2.0.0
+
+# ── MCP tool adapter (connects LangChain to the task-mcp MCP server) ────────
+langchain-mcp-adapters>=0.1.0
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+python-json-logger>=2.0.0

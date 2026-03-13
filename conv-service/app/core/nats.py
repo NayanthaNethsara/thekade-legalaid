@@ -16,13 +16,21 @@ class NatsService:
         self.js = None
 
     def _all_subjects(self) -> list[str]:
-        return [
+        subjects = [
             settings.NATS_SUBJECT_INCOMING,
             settings.NATS_SUBJECT_INCOMING_FILE,
             settings.NATS_SUBJECT_OUTGOING,
-            settings.NATS_SUBJECT_INDEXING_TRUSTED,
-            settings.NATS_SUBJECT_RAG_QUERIES,
         ]
+
+        # Optional legacy subjects (if present in environment/settings)
+        maybe_indexing = getattr(settings, "NATS_SUBJECT_INDEXING_TRUSTED", None)
+        maybe_rag_queries = getattr(settings, "NATS_SUBJECT_RAG_QUERIES", None)
+        if maybe_indexing:
+            subjects.append(maybe_indexing)
+        if maybe_rag_queries:
+            subjects.append(maybe_rag_queries)
+
+        return subjects
 
     async def _ensure_stream(self):
         subjects = [s for s in self._all_subjects() if s]

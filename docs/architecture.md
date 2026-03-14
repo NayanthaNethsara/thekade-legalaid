@@ -30,22 +30,32 @@ graph TD
         NotifyQueue{{notification_queue}}
     end
 
-    %% Logic & Processing Layer
-    subgraph "LangGraph Agentic Engine"
+    %% Expanded Logic Layer
+    subgraph "Conversation Service (LangGraph Engine)"
+        direction TB
+        LoadMem[load_memory] --> Onboarding{onboarding}
+        Onboarding --> |Auth| Guard{guardrail}
+        Onboarding --> |Guest| RespGen
+        Guard --> |Safe| Refiner[prompt_refiner]
+        Guard --> |Unsafe| RespGen
+        Refiner --> QueryGen[query_generator]
+        QueryGen --> ToolDecider{tool_decider}
+        ToolDecider --> |Tools| ToolExec[tool_executor]
+        ToolDecider --> |Chat| RespGen
+        ToolExec --> RespGen[response_generator]
+        RespGen --> SaveMem[save_memory]
+        
         Whisper[[Whisper Service - ASR]]
-        ConvService[[Conversation Service - Python]]
-        Gemini([Google Gemini 2.5 Flash])
-        ConvService --- Gemini
     end
 
     %% Database & Tools
     subgraph "Knowledge & Persistence Layer"
         VectorDB[(PostgreSQL + pgvector)]
-        Redis[(Redis State Cache)]
+        Redis[(Redis Memory Cache)]
         MCPServer[[Modular Task MCP Server]]
     end
 
-    %% Connections
+    %% Global Connections
     WhatsApp <--> Gateway
     Gateway --> VoiceQueue
     Gateway --> TextQueue
@@ -55,13 +65,14 @@ graph TD
     VoiceQueue --> Whisper
     Whisper --> TextQueue
     
-    TextQueue --> ConvService
-    ConvService --> NotifyQueue
+    TextQueue --> LoadMem
+    SaveMem --> NotifyQueue
     NotifyQueue --> Gateway
     
-    ConvService --> MCPServer
-    ConvService --> VectorDB
-    ConvService --> Redis
+    ToolExec <--> MCPServer
+    LoadMem <--> Redis
+    SaveMem --> Redis
+    ToolExec --> VectorDB
 ```
 
 ---

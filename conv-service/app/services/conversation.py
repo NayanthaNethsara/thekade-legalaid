@@ -4,7 +4,6 @@ from app.core.config import settings
 from app.core.db import SessionLocal
 from app.core.nats import NatsService
 from app.core.redis import RedisClient
-from app.repositories.redis.conversation import ConversationRedisRepository
 from app.repositories.redis.user import UserRedisRepository
 from app.repositories.user import UserRepository
 from app.services.chat_orchestrator import ChatOrchestrator
@@ -20,10 +19,7 @@ class ConversationService:
         self.agent = agent
         self.nats_service = nats_service
         self.redis_client = redis_client
-        self.chat_orchestrator = ChatOrchestrator(
-            agent,
-            ConversationRedisRepository(redis_client),
-        )
+        self.chat_orchestrator = ChatOrchestrator(agent)
 
     async def _get_or_create_user_id(self, phone: str) -> str:
         with SessionLocal() as db:

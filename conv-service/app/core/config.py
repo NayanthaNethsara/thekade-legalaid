@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     # Leave empty to run the agent without tool support.
     MCP_SERVER_URL: Optional[str] = None
 
+    # ----------------------------------------------------------- Guardrail
+    GUARDRAIL_ENABLED: bool = True
+    GUARDRAIL_MODEL: str = "gemini-2.5-flash"
+
     class Config:
         env_file = ".env"
 

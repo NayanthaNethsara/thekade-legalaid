@@ -51,8 +51,30 @@ services:
   kakille-mcp:
     build:
       context: ./task-mcp
+    env_file:
+      - ./task-mcp/.env
+    environment:
+      DATABASE_URL: postgresql://legalaid:legalaid@postgres:5432/legalaid
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8080:8080"
+
+  admin-service:
+    build:
+      context: ./admin-service
+    env_file:
+      - ./admin-service/.env
+    environment:
+      DATABASE_URL: postgresql://legalaid:legalaid@postgres:5432/legalaid
+    volumes:
+      - ./admin-service/data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
 
   conv-agent:
     image: python:3.11-slim

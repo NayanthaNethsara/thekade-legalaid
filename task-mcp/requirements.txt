@@ -1,2 +1,4 @@
 # Requires Python >= 3.10 (recommended: 3.11)
 mcp==1.26.0
+psycopg2-binary==2.9.10
+google-generativeai==0.8.4

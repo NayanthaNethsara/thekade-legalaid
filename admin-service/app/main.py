@@ -1,0 +1,36 @@
+"""Admin service — FastAPI app for RAG training, ingestion, and querying.
+
+This service uses a layered architecture:
+- ``api/routers``: FastAPI HTTP endpoints
+- ``services``: Business logic (ingestion, parsing, chunking, embedding)
+- ``repositories``: Database operations
+- ``models``: SQLAlchemy schemas
+- ``core``: Configuration and DB setup
+"""
+
+import logging
+
+from fastapi import FastAPI
+
+from app.api.routers import training, documents, system
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+)
+
+app = FastAPI(
+    title="LegalAid Admin Service",
+    description="RAG training and document ingestion for the LegalAid knowledge base.",
+    version="1.0.0",
+)
+
+# Register routers
+app.include_router(system.router)
+app.include_router(training.router)
+app.include_router(documents.router)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)

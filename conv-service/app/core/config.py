@@ -25,12 +25,16 @@ class Settings(BaseSettings):
 
     # --------------------------------------------------------- LLM (Google Gemini)
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
     # ------------------------------------------------------------ MCP Tool Server
     # URL of the task-mcp MCP server (SSE transport).
     # Leave empty to run the agent without tool support.
     MCP_SERVER_URL: Optional[str] = None
+
+    # ----------------------------------------------------------- Guardrail
+    GUARDRAIL_ENABLED: bool = True
+    GUARDRAIL_MODEL: str = "gemini-2.5-flash"
 
     class Config:
         env_file = ".env"

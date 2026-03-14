@@ -33,17 +33,17 @@ async def load_mcp_tools() -> List[BaseTool]:
         # MCP tool schemas into LangChain BaseTool instances.
         from langchain_mcp_adapters.client import MultiServerMCPClient  # type: ignore
 
-        async with MultiServerMCPClient(
+        client = MultiServerMCPClient(
             {
                 "legalaid-tools": {
                     "url": settings.MCP_SERVER_URL,
                     "transport": "sse",
                 }
             }
-        ) as client:
-            tools = client.get_tools()
-            logger.info(f"Loaded {len(tools)} tools from MCP server at {settings.MCP_SERVER_URL}")
-            return tools
+        )
+        tools = await client.get_tools()
+        logger.info(f"Loaded {len(tools)} tools from MCP server at {settings.MCP_SERVER_URL}")
+        return tools
 
     except ImportError:
         logger.warning(

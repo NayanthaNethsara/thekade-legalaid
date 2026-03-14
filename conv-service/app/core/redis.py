@@ -1,13 +1,16 @@
-from redis.asyncio import Redis, ConnectionPool
+from typing import Any, Optional
+
+from redis.asyncio import ConnectionPool, Redis
+
 from app.core.config import settings
-from typing import Optional, Any
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
 class RedisClient:
     _instance: Optional['RedisClient'] = None
-    
+
     def __init__(self):
         self.pool = ConnectionPool.from_url(settings.REDIS_URL, decode_responses=True)
         self.redis = Redis(connection_pool=self.pool)
@@ -38,3 +41,16 @@ class RedisClient:
 
     async def hdel(self, name: str, key: str):
         await self.redis.hdel(name, key)
+
+    async def lpush(self, name: str, *values: Any):
+        await self.redis.lpush(name, *values)
+
+    async def lrange(self, name: str, start: int, end: int) -> list[str]:
+        values = await self.redis.lrange(name, start, end)
+        return list(values)
+
+    async def ltrim(self, name: str, start: int, end: int):
+        await self.redis.ltrim(name, start, end)
+
+    async def expire(self, name: str, seconds: int):
+        await self.redis.expire(name, seconds)

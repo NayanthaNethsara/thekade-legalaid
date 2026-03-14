@@ -1,12 +1,29 @@
-from langchain_core.messages import AIMessage, BaseMessage
-from langgraph.graph import END
+"""Routing functions for the LegalAid agent pipeline.
+
+Each function inspects the current ``AgentState`` and returns the name
+of the next node to transition to.
+"""
 
 from app.agent.state import AgentState
 
 
-def route_after_agent(state: AgentState) -> str:
-    """Route to tool execution only when the latest AI message requested tools."""
-    last: BaseMessage = state["messages"][-1]
-    if isinstance(last, AIMessage) and getattr(last, "tool_calls", None):
-        return "tools"
-    return END
+def route_after_onboarding(state: AgentState) -> str:
+    """After onboarding — only authorized users (citizen/lawyer) proceed."""
+    if not state.get("is_authorized", False):
+        return "response_generator"
+    return "guardrail"
+
+
+def route_after_guardrail(state: AgentState) -> str:
+    """After guardrail — skip to response generator if blocked."""
+    if not state.get("is_safe", True):
+        return "response_generator"
+    return "prompt_refiner"
+
+
+def route_after_tool_decider(state: AgentState) -> str:
+    """After tool decider — execute tools if any are planned."""
+    executions = state.get("tool_executions") or []
+    if executions:
+        return "tool_executor"
+    return "response_generator"

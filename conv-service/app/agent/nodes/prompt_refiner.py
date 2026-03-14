@@ -1,45 +1,27 @@
 """Prompt refiner node — contextualises the raw user message.
 
-Takes the latest user message together with recent conversation history
-and produces a self-contained, clear reformulation that downstream nodes
-(query generator, tool decider) can work with reliably.
+Detects follow-up replies (e.g. "yes", "no", "3pm") using the saved
+``pending_follow_up`` context and resolves them into full intents.
+Preserves all parts of multi-part requests.
 """
 
 from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from app.agent.prompts import REFINER_SYSTEM_PROMPT
 from app.agent.state import AgentState
 from app.core.config import settings
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-REFINER_SYSTEM_PROMPT = """\
-You are a prompt-refinement module for a Sri Lankan legal-aid WhatsApp chatbot.
-
-Given:
-  • The user's latest message
-  • Recent conversation history (if any)
-
-Your job:
-  1. Resolve pronouns, references, and abbreviations using the conversation context.
-  2. Identify the user's core intent.
-  3. Produce a single, clear, self-contained request sentence.
-
-Rules:
-  - Output ONLY the refined prompt — no explanations, no preamble.
-  - Preserve the user's language (Sinhala, Tamil, or English).
-  - If the message is already clear, return it as-is.
-"""
-
 
 def _format_history(recent_messages: list[dict]) -> str:
     """Format cached conversation turns into a readable block."""
     if not recent_messages:
         return "(no prior conversation)"
-
     lines: list[str] = []
-    for msg in recent_messages[-6:]:  # last 6 turns max
+    for msg in recent_messages[-6:]:
         role = msg.get("role", "unknown")
         content = msg.get("content", "")
         lines.append(f"{role}: {content}")
@@ -61,6 +43,18 @@ async def prompt_refiner_node(state: AgentState) -> dict:
 
     history_block = _format_history(state.get("recent_messages", []))
 
+    # Include pending follow-up context if available.
+    follow_up = state.get("pending_follow_up")
+    follow_up_block = ""
+    if follow_up:
+        question = follow_up.get("question", "")
+        context = follow_up.get("context", "")
+        follow_up_block = (
+            f"## Pending Follow-Up\n"
+            f"The assistant previously asked: \"{question}\"\n"
+            f"Context: {context}"
+        )
+
     try:
         model = ChatGoogleGenerativeAI(
             model=settings.GEMINI_MODEL,
@@ -68,16 +62,15 @@ async def prompt_refiner_node(state: AgentState) -> dict:
             temperature=0.1,
         )
 
+        parts = [f"## Conversation History\n{history_block}"]
+        if follow_up_block:
+            parts.append(follow_up_block)
+        parts.append(f"## Latest Message\n{user_text}")
+
         response = await model.ainvoke(
             [
                 {"role": "system", "content": REFINER_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": (
-                        f"## Conversation History\n{history_block}\n\n"
-                        f"## Latest Message\n{user_text}"
-                    ),
-                },
+                {"role": "user", "content": "\n\n".join(parts)},
             ]
         )
 

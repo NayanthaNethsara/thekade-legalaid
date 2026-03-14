@@ -1,49 +1,30 @@
-"""Query generator node — converts the refined prompt into a structured query.
+"""Query generator node — extracts multiple intents from a single message.
 
-Analyses the refined prompt to determine:
-  • Query type (legal_question | meeting_request | general_chat)
-  • Key entities and parameters
-  • A structured query string for the tool decider
+Produces a JSON array of query objects, each with:
+  query_type, query, entities
+
+Supports: legal_question, schedule_meeting, set_reminder, keep_note,
+do_research, send_documents, general_chat.
 """
 
 import json
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from app.agent.prompts import QUERY_GEN_SYSTEM_PROMPT
 from app.agent.state import AgentState
 from app.core.config import settings
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-QUERY_GEN_SYSTEM_PROMPT = """\
-You are a query-generation module for a Sri Lankan legal-aid WhatsApp chatbot.
-
-Given the refined user prompt, produce a JSON object with:
-{
-  "query_type": "legal_question" | "meeting_request" | "general_chat",
-  "query": "<a concise, optimised search/action query>",
-  "entities": {
-    // key-value pairs extracted from the prompt, e.g.
-    // "topic": "land dispute", "location": "Colombo"
-    // For meeting requests: "title", "date", "time", "duration", "attendees"
-  }
-}
-
-Rules:
-  - Output ONLY the JSON — no markdown fences, no extra text.
-  - "query" should be a concise, search-engine-style query for legal questions,
-    or a natural-language summary for other types.
-  - If the user is just chatting or greeting, use query_type "general_chat".
-"""
-
 
 async def query_generator_node(state: AgentState) -> dict:
-    """Generate a structured query from the refined prompt."""
+    """Generate a list of structured queries from the refined prompt."""
 
     refined = state.get("refined_prompt") or ""
     if not refined:
-        return {"generated_query": None}
+        return {"generated_queries": []}
 
     try:
         model = ChatGoogleGenerativeAI(
@@ -65,32 +46,40 @@ async def query_generator_node(state: AgentState) -> dict:
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
 
-        # Validate it's valid JSON, then store as string for downstream nodes.
-        json.loads(raw)  # validation only
-        logger.info(
-            f"[{state.get('user_phone')}] query_generator: {raw[:120]}"
-        )
-        return {"generated_query": raw}
+        queries = json.loads(raw)
 
-    except (json.JSONDecodeError, KeyError) as exc:
+        # Normalise: if a single dict was returned, wrap in list.
+        if isinstance(queries, dict):
+            queries = [queries]
+
+        if not isinstance(queries, list):
+            raise ValueError(f"Expected list, got {type(queries)}")
+
+        logger.info(
+            f"[{state.get('user_phone')}] query_generator: "
+            f"extracted {len(queries)} queries"
+        )
+        return {"generated_queries": queries}
+
+    except (json.JSONDecodeError, KeyError, ValueError) as exc:
         logger.warning(
             f"[{state.get('user_phone')}] query_generator: "
             f"JSON parse failed ({exc}) — using refined prompt as fallback"
         )
-        fallback = json.dumps({
+        fallback = [{
             "query_type": "general_chat",
             "query": refined,
             "entities": {},
-        })
-        return {"generated_query": fallback}
+        }]
+        return {"generated_queries": fallback}
 
     except Exception as exc:
         logger.error(
             f"[{state.get('user_phone')}] query_generator error: {exc}"
         )
-        fallback = json.dumps({
+        fallback = [{
             "query_type": "general_chat",
             "query": refined,
             "entities": {},
-        })
-        return {"generated_query": fallback}
+        }]
+        return {"generated_queries": fallback}

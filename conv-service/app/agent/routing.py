@@ -4,8 +4,6 @@ Each function inspects the current ``AgentState`` and returns the name
 of the next node to transition to.
 """
 
-from langgraph.graph import END
-
 from app.agent.state import AgentState
 
 
@@ -24,8 +22,8 @@ def route_after_guardrail(state: AgentState) -> str:
 
 
 def route_after_tool_decider(state: AgentState) -> str:
-    """After tool decider — execute tool or go straight to response."""
-    if state.get("should_use_tool", False):
+    """After tool decider — execute tools if any are planned."""
+    executions = state.get("tool_executions") or []
+    if executions:
         return "tool_executor"
     return "response_generator"
-

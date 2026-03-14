@@ -1,9 +1,11 @@
 """Load conversation memory from Redis at the start of the pipeline.
 
 This node makes the graph stateless — every invocation begins by
-fetching the recent conversation transcript from the Redis cache so
-downstream nodes have full context.
+fetching the recent conversation transcript AND any pending follow-up
+context from the Redis cache.
 """
+
+import json
 
 from app.agent.state import AgentState
 from app.core.redis import RedisClient
@@ -12,7 +14,6 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Re-use a module-level repository bound to the singleton Redis client.
 _repo: ConversationRedisRepository | None = None
 
 
@@ -23,8 +24,12 @@ def _get_repo() -> ConversationRedisRepository:
     return _repo
 
 
+def _follow_up_key(thread_id: str) -> str:
+    return f"pending_follow_up:{thread_id}"
+
+
 async def load_memory_node(state: AgentState) -> dict:
-    """Fetch recent conversation messages from Redis and inject them."""
+    """Fetch recent conversation messages and pending follow-up from Redis."""
     thread_id: str = state["user_phone"]
 
     try:
@@ -34,7 +39,21 @@ async def load_memory_node(state: AgentState) -> dict:
             f"[{thread_id}] load_memory: loaded {len(recent)} cached messages"
         )
     except Exception as exc:
-        logger.error(f"[{thread_id}] load_memory failed: {exc}")
+        logger.error(f"[{thread_id}] load_memory: history failed: {exc}")
         recent = []
 
-    return {"recent_messages": recent}
+    # Load pending follow-up from Redis.
+    pending_follow_up = None
+    try:
+        redis = RedisClient.get_instance()
+        raw = await redis.get(_follow_up_key(thread_id))
+        if raw:
+            pending_follow_up = json.loads(raw)
+            logger.info(f"[{thread_id}] load_memory: loaded pending follow-up")
+    except Exception as exc:
+        logger.error(f"[{thread_id}] load_memory: follow-up failed: {exc}")
+
+    return {
+        "recent_messages": recent,
+        "pending_follow_up": pending_follow_up,
+    }

@@ -1,12 +1,10 @@
-"""Tool executor node — invokes the selected MCP tool.
+"""Tool executor node — runs multiple tool calls in sequence.
 
-Finds the matching tool from the loaded tools list, calls it with
-the arguments provided by the tool decider, and stores the result
-in state.
+Receives ``tool_executions`` from the tool decider and invokes each
+selected tool, collecting results into ``tool_results``.
 """
 
 import json
-from typing import Any
 
 from langchain_core.tools import BaseTool
 
@@ -17,64 +15,84 @@ logger = setup_logger(__name__)
 
 
 def build_tool_executor_node(tools: list[BaseTool]):
-    """Factory that returns a tool-executor node bound to the given tools."""
+    """Factory — returns a node function with the tool list bound."""
 
-    # Build a lookup map for O(1) access.
     tool_map: dict[str, BaseTool] = {t.name: t for t in tools}
 
     async def tool_executor_node(state: AgentState) -> dict:
-        """Execute the tool chosen by the tool decider."""
+        """Execute all planned tool calls and collect results."""
 
-        tool_name: str | None = state.get("tool_name")
-        tool_args: dict[str, Any] | None = state.get("tool_args")
+        executions = state.get("tool_executions") or []
+        if not executions:
+            return {"tool_results": []}
 
-        if not tool_name:
-            logger.warning(
-                f"[{state.get('user_phone')}] tool_executor: "
-                "no tool_name in state — skipping"
-            )
-            return {"tool_result": None}
+        results: list[dict] = []
 
-        tool = tool_map.get(tool_name)
-        if tool is None:
-            error_msg = f"Tool '{tool_name}' not found in loaded tools"
-            logger.error(
-                f"[{state.get('user_phone')}] tool_executor: {error_msg}"
-            )
-            return {"tool_result": json.dumps({"error": error_msg})}
+        for execution in executions:
+            tool_name = execution.get("tool_name", "")
+            tool_args = execution.get("tool_args") or {}
+            query_index = execution.get("query_index", -1)
 
-        resolved_args = tool_args or {}
-        logger.info(
-            f"[{state.get('user_phone')}] tool_executor: "
-            f"invoking {tool_name} with {json.dumps(resolved_args)[:200]}"
-        )
+            tool = tool_map.get(tool_name)
+            if not tool:
+                logger.warning(
+                    f"[{state.get('user_phone')}] tool_executor: "
+                    f"tool '{tool_name}' not found — skipping"
+                )
+                results.append({
+                    "query_index": query_index,
+                    "tool_name": tool_name,
+                    "args": tool_args,
+                    "result": f"Tool '{tool_name}' not found",
+                    "success": False,
+                })
+                continue
 
-        try:
-            # Prefer async invocation.
-            if hasattr(tool, "ainvoke"):
-                result = await tool.ainvoke(resolved_args)
-            else:
-                result = tool.invoke(resolved_args)
+            try:
+                logger.info(
+                    f"[{state.get('user_phone')}] tool_executor: "
+                    f"invoking {tool_name}({json.dumps(tool_args)[:100]})"
+                )
 
-            # Normalise to string for downstream consumption.
-            if isinstance(result, str):
-                result_str = result
-            elif isinstance(result, dict):
-                result_str = json.dumps(result, default=str)
-            else:
-                result_str = str(result)
+                if hasattr(tool, "ainvoke"):
+                    result = await tool.ainvoke(tool_args)
+                else:
+                    result = tool.invoke(tool_args)
 
-            logger.info(
-                f"[{state.get('user_phone')}] tool_executor: "
-                f"{tool_name} returned {len(result_str)} chars"
-            )
-            return {"tool_result": result_str}
+                # Normalise result to string.
+                if hasattr(result, "content"):
+                    result_str = str(result.content)
+                elif isinstance(result, str):
+                    result_str = result
+                else:
+                    result_str = json.dumps(result, default=str)
 
-        except Exception as exc:
-            error_msg = f"Tool '{tool_name}' execution failed: {exc}"
-            logger.error(
-                f"[{state.get('user_phone')}] tool_executor: {error_msg}"
-            )
-            return {"tool_result": json.dumps({"error": error_msg})}
+                logger.info(
+                    f"[{state.get('user_phone')}] tool_executor: "
+                    f"{tool_name} → {result_str[:120]}"
+                )
+
+                results.append({
+                    "query_index": query_index,
+                    "tool_name": tool_name,
+                    "args": tool_args,
+                    "result": result_str,
+                    "success": True,
+                })
+
+            except Exception as exc:
+                logger.error(
+                    f"[{state.get('user_phone')}] tool_executor: "
+                    f"{tool_name} error: {exc}"
+                )
+                results.append({
+                    "query_index": query_index,
+                    "tool_name": tool_name,
+                    "args": tool_args,
+                    "result": f"Error: {exc}",
+                    "success": False,
+                })
+
+        return {"tool_results": results}
 
     return tool_executor_node

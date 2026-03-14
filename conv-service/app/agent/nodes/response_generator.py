@@ -1,10 +1,11 @@
 """Response generator node — produces the final user-facing reply.
 
-Handles three scenarios:
-  1. **Blocked by guardrail** → returns a polite rejection.
-  2. **Tool was used** → synthesises the tool result + context into a
+Handles four scenarios:
+  1. **Unauthorized (guest)** → returns the static onboarding message.
+  2. **Blocked by guardrail** → returns a polite rejection.
+  3. **Tool was used** → synthesises the tool result + context into a
      human-readable answer.
-  3. **No tool** → uses the refined prompt + history to generate a
+  4. **No tool** → uses the refined prompt + history to generate a
      conversational answer.
 
 Appends the reply as an ``AIMessage`` to the messages list and stores
@@ -39,6 +40,13 @@ BLOCKED_RESPONSE = (
     "please feel free to ask — I'm here to help! 🙏"
 )
 
+ONBOARDING_RESPONSE = (
+    "👋 Welcome to LegalAid! This is currently a test AI agent. "
+    "Please contact the developers for early access.\n\n"
+    "Once you are approved, you'll be able to ask legal questions, "
+    "schedule meetings, and more."
+)
+
 
 def _format_history(recent_messages: list[dict]) -> str:
     if not recent_messages:
@@ -56,7 +64,15 @@ async def response_generator_node(state: AgentState) -> dict:
 
     phone = state.get("user_phone", "unknown")
 
-    # ── Scenario 1: Guardrail blocked ────────────────────────────────────
+    # ── Scenario 1: Unauthorized (guest) ─────────────────────────────────
+    if not state.get("is_authorized", True):
+        logger.info(f"[{phone}] response_generator: UNAUTHORIZED (onboarding)")
+        return {
+            "final_response": ONBOARDING_RESPONSE,
+            "messages": [AIMessage(content=ONBOARDING_RESPONSE)],
+        }
+
+    # ── Scenario 2: Guardrail blocked ────────────────────────────────────
     if not state.get("is_safe", True):
         reason = state.get("block_reason", "policy violation")
         logger.info(f"[{phone}] response_generator: BLOCKED ({reason})")

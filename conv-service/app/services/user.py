@@ -25,6 +25,7 @@ class UserService:
             user_data = {
                 "id": user.id,
                 "phone_number": user.phone_number,
+                "status": getattr(user, "status", "guest") or "guest",
                 "created_at": user.created_at.isoformat() if user.created_at else None
             }
             await self.user_redis_repo.set_user(phone_number, user_data)
@@ -38,6 +39,7 @@ class UserService:
         user_data = {
             "id": user.id,
             "phone_number": user.phone_number,
+            "status": getattr(user, "status", "guest") or "guest",
             "created_at": user.created_at.isoformat() if user.created_at else None
         }
         await self.user_redis_repo.set_user(phone_number, user_data)

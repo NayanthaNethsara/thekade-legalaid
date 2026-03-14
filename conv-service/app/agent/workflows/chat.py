@@ -1,9 +1,9 @@
 """Chat workflow — the full LangGraph pipeline for the LegalAid agent.
 
 Nodes:
-  load_memory → guardrail → [route] → prompt_refiner → query_generator
-  → tool_decider → [route] → tool_executor → response_generator
-  → save_memory → END
+  load_memory → onboarding → [route] → guardrail → [route]
+  → prompt_refiner → query_generator → tool_decider → [route]
+  → tool_executor → response_generator → save_memory → END
 
 The graph is fully stateless per invocation; memory is loaded and saved
 at the boundaries.
@@ -16,13 +16,18 @@ from langgraph.graph import END, StateGraph
 
 from app.agent.nodes.guardrail import guardrail_node
 from app.agent.nodes.load_memory import load_memory_node
+from app.agent.nodes.onboarding import onboarding_node
 from app.agent.nodes.prompt_refiner import prompt_refiner_node
 from app.agent.nodes.query_generator import query_generator_node
 from app.agent.nodes.response_generator import response_generator_node
 from app.agent.nodes.save_memory import save_memory_node
 from app.agent.nodes.tool_decider import build_tool_decider_node
 from app.agent.nodes.tool_executor import build_tool_executor_node
-from app.agent.routing import route_after_guardrail, route_after_tool_decider
+from app.agent.routing import (
+    route_after_guardrail,
+    route_after_onboarding,
+    route_after_tool_decider,
+)
 from app.agent.state import AgentState
 
 
@@ -33,6 +38,7 @@ def build_chat_workflow(tools: List[BaseTool]) -> StateGraph:
 
     # ── Register nodes ────────────────────────────────────────────────────
     builder.add_node("load_memory", load_memory_node)
+    builder.add_node("onboarding", onboarding_node)
     builder.add_node("guardrail", guardrail_node)
     builder.add_node("prompt_refiner", prompt_refiner_node)
     builder.add_node("query_generator", query_generator_node)
@@ -45,8 +51,18 @@ def build_chat_workflow(tools: List[BaseTool]) -> StateGraph:
     # Entry
     builder.set_entry_point("load_memory")
 
-    # Linear: load_memory → guardrail
-    builder.add_edge("load_memory", "guardrail")
+    # Linear: load_memory → onboarding
+    builder.add_edge("load_memory", "onboarding")
+
+    # Conditional: onboarding → guardrail (authorized) | response_generator (guest)
+    builder.add_conditional_edges(
+        "onboarding",
+        route_after_onboarding,
+        {
+            "guardrail": "guardrail",
+            "response_generator": "response_generator",
+        },
+    )
 
     # Conditional: guardrail → prompt_refiner (safe) | response_generator (blocked)
     builder.add_conditional_edges(

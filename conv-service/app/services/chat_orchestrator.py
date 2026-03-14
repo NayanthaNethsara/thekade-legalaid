@@ -26,7 +26,9 @@ class ChatOrchestrator:
                 "messages": [("user", text)],
                 "user_phone": thread_id,
                 "user_id": user_id,
-                "recent_messages": [],  # populated by load_memory node
+                "user_status": None,        # set by onboarding node
+                "is_authorized": False,      # set by onboarding node
+                "recent_messages": [],       # populated by load_memory node
                 "is_safe": True,
                 "block_reason": None,
                 "refined_prompt": None,

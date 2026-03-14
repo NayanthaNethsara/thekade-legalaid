@@ -9,6 +9,13 @@ from langgraph.graph import END
 from app.agent.state import AgentState
 
 
+def route_after_onboarding(state: AgentState) -> str:
+    """After onboarding — only authorized users (citizen/lawyer) proceed."""
+    if not state.get("is_authorized", False):
+        return "response_generator"
+    return "guardrail"
+
+
 def route_after_guardrail(state: AgentState) -> str:
     """After guardrail — skip to response generator if blocked."""
     if not state.get("is_safe", True):
@@ -21,3 +28,4 @@ def route_after_tool_decider(state: AgentState) -> str:
     if state.get("should_use_tool", False):
         return "tool_executor"
     return "response_generator"
+

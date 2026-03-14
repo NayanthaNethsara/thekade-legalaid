@@ -22,6 +22,10 @@ class AgentState(MessagesState):
     user_phone: str
     user_id: Optional[str]
 
+    # ── Onboarding ────────────────────────────────────────────────────────
+    user_status: Optional[str]          # guest | citizen | lawyer
+    is_authorized: bool                 # True for citizen/lawyer only
+
     # ── Memory (injected by load_memory, persisted by save_memory) ────────
     recent_messages: list[dict[str, Any]]
 

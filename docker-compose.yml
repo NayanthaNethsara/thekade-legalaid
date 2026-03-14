@@ -17,7 +17,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U legalaid"]
       interval: 5s
@@ -69,7 +69,7 @@ services:
     environment:
       DATABASE_URL: postgresql://legalaid:legalaid@postgres:5432/legalaid
     volumes:
-      - ./admin-service/data:/app/data
+      - ./admin-service:/app
     depends_on:
       postgres:
         condition: service_healthy

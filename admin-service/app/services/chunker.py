@@ -51,9 +51,9 @@ def chunk_text(
             chunks.append(Chunk(index=idx, text=chunk_text_str))
             idx += 1
 
-        start = end - chunk_overlap
-        if start >= len(text):
-            break
+        new_start = end - chunk_overlap
+        # CRITICAL: ensure start always advances forward to prevent infinite loops!
+        start = max(start + 1, new_start)
 
     logger.info(f"Chunked {len(text)} chars into {len(chunks)} chunks")
     return chunks

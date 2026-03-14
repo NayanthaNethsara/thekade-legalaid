@@ -5,6 +5,7 @@ services don't have to deal directly with the DB session logic.
 """
 
 import json
+from typing import Optional
 from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
@@ -15,29 +16,22 @@ class DocumentRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_by_source_id(self, source_id: str) -> Document | None:
+    def get_by_source_id(self, source_id: str) -> Optional[Document]:
         """Check if a document exists by its hash/source_id."""
         return self.db.query(Document).filter(Document.source_id == source_id).first()
 
-    def get_by_id(self, document_id: int) -> Document | None:
+    def get_by_id(self, document_id: int) -> Optional[Document]:
         """Fetch a document by primary key."""
         return self.db.query(Document).filter(Document.id == document_id).first()
 
-    def create_document_with_chunks(
+    def create_document(
         self,
         source: str,
         source_id: str,
         content: str,
         metadata: dict,
-        chunks: list,
-        embeddings: list[list[float]],
     ) -> Document:
-        """Create a document and insert its pgvector chunks.
-
-        *chunks* must be a list of ``app.services.chunker.Chunk`` objects.
-        *embeddings* must be the matching list of 768-dim vectors.
-        """
-        # 1. Create the parent Document.
+        """Create a document and return it so chunks can be added in batches."""
         doc = Document(
             source=source,
             source_id=source_id,
@@ -45,9 +39,18 @@ class DocumentRepository:
             metadata_=metadata,
         )
         self.db.add(doc)
-        self.db.flush()  # We need doc.id for the chunks
+        self.db.commit()
+        self.db.refresh(doc)
+        return doc
 
-        # 2. Insert the child chunks via raw SQL (since it uses pgvector).
+    def add_chunks_to_document(
+        self,
+        doc_id: int,
+        filename: str,
+        chunks: list,
+        embeddings: list[list[float]],
+    ) -> None:
+        """Insert a batch of chunks and commit."""
         for chunk, embedding in zip(chunks, embeddings):
             embedding_str = "[" + ",".join(str(v) for v in embedding) + "]"
             
@@ -56,22 +59,21 @@ class DocumentRepository:
                     INSERT INTO document_chunks
                         (document_id, chunk_index, text, embedding, metadata)
                     VALUES
-                        (:doc_id, :idx, :text, :embedding::vector, :meta)
+                        (:doc_id, :idx, :text, CAST(:embedding AS vector), :meta)
                 """),
                 {
-                    "doc_id": doc.id,
+                    "doc_id": doc_id,
                     "idx": chunk.index,
                     "text": chunk.text,
                     "embedding": embedding_str,
                     "meta": json.dumps({
-                        "source_file": metadata.get("filename", "unknown"),
+                        "source_file": filename,
                         "chunk_size": len(chunk.text),
                     }),
                 },
             )
 
         self.db.commit()
-        return doc
 
     def get_paginated(self, limit: int = 10, offset: int = 0) -> list[Document]:
         """Get documents with limit and offset."""

@@ -54,18 +54,7 @@ def ingest_file(repo: DocumentRepository, path: Path, *, source: str = "admin-tr
             "reason": "no chunks produced",
         }
 
-    # 3. Embed
-    chunk_texts = [c.text for c in chunks]
-    embeddings = embed_texts(chunk_texts, title=path.stem)
-
-    if len(embeddings) != len(chunks):
-        return {
-            "file": path.name,
-            "status": "error",
-            "reason": f"embedding count mismatch: {len(embeddings)} vs {len(chunks)}",
-        }
-
-    # 4. Store via repository
+    # 3. Store the parent Document first
     metadata = {
         "filename": path.name,
         "extension": path.suffix.lower(),
@@ -74,14 +63,28 @@ def ingest_file(repo: DocumentRepository, path: Path, *, source: str = "admin-tr
         "total_chunks": len(chunks),
     }
 
-    doc = repo.create_document_with_chunks(
+    doc = repo.create_document(
         source=source,
         source_id=source_id,
         content=content[:10000],  # preview
         metadata=metadata,
-        chunks=chunks,
-        embeddings=embeddings,
     )
+
+    # 4. Embed and store chunks in batches to prevent OOM
+    BATCH_SIZE = 100
+    try:
+        for i in range(0, len(chunks), BATCH_SIZE):
+            batch_chunks = chunks[i : i + BATCH_SIZE]
+            chunk_texts = [c.text for c in batch_chunks]
+            
+            embeddings = embed_texts(chunk_texts, title=path.stem)
+            repo.add_chunks_to_document(doc.id, path.name, batch_chunks, embeddings)
+            logger.info(f"Processed chunks {i} to {i + len(batch_chunks)} for '{path.name}'")
+    except Exception as e:
+        logger.error(f"Failed to process chunk batch for '{path.name}': {e}. Deleting partial document.")
+        repo.db.delete(doc)
+        repo.db.commit()
+        raise
 
     logger.info(
         f"Ingested '{path.name}': doc_id={doc.id}, "

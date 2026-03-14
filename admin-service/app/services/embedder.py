@@ -1,6 +1,4 @@
-"""Embedder — generates 768-dim vectors using Google text-embedding-004.
-
-Supports batching to stay within API rate limits.
+"""Embedder — generates 768-dim vectors using Google embedding-001.
 """
 
 import logging
@@ -12,7 +10,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "models/text-embedding-004"
+MODEL_NAME = "models/gemini-embedding-001"
 BATCH_SIZE = 100  # Google allows up to 100 texts per batch
 DIMENSIONS = 768
 

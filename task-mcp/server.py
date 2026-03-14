@@ -31,8 +31,12 @@ DATABASE_URL = os.environ.get(
     "postgresql://legalaid:legalaid@localhost:5432/legalaid",
 )
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-EMBEDDING_MODEL = "models/text-embedding-004"
-EMBEDDING_DIMENSIONS = 768
+EMBEDDING_MODEL = "models/gemini-embedding-001"
+EMBEDDING_DIM = 768
+
+# Database setup using SQLAlchemy
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def _get_db_connection():
@@ -40,14 +44,14 @@ def _get_db_connection():
     return psycopg2.connect(DATABASE_URL)
 
 
-def _embed_query(query: str) -> list[float]:
-    """Embed a search query using text-embedding-004."""
+def embed_query(query: str) -> list[float]:
+    """Embed a search query using gemini-embedding-001."""
     genai.configure(api_key=GEMINI_API_KEY)
     result = genai.embed_content(
         model=EMBEDDING_MODEL,
         content=query,
         task_type="RETRIEVAL_QUERY",
-        output_dimensionality=EMBEDDING_DIMENSIONS,
+        output_dimensionality=EMBEDDING_DIM,
     )
     return result["embedding"]
 

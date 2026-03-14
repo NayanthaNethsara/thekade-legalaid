@@ -31,9 +31,9 @@ graph TD
     end
 
     %% Logic & Processing Layer
-    subgraph "Processing Engines"
+    subgraph "LangGraph Agentic Engine"
         Whisper[[Whisper Service - ASR]]
-        ConvService[[Conversation Service - LangGraph]]
+        ConvService[[Conversation Service - Python]]
         Gemini([Google Gemini 2.5 Flash])
         ConvService --- Gemini
     end
@@ -42,7 +42,7 @@ graph TD
     subgraph "Knowledge & Persistence Layer"
         VectorDB[(PostgreSQL + pgvector)]
         Redis[(Redis State Cache)]
-        MCPServer[[Modular Task MCP]]
+        MCPServer[[Modular Task MCP Server]]
     end
 
     %% Connections
@@ -62,42 +62,64 @@ graph TD
     ConvService --> MCPServer
     ConvService --> VectorDB
     ConvService --> Redis
-    
-    MCPServer -- "Meeting / Notes / RAG" --> ConvService
 ```
 
 ---
 
-## 3. Technology Stack Deep Dive
+## 3. LangGraph Node Architecture
 
-theKade-LegalAid utilizes a curated stack of modern, enterprise-grade technologies selected for their performance and developer productivity:
+The **Conversation Service** utilizes a sophisticated LangGraph pipeline to handle complex multi-turn reasoning and tool orchestration.
 
-### 3.1 Core Technologies
-- **NestJS (Node.js)**: Powers the WhatsApp Gateway and the upcoming **Kakille Service** (Web Management backend).
-- **Python & LangGraph**: The core AI logic. LangGraph enables stateful, multi-turn agentic conversations.
-- **Whisper ASR**: OpenAI's state-of-the-art speech recognition model for high-precision voice-to-text transcription.
-- **Google Gemini 2.5 Flash**: Lightning-fast inference with a massive 1M+ token context window.
-- **NATS JetStream**: Persistent, high-performance messaging with dedicated subjects for `voice`, `text`, and `notifications`.
+### 3.1 Internal Node Flow & MCP Integration
+```mermaid
+graph LR
+    Start((START)) --> LoadMemory[load_memory]
+    LoadMemory --> Onboarding{onboarding}
+    
+    Onboarding -- "New/Guest" --> RespGen[response_generator]
+    Onboarding -- "Authorized" --> Guardrail{guardrail}
+    
+    Guardrail -- "Unsafe" --> RespGen
+    Guardrail -- "Safe" --> Refiner[prompt_refiner]
+    
+    Refiner --> QueryGen[query_generator]
+    QueryGen --> ToolDecider{tool_decider}
+    
+    ToolDecider -- "Needs Tools" --> ToolExec[tool_executor]
+    ToolDecider -- "Direct Chat" --> RespGen
+    
+    subgraph "Modular MCP Tools"
+        ToolExec -- "JSON-RPC" --> RAGAction[RAG Search]
+        ToolExec -- "JSON-RPC" --> CalendarAction[Schedule Meeting]
+        ToolExec -- "JSON-RPC" --> NoteAction[Keep Note]
+    end
+    
+    RAGAction --> RespGen
+    CalendarAction --> RespGen
+    NoteAction --> RespGen
+    
+    RespGen --> SaveMemory[save_memory]
+    SaveMemory --> End((END))
 
-### 3.2 Data & Storage
-- **PostgreSQL + pgvector**: Unified relational and vector database for RAG (Retrieval-Augmented Generation).
-- **Redis**: High-speed checkpointing and user session persistence.
-- **Modular MCP (Model Context Protocol)**: Decoupled tool server providing Meeting, Note-taking, and Knowledge Base search capabilities.
+    %% Styles
+    style LoadMemory fill:#f9f,stroke:#333,stroke-width:2px
+    style ToolExec fill:#bbf,stroke:#333,stroke-width:2px
+    style RespGen fill:#bfb,stroke:#333,stroke-width:2px
+```
 
 ---
 
-## 4. Key Feature Set & Roadmap
+## 4. Technology Stack Deep Dive
 
-### 4.1 🎙️ Multi-Modal Intelligence
-- **Intelligent Voice Flow**: Voice notes published to `voice_queue` are transcribed by Whisper and re-published to `text_queue` for seamless processing by the AI agent.
-- **Document OCR & Analysis**: Automated scanning of legal documents to extract key clauses.
+### 4.1 Core Technologies
+- **NestJS (Node.js)**: Powers the WhatsApp Gateway and the upcoming **Kakille Service**.
+- **Python & LangGraph**: The core AI logic. LangGraph enables stateful, multi-turn agentic conversations via dedicated nodes.
+- **Whisper ASR**: OpenAI's state-of-the-art speech recognition model.
+- **Modular MCP**: Standalone tool server providing Meeting, Note-taking, and Knowledge Base search.
 
-### 4.2 🔍 Retrieval-Augmented Generation (RAG)
-- **Verified Legal Corpus**: Queries a private, curated database of Sri Lankan laws.
-- **Citation Engine**: Provides direct references to statutes and sections mentioned in advice.
-
-### 4.3 📅 Automated Legal Operations
-- **Modular Tooling**: The Task MCP Server provides a clean interface for scheduling and documentation.
+### 4.2 Data & Storage
+- **PostgreSQL + pgvector**: Unified relational and vector database for RAG.
+- **Redis**: High-speed checkpointing and **Conversation Memory** persistence (Messages + Follow-up context).
 
 ---
 
@@ -112,15 +134,18 @@ sequenceDiagram
     participant VQ as Voice Queue
     participant W as Whisper (ASR)
     participant TQ as Text Queue
-    participant A as AI Agent (LangGraph)
+    participant A as AI Agent (LangGraph Nodes)
+    participant M as MCP Server (Tools)
     participant NQ as Notification Queue
 
     U->>G: User sends Voice Note
     G->>VQ: Publish 'voice_received'
     VQ->>W: Process Audio
-    W->>TQ: Publish 'text_ready' (Transcribed)
-    TQ->>A: Trigger Agent Reasoning
-    A->>A: Contextual Analysis (RAG/MCP)
+    W->>TQ: Publish 'text_ready'
+    TQ->>A: Trigger pipeline (load_memory -> query_gen)
+    A->>M: tool_executor: CALL rag_search()
+    M-->>A: Return text snippets
+    A->>A: response_generator: Synthesize reply
     A->>NQ: Publish 'reply_ready'
     NQ->>G: Deliver to WhatsApp
     G->>U: Finished Response
@@ -130,5 +155,5 @@ sequenceDiagram
 
 ## 6. Security, Compliance & Scalability
 - **End-to-End Encryption**: WhatsApp's secure channel.
-- **Audit Logging**: Comprehensive trace of AI decisions and tool usage.
+- **Node-Level Isolation**: LangGraph nodes are stateless and fetch context from Redis, allowing for horizontal scaling of the reasoning engine.
 - **Service Isolation**: Each queue consumer (Whisper, Agent, Gateway) scales independently.

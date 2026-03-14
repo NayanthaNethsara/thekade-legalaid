@@ -13,47 +13,57 @@ The platform is built on an **Event-Driven Microservices Architecture**, ensurin
 ```mermaid
 graph TD
     %% Users and Interfaces
-    User([User / Legal Professional]) <--> WhatsApp[WhatsApp Cloud API]
-    WebClient([Web Management Interface]) <--> Gateway
+    User([User / Legal Professional]) <--> WhatsApp([WhatsApp Cloud API])
+    WebClient([Web Management Interface]) <--> KakilleService[[Kakille Service Backend]]
     
     %% Communication Layer
     subgraph "Intelligent Gateway Layer"
-        Gateway[WhatsApp Gateway - NestJS]
+        Gateway[[WhatsApp Gateway - NestJS]]
         BlobStorage[(Azure Blob Storage)]
         Gateway --- BlobStorage
     end
 
     %% Message Broker
-    subgraph "High-Performance Event Bus"
-        NATS((NATS JetStream))
+    subgraph "High-Performance Event Bus (NATS JetStream)"
+        VoiceQueue{{voice_queue}}
+        TextQueue{{text_queue}}
+        NotifyQueue{{notification_queue}}
     end
 
-    %% Logic Layer
-    subgraph "Agentic Reasoning Engine"
-        ConvService[Conversation Service - Python]
-        LangGraph[LangGraph Agent Framework]
-        Gemini[Google Gemini 2.5 Flash]
-        ConvService --- LangGraph
-        LangGraph --- Gemini
+    %% Logic & Processing Layer
+    subgraph "Processing Engines"
+        Whisper[[Whisper Service - ASR]]
+        ConvService[[Conversation Service - LangGraph]]
+        Gemini([Google Gemini 2.5 Flash])
+        ConvService --- Gemini
     end
 
     %% Database & Tools
     subgraph "Knowledge & Persistence Layer"
         VectorDB[(PostgreSQL + pgvector)]
         Redis[(Redis State Cache)]
-        MCPServer[Task MCP Server]
+        MCPServer[[Modular Task MCP]]
     end
 
     %% Connections
     WhatsApp <--> Gateway
-    Gateway <--> NATS
-    NATS <--> ConvService
+    Gateway --> VoiceQueue
+    Gateway --> TextQueue
     
-    LangGraph --> MCPServer
-    LangGraph --> VectorDB
-    LangGraph --> Redis
+    KakilleService --> NotifyQueue
     
-    MCPServer -- "Meeting API / Notes API" --> LangGraph
+    VoiceQueue --> Whisper
+    Whisper --> TextQueue
+    
+    TextQueue --> ConvService
+    ConvService --> NotifyQueue
+    NotifyQueue --> Gateway
+    
+    ConvService --> MCPServer
+    ConvService --> VectorDB
+    ConvService --> Redis
+    
+    MCPServer -- "Meeting / Notes / RAG" --> ConvService
 ```
 
 ---
@@ -63,69 +73,62 @@ graph TD
 theKade-LegalAid utilizes a curated stack of modern, enterprise-grade technologies selected for their performance and developer productivity:
 
 ### 3.1 Core Technologies
-- **NestJS (Node.js)**: Used for the WhatsApp Gateway. Its modular architecture allows for clean separation of concerns and easy horizontal scaling.
-- **Python & LangGraph**: The core AI logic is implemented in Python, leveraging LangGraph for stateful, multi-turn agentic conversations. This allows the AI to maintain context over long discussions.
-- **Google Gemini 2.5 Flash**: Chosen for its superior reasoning capabilities, lightning-fast inference, and massive 1M+ token context window, which is critical for analyzing long legal documents.
-- **NATS JetStream**: Provides a distributed, persistent message bus. It ensures that no user message is lost, even during system updates or service failures.
+- **NestJS (Node.js)**: Powers the WhatsApp Gateway and the upcoming **Kakille Service** (Web Management backend).
+- **Python & LangGraph**: The core AI logic. LangGraph enables stateful, multi-turn agentic conversations.
+- **Whisper ASR**: OpenAI's state-of-the-art speech recognition model for high-precision voice-to-text transcription.
+- **Google Gemini 2.5 Flash**: Lightning-fast inference with a massive 1M+ token context window.
+- **NATS JetStream**: Persistent, high-performance messaging with dedicated subjects for `voice`, `text`, and `notifications`.
 
 ### 3.2 Data & Storage
-- **PostgreSQL with pgvector**: A unified solution for relational data and high-dimensional vector embeddings. This powers our semantic search (RAG), allowing the AI to find relevant legal precedents in milliseconds.
-- **Redis**: Acts as the high-speed state store. It persists conversation "checkpoints," allowing the AI to resume exactly where it left off.
-- **Azure Blob Storage**: Secure, scalable storage for all multimedia assets (voice notes, legal PDFs, evidence photos).
+- **PostgreSQL + pgvector**: Unified relational and vector database for RAG (Retrieval-Augmented Generation).
+- **Redis**: High-speed checkpointing and user session persistence.
+- **Modular MCP (Model Context Protocol)**: Decoupled tool server providing Meeting, Note-taking, and Knowledge Base search capabilities.
 
 ---
 
 ## 4. Key Feature Set & Roadmap
 
 ### 4.1 🎙️ Multi-Modal Intelligence
-- **Intelligent Voice Processing**: Real-time transcription of voice notes using state-of-the-art ASR (Automatic Speech Recognition).
-- **Document OCR & Analysis**: Automated scanning of legal documents to extract key clauses, dates, and parties using AI-driven vision and text extraction.
+- **Intelligent Voice Flow**: Voice notes published to `voice_queue` are transcribed by Whisper and re-published to `text_queue` for seamless processing by the AI agent.
+- **Document OCR & Analysis**: Automated scanning of legal documents to extract key clauses.
 
 ### 4.2 🔍 Retrieval-Augmented Generation (RAG)
-- **Verified Legal Corpus**: The system queries a private, curated database of laws and case studies, ensuring all advice is grounded in actual legal facts rather than model predictions.
-- **Citation Engine**: (Planned) The AI will provide direct references to statutes and sections mentioned in its advice.
+- **Verified Legal Corpus**: Queries a private, curated database of Sri Lankan laws.
+- **Citation Engine**: Provides direct references to statutes and sections mentioned in advice.
 
 ### 4.3 📅 Automated Legal Operations
-- **Smart Calendar Integration**: Seamlessly schedule appointments with legal counsel via the Task MCP Server.
-- **Automated Case Notes**: Every interaction is automatically summarized into a professional "Case Brief," saving legal professionals hours of manual documentation.
-
-### 4.4 🌐 Real-time Legal Search
-- **Live Precedent Fetching**: Integration with web-search tools to incorporate the very latest court rulings and legislative changes.
+- **Modular Tooling**: The Task MCP Server provides a clean interface for scheduling and documentation.
 
 ---
 
 ## 5. Industrial-Grade Event Flow
 
-The system's reliability stems from its asynchronous backbone. Each step in the process is an independent event, allowing for parallel processing and robust error recovery.
-
+### 5.1 Voice Processing Sequence
 ```mermaid
 sequenceDiagram
     autonumber
     participant U as User
-    participant G as Gateway (NestJS)
-    participant N as NATS Bus
+    participant G as Gateway
+    participant VQ as Voice Queue
+    participant W as Whisper (ASR)
+    participant TQ as Text Queue
     participant A as AI Agent (LangGraph)
-    participant K as Knowledge Base (pgvector)
-    participant M as MCP (Tools)
+    participant NQ as Notification Queue
 
-    U->>G: User sends Message/Voice/Document
-    G->>G: Validate & Upload to Azure
-    G->>N: Publish 'incoming' Event
-    N->>A: Trigger Agentive reasoning
-    A->>K: Search: Find legal precedents
-    K-->>A: Return relevant law snippets
-    A->>M: Action: Schedule Meeting / Update Notes
-    M-->>A: Tool confirmation
-    A->>A: Formulate professional advice
-    A->>N: Publish 'outgoing' Event
-    N-->>G: Deliver Response
-    G->>U: WhatsApp Delivery
+    U->>G: User sends Voice Note
+    G->>VQ: Publish 'voice_received'
+    VQ->>W: Process Audio
+    W->>TQ: Publish 'text_ready' (Transcribed)
+    TQ->>A: Trigger Agent Reasoning
+    A->>A: Contextual Analysis (RAG/MCP)
+    A->>NQ: Publish 'reply_ready'
+    NQ->>G: Deliver to WhatsApp
+    G->>U: Finished Response
 ```
 
 ---
 
 ## 6. Security, Compliance & Scalability
-- **End-to-End Encryption**: Leveraging WhatsApp's secure channel for the final mile of communication.
-- **AES-256 Storage**: All documents in Azure Blob Storage are encrypted at rest.
-- **Horizontal Scalability**: Each component (Gateway, Agent, DB) can be scaled independently to handle millions of users.
-- **Audit Logging**: Comprehensive logging of AI decisions and tool usage for transparency and legal compliance.
+- **End-to-End Encryption**: WhatsApp's secure channel.
+- **Audit Logging**: Comprehensive trace of AI decisions and tool usage.
+- **Service Isolation**: Each queue consumer (Whisper, Agent, Gateway) scales independently.

@@ -10,6 +10,13 @@ linters:
     - misspell # spelling in comments and strings
     - unconvert # redundant type conversions
     - bodyclose # HTTP response bodies are closed
+  exclusions:
+    # Do not force doc comments on packages or exported symbols.
+    rules:
+      - linters: [revive]
+        text: "should have a package comment"
+      - linters: [revive]
+        text: "should have comment or be unexported"
 
 formatters:
   enable:

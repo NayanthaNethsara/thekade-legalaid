@@ -29,7 +29,15 @@ func main() {
 	}
 	defer nc.Drain() //nolint:errcheck // best-effort flush on shutdown
 
-	srv := server.New(":"+cfg.Port, logger)
+	srv := server.New(":"+cfg.Port, logger, server.ReadinessCheck{
+		Name: "nats",
+		Probe: func(context.Context) error {
+			if !nc.IsConnected() {
+				return errors.New("not connected")
+			}
+			return nil
+		},
+	})
 
 	go func() {
 		logger.Info("HTTP server listening", "addr", srv.Addr)

@@ -7,9 +7,15 @@ import (
 	"time"
 )
 
-func New(addr string, logger *slog.Logger) *http.Server {
+const serviceName = "core-service"
+
+func New(addr string, logger *slog.Logger, readinessChecks ...ReadinessCheck) *http.Server {
+	health := &healthEndpoints{startedAt: time.Now(), checks: readinessChecks}
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc("GET /healthz", health.liveness)
+	mux.HandleFunc("GET /readyz", health.readiness)
+	mux.HandleFunc("GET /health", health.health)
 
 	return &http.Server{
 		Addr:              addr,
@@ -19,13 +25,6 @@ func New(addr string, logger *slog.Logger) *http.Server {
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-}
-
-func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status":  "ok",
-		"service": "core-service",
-	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

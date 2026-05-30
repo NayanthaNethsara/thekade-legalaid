@@ -25,19 +25,29 @@ An `indexed` document whose Markdown is edited afterward is reported as
 
 ## Setup
 
+This service runs in Docker (Python 3.11). The easiest way to start the whole
+dev stack — Postgres, this service, and the frontend — is the repo-root script:
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-# Postgres with pgvector (from repo root)
-docker compose up -d postgres
-alembic upgrade head
-
-uvicorn app.main:app --reload --port 8001
+./start-dev.sh          # from the repository root
 ```
 
-Configure `.env` (see `.env.example`). A **valid** `GEMINI_API_KEY` is required
-for the approve/index and search steps (embeddings use `text-embedding-004`).
+Or start just Postgres + admin-service with compose (migrations run inside the
+container on startup):
+
+```bash
+# from the repo root
+docker compose up -d --build postgres admin-service
+# logs:   docker compose logs -f admin-service
+```
+
+The service listens on http://localhost:8001 (API docs at `/docs`).
+
+Configure `admin-service/.env` (see `.env.example`). A **valid** `GEMINI_API_KEY`
+is required for the approve/index and search steps (embeddings use
+`gemini-embedding-001` at 768 dims via the `google-genai` SDK). Note that
+`docker-compose.yml` overrides `DATABASE_URL` to reach Postgres over the compose
+network (`postgres:5432`); the `.env` value is used when running outside Docker.
 
 ## API
 

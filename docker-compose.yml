@@ -48,19 +48,6 @@ services:
     ports:
       - "3000:3000"
 
-  kakille-mcp:
-    build:
-      context: ./task-mcp
-    env_file:
-      - ./task-mcp/.env
-    environment:
-      DATABASE_URL: postgresql://legalaid:legalaid@postgres:5432/legalaid
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "8080:8080"
-
   admin-service:
     build:
       context: ./admin-service
@@ -86,7 +73,6 @@ services:
       DATABASE_URL: postgresql://legalaid:legalaid@postgres:5432/legalaid
       DIRECT_URL: postgresql://legalaid:legalaid@postgres:5432/legalaid
       REDIS_URL: redis://redis:6379/0
-      MCP_SERVER_URL: http://kakille-mcp:8080/sse
     command: >
       sh -c "pip install --no-cache-dir -r requirements.txt &&
       alembic upgrade head &&
@@ -100,8 +86,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      kakille-mcp:
-        condition: service_started
 
 volumes:
   nats_data:

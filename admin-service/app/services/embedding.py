@@ -1,56 +1,63 @@
-"""Embedding generation via Google Gemini (text-embedding-004, 768 dims)."""
+"""Embedding generation via Google Gemini (gemini-embedding-001, 768 dims).
+"""
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from app.core.config import settings
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_configured = False
+_client: Optional[genai.Client] = None
 
 
-def _ensure_configured() -> None:
-    global _configured
-    if not _configured:
+def _get_client() -> genai.Client:
+    global _client
+    if _client is None:
         if not settings.GEMINI_API_KEY:
             raise RuntimeError("GEMINI_API_KEY is not set; cannot generate embeddings")
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        _configured = True
+        _client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    return _client
+
+
+def _model_id() -> str:
+    # google-genai accepts a bare model id; tolerate a "models/" prefix in config.
+    return settings.EMBED_MODEL.removeprefix("models/")
 
 
 def _embed(texts: List[str], task_type: str) -> List[List[float]]:
-    _ensure_configured()
+    client = _get_client()
+    config = types.EmbedContentConfig(
+        task_type=task_type,
+        output_dimensionality=settings.EMBED_DIM,
+    )
+
     vectors: List[List[float]] = []
     batch = settings.EMBED_BATCH_SIZE
     for i in range(0, len(texts), batch):
         window = texts[i : i + batch]
-        result = genai.embed_content(
-            model=settings.EMBED_MODEL,
-            content=window,
-            task_type=task_type,
-            output_dimensionality=settings.EMBED_DIM,
+        response = client.models.embed_content(
+            model=_model_id(),
+            contents=window,
+            config=config,
         )
-        emb = result["embedding"]
-        # The API returns a single list for one input, list-of-lists for many.
-        if window and isinstance(emb[0], (int, float)):
-            emb = [emb]
-        vectors.extend(emb)
+        vectors.extend(e.values for e in response.embeddings)
     return vectors
 
 
 def embed_documents(texts: List[str]) -> List[List[float]]:
-    """Embed chunk texts for storage (retrieval_document task)."""
+    """Embed chunk texts for storage (RETRIEVAL_DOCUMENT task)."""
     if not texts:
         return []
     logger.info("Embedding %d document chunk(s)", len(texts))
-    return _embed(texts, task_type="retrieval_document")
+    return _embed(texts, task_type="RETRIEVAL_DOCUMENT")
 
 
 def embed_query(text: str) -> List[float]:
-    """Embed a search query (retrieval_query task)."""
-    return _embed([text], task_type="retrieval_query")[0]
+    """Embed a search query (RETRIEVAL_QUERY task)."""
+    return _embed([text], task_type="RETRIEVAL_QUERY")[0]

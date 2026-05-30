@@ -18,4 +18,4 @@ pymupdf>=1.25.0
 pymupdf4llm>=0.0.17
 
 # ── Embeddings (Google Gemini) ────────────────────────────────────────────
-google-generativeai>=0.8.0
+google-genai>=1.0.0

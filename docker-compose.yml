@@ -74,29 +74,18 @@ services:
     ports:
       - "8001:8001"
 
-  conv-agent:
-    image: python:3.11-slim
-    working_dir: /app
-    env_file:
-      - ./conv-service/.env
+  # kakilleAI LLM & agent orchestration service (Go).
+  core-service:
+    build:
+      context: ./core-service
     environment:
+      ENV: production
+      PORT: "8002"
       NATS_URL: nats://nats:4222
-      DATABASE_URL: postgresql://legalaid:legalaid@postgres:5432/legalaid
-      DIRECT_URL: postgresql://legalaid:legalaid@postgres:5432/legalaid
-      REDIS_URL: redis://redis:6379/0
-    command: >
-      sh -c "pip install --no-cache-dir -r requirements.txt &&
-      alembic upgrade head &&
-      python -m app.main"
-    volumes:
-      - ./conv-service:/app
     depends_on:
-      nats:
-        condition: service_started
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - nats
+    ports:
+      - "8002:8002"
 
 volumes:
   nats_data:

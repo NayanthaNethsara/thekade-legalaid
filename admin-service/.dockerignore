@@ -1,5 +1,20 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets & local data (mounted/provided at runtime)
 .env
+.env.*
+!.env.example
 data/*
 !data/README.md
+logs/
+
+# Misc
+.DS_Store
+*.log

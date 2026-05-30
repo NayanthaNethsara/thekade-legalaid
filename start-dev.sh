@@ -74,7 +74,7 @@ cleanup() {
   log "Stopping admin-service container…"
   docker compose stop admin-service >/dev/null 2>&1 || true
   wait 2>/dev/null || true
-  log "Stopped. (Postgres left running — 'docker compose stop postgres' to halt it.)"
+  log "Stopped. (Postgres + pgweb left running — 'docker compose stop postgres pgweb' to halt them.)"
   exit 0
 }
 trap cleanup INT TERM EXIT
@@ -83,9 +83,10 @@ trap cleanup INT TERM EXIT
 BUILD_FLAG="--build"
 [ "${SKIP_BUILD:-0}" = "1" ] && BUILD_FLAG=""
 
-log "Starting Postgres + admin-service (docker compose)…"
+log "Starting Postgres + admin-service + pgweb (docker compose)…"
 # Migrations run inside the admin-service container (see its Dockerfile CMD).
-docker compose up -d $BUILD_FLAG postgres admin-service
+# pgweb is a lightweight Postgres web viewer on http://localhost:8081.
+docker compose up -d $BUILD_FLAG postgres admin-service pgweb
 
 log "Waiting for admin-service to be ready…"
 for _ in $(seq 1 60); do
@@ -106,8 +107,9 @@ log "Starting frontend on http://localhost:$FRONTEND_PORT …"
 FRONTEND_PID=$!
 
 log "Up. Press Ctrl+C to stop."
-log "  admin-service → http://localhost:$ADMIN_PORT  (API docs: /docs)"
 log "  frontend      → http://localhost:$FRONTEND_PORT/admin/rag"
+log "  admin-service → http://localhost:$ADMIN_PORT  (API docs: /docs)"
+log "  postgres view → http://localhost:8081  (pgweb)"
 
 # Watch both; when either exits, report which one and let cleanup stop the rest.
 while :; do

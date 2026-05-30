@@ -24,6 +24,17 @@ services:
       timeout: 5s
       retries: 10
 
+  # Lightweight web viewer for Postgres (auto-connects, no login). http://localhost:8081
+  pgweb:
+    image: sosedoff/pgweb:latest
+    environment:
+      PGWEB_DATABASE_URL: postgres://legalaid:legalaid@postgres:5432/legalaid?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+
   redis:
     image: redis/redis-stack-server:7.4.0-v6
     volumes:

@@ -7,9 +7,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Create data directory for document uploads
-RUN mkdir -p /app/data
+# Create data directories for source PDFs and parsed Markdown
+RUN mkdir -p /app/data/markdown
 
 EXPOSE 8001
 
-CMD ["python", "-m", "app.main"]
+# Apply DB migrations, then serve the API.
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8001"]

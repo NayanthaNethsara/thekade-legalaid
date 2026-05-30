@@ -209,6 +209,44 @@ def approve_and_index(db: Session, doc: RagDocument) -> RagDocument:
     return doc
 
 
+# -------------------------------------------------------------------------- delete
+def delete_document(db: Session, doc: RagDocument, drop: bool = False):
+    """Remove a document's Markdown and all of its RAG chunks.
+
+    Clearing the Markdown clears every chunk derived from it (the whole file is
+    un-indexed). By default the tracking row and the source PDF are kept and the
+    document is reset to ``pending`` so it can be re-parsed later. Pass
+    ``drop=True`` to remove the tracking row entirely as well.
+
+    Returns the reset document, or ``None`` when dropped.
+    """
+    deleted = repo.delete_chunks_for(db, doc.id)
+    if deleted:
+        logger.info("Cleared %d chunk(s) for %s", deleted, doc.source_filename)
+
+    if doc.markdown_path and os.path.exists(doc.markdown_path):
+        os.remove(doc.markdown_path)
+        logger.info("Removed Markdown for %s", doc.source_filename)
+
+    if drop:
+        db.delete(doc)
+        db.commit()
+        logger.info("Dropped tracking row for %s", doc.source_filename)
+        return None
+
+    doc.markdown_path = None
+    doc.markdown_hash = None
+    doc.indexed_hash = None
+    doc.chunk_count = 0
+    doc.status = DocStatus.PENDING
+    doc.error = None
+    doc.parsed_at = None
+    doc.indexed_at = None
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+
 # -------------------------------------------------------------------------- search
 def search(db: Session, query: str, top_k: int = 5,
            document_id: Optional[int] = None) -> List[dict]:

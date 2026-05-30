@@ -130,6 +130,30 @@ def get_chunks(doc_id: int, db: Session = Depends(get_db)):
     return repo.get_chunks(db, doc_id)
 
 
+@router.delete("/{doc_id}")
+def delete_document(
+    doc_id: int,
+    drop: bool = Query(False, description="Also remove the tracking row "
+                                         "(otherwise the document resets to pending)"),
+    db: Session = Depends(get_db),
+):
+    """Remove a document's Markdown and clear all of its RAG chunks.
+
+    Un-indexes the whole file. By default keeps the tracking row + source PDF
+    (reset to `pending`); `drop=true` removes the row entirely.
+    """
+    doc = _get_or_404(db, doc_id)
+    filename = doc.source_filename
+    result = rag.delete_document(db, doc, drop=drop)
+    if result is None:
+        return {"deleted": True, "dropped": True, "id": doc_id, "filename": filename}
+    return {
+        "deleted": True,
+        "dropped": False,
+        "document": DocumentOut.model_validate(result).model_dump(mode="json"),
+    }
+
+
 # Mounted separately in main (not under /documents) — see app.main.
 search_router = APIRouter(tags=["search"])
 

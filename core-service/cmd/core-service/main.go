@@ -52,7 +52,7 @@ func main() {
 	defer stop()
 	<-ctx.Done()
 
-	logger.Info("shutting down…")
+	logger.Info("shutting down")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {

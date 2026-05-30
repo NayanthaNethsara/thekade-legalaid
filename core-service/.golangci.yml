@@ -1,0 +1,28 @@
+version: "2"
+
+run:
+  timeout: 3m
+
+linters:
+  default: standard
+  enable:
+    - revive # naming and style conventions
+    - misspell # spelling in comments and strings
+    - unconvert # redundant type conversions
+    - bodyclose # HTTP response bodies are closed
+  exclusions:
+    # Do not force doc comments on packages or exported symbols.
+    rules:
+      - linters: [revive]
+        text: "should have a package comment"
+      - linters: [revive]
+        text: "should have comment or be unexported"
+
+formatters:
+  enable:
+    - gofumpt # stricter gofmt
+    - goimports # group and order imports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/NayanthaNethsara/thekade-legalaid/core-service

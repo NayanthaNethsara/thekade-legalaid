@@ -128,33 +128,48 @@ export default async function DocumentDetailPage(
         </Card>
       )}
 
-      {chunks.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium">
-            Indexed chunks ({chunks.length})
-          </h2>
+      <section className="flex flex-col gap-3">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-medium">Chunks</h2>
+          <span className="text-xs text-muted-foreground">
+            how this document is split for retrieval
+          </span>
+        </div>
+
+        {chunks.length > 0 ? (
           <div className="flex flex-col gap-2">
             {chunks.map((chunk) => (
-              <Card key={chunk.chunk_index}>
-                <CardContent className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="font-medium">
-                      #{chunk.chunk_index}
-                      {chunk.heading ? ` · ${chunk.heading}` : ""}
-                    </span>
-                    <span className="tabular-nums">
-                      ~{chunk.token_count ?? "?"} tokens
-                    </span>
-                  </div>
-                  <p className="line-clamp-4 text-xs whitespace-pre-wrap text-foreground/80">
-                    {chunk.content}
-                  </p>
-                </CardContent>
+              <Card key={chunk.chunk_index} className="gap-0 py-0">
+                <div className="flex items-center justify-between border-b px-3 py-1.5 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    Chunk #{chunk.chunk_index}
+                    {chunk.heading ? (
+                      <span className="ml-1.5 font-normal text-muted-foreground">
+                        · {chunk.heading}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="tabular-nums">
+                    {chunk.content.length.toLocaleString()} chars · ~
+                    {chunk.token_count ?? "?"} tokens
+                  </span>
+                </div>
+                <pre className="max-h-64 overflow-auto px-3 py-2 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground/80">
+                  {chunk.content}
+                </pre>
               </Card>
             ))}
           </div>
-        </section>
-      ) : null}
+        ) : (
+          <Card>
+            <CardContent className="py-6 text-center text-sm text-muted-foreground">
+              {doc.status === "indexed"
+                ? "This document is indexed but has no stored chunks."
+                : "No chunks yet — approve the document to split and embed it."}
+            </CardContent>
+          </Card>
+        )}
+      </section>
     </div>
   );
 }

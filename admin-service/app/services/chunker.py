@@ -1,59 +1,90 @@
-"""Text chunker — splits documents into overlapping chunks.
+"""Markdown-aware chunking.
 
-Uses a recursive character-based strategy to produce chunks that are
-roughly ``chunk_size`` characters with ``chunk_overlap`` overlap.
+Splits a Markdown document into section-aligned chunks suitable for embedding.
+We break on headings first (so a chunk stays within one logical section), then
+window oversized sections by character count with a small overlap so context is
+not lost across boundaries.
 """
 
-import logging
-from dataclasses import dataclass
+from __future__ import annotations
 
-logger = logging.getLogger(__name__)
+import re
+from dataclasses import dataclass
+from typing import List, Optional
+
+from app.core.config import settings
+
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 
 
 @dataclass
 class Chunk:
     index: int
-    text: str
+    content: str
+    heading: Optional[str]
+
+    @property
+    def token_count(self) -> int:
+        # Rough heuristic: ~4 chars per token. Good enough for budgeting/metadata.
+        return max(1, len(self.content) // 4)
 
 
-def chunk_text(
-    text: str,
-    *,
-    chunk_size: int = 500,
-    chunk_overlap: int = 50,
-) -> list[Chunk]:
-    """Split *text* into overlapping chunks.
+def _split_section(text: str, max_chars: int, overlap: int) -> List[str]:
+    """Window a long section into overlapping pieces, preferring paragraph breaks."""
+    if len(text) <= max_chars:
+        return [text]
 
-    Returns an empty list if *text* is blank.
-    """
-    if not text or not text.strip():
-        return []
-
-    text = text.strip()
-    chunks: list[Chunk] = []
+    pieces: List[str] = []
     start = 0
+    n = len(text)
+    while start < n:
+        end = min(start + max_chars, n)
+        if end < n:
+            # Try to break on a paragraph or line boundary near the window end.
+            window = text[start:end]
+            split_at = window.rfind("\n\n")
+            if split_at < max_chars // 2:
+                split_at = window.rfind("\n")
+            if split_at > max_chars // 2:
+                end = start + split_at
+        pieces.append(text[start:end].strip())
+        if end >= n:
+            break
+        start = max(end - overlap, start + 1)
+    return [p for p in pieces if p]
+
+
+def chunk_markdown(
+    markdown: str,
+    max_chars: Optional[int] = None,
+    overlap: Optional[int] = None,
+) -> List[Chunk]:
+    max_chars = max_chars or settings.CHUNK_MAX_CHARS
+    overlap = overlap or settings.CHUNK_OVERLAP
+
+    # Group lines into sections led by their nearest heading.
+    sections: List[tuple] = []  # (heading, body_text)
+    current_heading: Optional[str] = None
+    buf: List[str] = []
+
+    for line in markdown.splitlines():
+        m = _HEADING_RE.match(line.strip())
+        if m:
+            if buf:
+                sections.append((current_heading, "\n".join(buf).strip()))
+                buf = []
+            current_heading = m.group(2).strip()
+        buf.append(line)
+    if buf:
+        sections.append((current_heading, "\n".join(buf).strip()))
+
+    chunks: List[Chunk] = []
     idx = 0
-
-    while start < len(text):
-        end = start + chunk_size
-
-        # Try to break at a sentence/paragraph boundary.
-        if end < len(text):
-            # Look for the last newline or period within the window.
-            for sep in ["\n\n", "\n", ". ", "? ", "! "]:
-                last = text.rfind(sep, start, end)
-                if last > start:
-                    end = last + len(sep)
-                    break
-
-        chunk_text_str = text[start:end].strip()
-        if chunk_text_str:
-            chunks.append(Chunk(index=idx, text=chunk_text_str))
-            idx += 1
-
-        new_start = end - chunk_overlap
-        # CRITICAL: ensure start always advances forward to prevent infinite loops!
-        start = max(start + 1, new_start)
-
-    logger.info(f"Chunked {len(text)} chars into {len(chunks)} chunks")
+    for heading, body in sections:
+        if not body.strip():
+            continue
+        for piece in _split_section(body, max_chars, overlap):
+            if piece.strip():
+                chunks.append(Chunk(index=idx, content=piece, heading=heading))
+                idx += 1
     return chunks

@@ -1,66 +1,37 @@
-"""File parser — extracts text from PDF, DOCX, TXT, and MD files."""
+"""PDF -> Markdown parsing using pymupdf4llm (deterministic, offline)."""
 
-import logging
-from pathlib import Path
+from __future__ import annotations
 
-logger = logging.getLogger(__name__)
+import os
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
+import pymupdf4llm
+
+from app.core.config import settings
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
-def parse_file(path: Path) -> str:
-    """Extract text content from a file.
+def markdown_path_for(source_filename: str) -> str:
+    """Markdown output path for a given source filename."""
+    stem, _ = os.path.splitext(os.path.basename(source_filename))
+    return os.path.join(settings.MARKDOWN_DIR, f"{stem}.md")
 
-    Returns empty string for unsupported types or on error.
+
+def parse_pdf_to_markdown(source_path: str, source_filename: str) -> str:
+    """Convert a PDF to Markdown, write it to disk, and return the output path.
+
+    Overwrites any existing Markdown for the same file (callers guard against
+    clobbering human edits via the ``force`` flag).
     """
-    ext = path.suffix.lower()
+    os.makedirs(settings.MARKDOWN_DIR, exist_ok=True)
+    out_path = markdown_path_for(source_filename)
 
-    if ext not in SUPPORTED_EXTENSIONS:
-        logger.warning(f"Unsupported file type: {ext} ({path.name})")
-        return ""
+    logger.info("Parsing %s -> %s", source_filename, out_path)
+    markdown = pymupdf4llm.to_markdown(source_path, show_progress=False)
 
-    try:
-        if ext == ".pdf":
-            return _parse_pdf(path)
-        elif ext == ".docx":
-            return _parse_docx(path)
-        else:
-            return _parse_text(path)
-    except Exception as exc:
-        logger.error(f"Failed to parse {path.name}: {exc}")
-        return ""
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(markdown)
 
-
-def _parse_pdf(path: Path) -> str:
-    """Extract text from PDF using PyMuPDF."""
-    import fitz  # PyMuPDF
-
-    doc = fitz.open(str(path))
-    pages: list[str] = []
-    for page in doc:
-        text = page.get_text()
-        if text.strip():
-            pages.append(text.strip())
-    doc.close()
-
-    content = "\n\n".join(pages)
-    logger.info(f"PDF '{path.name}': {len(pages)} pages, {len(content)} chars")
-    return content
-
-
-def _parse_docx(path: Path) -> str:
-    """Extract text from DOCX using python-docx."""
-    import docx
-
-    doc = docx.Document(str(path))
-    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-    content = "\n\n".join(paragraphs)
-    logger.info(f"DOCX '{path.name}': {len(paragraphs)} paragraphs, {len(content)} chars")
-    return content
-
-
-def _parse_text(path: Path) -> str:
-    """Read plain text or markdown."""
-    content = path.read_text(encoding="utf-8", errors="replace")
-    logger.info(f"TXT '{path.name}': {len(content)} chars")
-    return content
+    logger.info("Wrote %d chars of Markdown for %s", len(markdown), source_filename)
+    return out_path

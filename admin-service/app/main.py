@@ -1,51 +1,35 @@
-"""Admin service — FastAPI app for RAG training, ingestion, and querying.
+"""kakilleAI admin-service — human-in-the-loop RAG builder for legal documents.
 
-This service uses a layered architecture:
-- ``api/routers``: FastAPI HTTP endpoints
-- ``services``: Business logic (ingestion, parsing, chunking, embedding)
-- ``repositories``: Database operations
-- ``models``: SQLAlchemy schemas
-- ``core``: Configuration and DB setup
+Pipeline:
+  PDF (data/)  --parse-->  Markdown (data/markdown/, human-editable)
+               --approve-> chunks + Gemini embeddings  -> Postgres/pgvector
+
+Indexing is per-file: approving one document never affects the others.
 """
 
-import logging
-
+import uvicorn
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
-from app.api.routers import training, documents, system, users
+from app.api.documents import router as documents_router
+from app.api.documents import search_router
+from app.utils.logger import setup_logger
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-)
+logger = setup_logger(__name__)
 
 app = FastAPI(
-    title="LegalAid Admin Service",
-    description="RAG training and document ingestion for the LegalAid knowledge base.",
-    version="1.0.0",
+    title="kakilleAI Admin — RAG Builder",
+    description="Human-in-the-loop RAG builder for legal documents.",
+    version="0.1.0",
 )
 
-# Add CORS so the dashboard can communicate with the backend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3001"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.include_router(documents_router)
+app.include_router(search_router)
 
-# Register routers
-app.include_router(system.router)
-app.include_router(training.router)
-app.include_router(documents.router)
-app.include_router(users.router)
 
-# Serve the frontend Dashboard
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+@app.get("/health", tags=["health"])
+def health():
+    return {"status": "ok", "service": "kakilleAI-admin"}
 
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8001, reload=False)

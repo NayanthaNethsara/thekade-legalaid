@@ -32,6 +32,29 @@ LOGS_PID=""
 log() { printf '\033[1;36m[start-dev]\033[0m %s\n' "$1"; }
 err() { printf '\033[1;31m[start-dev]\033[0m %s\n' "$1" >&2; }
 
+listeners_on() { lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null; }
+
+# ── Preflight (before the cleanup trap, so failures exit quietly) ───────────
+if ! docker info >/dev/null 2>&1; then
+  err "Docker is not running. Start Docker Desktop and retry."
+  exit 1
+fi
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  err "pnpm not found on PATH — cannot start the frontend."
+  exit 1
+fi
+
+# The frontend must own its port. If something already holds it (e.g. a stale
+# 'next dev', or another copy of this script), fail fast with a clear message
+# instead of colliding and tearing everything down later.
+if [ -n "$(listeners_on "$FRONTEND_PORT")" ]; then
+  err "Port $FRONTEND_PORT is already in use by PID(s): $(listeners_on "$FRONTEND_PORT" | tr '\n' ' ')"
+  err "Stop it (e.g. 'kill $(listeners_on "$FRONTEND_PORT" | tr '\n' ' ')') or run: FRONTEND_PORT=3001 ./start-dev.sh"
+  exit 1
+fi
+
+# ── Cleanup ────────────────────────────────────────────────────────────────
 signal_group() {
   # Signal an entire process group (negative PID). With `set -m`, each host
   # job's PID is its process-group leader.
@@ -56,13 +79,7 @@ cleanup() {
 }
 trap cleanup INT TERM EXIT
 
-# --- 0. Docker available? ---------------------------------------------------
-if ! docker info >/dev/null 2>&1; then
-  err "Docker is not running. Start Docker Desktop and retry."
-  exit 1
-fi
-
-# --- 1. Postgres + admin-service (containers) ------------------------------
+# ── 1. Postgres + admin-service (containers) ───────────────────────────────
 BUILD_FLAG="--build"
 [ "${SKIP_BUILD:-0}" = "1" ] && BUILD_FLAG=""
 
@@ -79,16 +96,11 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 
-# --- 2. Stream admin-service logs ------------------------------------------
+# ── 2. Stream admin-service logs ───────────────────────────────────────────
 ( exec docker compose logs -f --tail 10 admin-service ) &
 LOGS_PID=$!
 
-# --- 3. Frontend (Next.js on the host) -------------------------------------
-if ! command -v pnpm >/dev/null 2>&1; then
-  err "pnpm not found on PATH — cannot start the frontend."
-  exit 1
-fi
-
+# ── 3. Frontend (Next.js on the host) ──────────────────────────────────────
 log "Starting frontend on http://localhost:$FRONTEND_PORT …"
 ( cd "$FRONTEND_DIR" && exec pnpm dev --port "$FRONTEND_PORT" ) &
 FRONTEND_PID=$!
@@ -97,14 +109,15 @@ log "Up. Press Ctrl+C to stop."
 log "  admin-service → http://localhost:$ADMIN_PORT  (API docs: /docs)"
 log "  frontend      → http://localhost:$FRONTEND_PORT/admin/rag"
 
-# Exit (triggering cleanup) if the frontend dies or the container stops
-# (which ends the log follower).
-while kill -0 "$FRONTEND_PID" 2>/dev/null; do
+# Watch both; when either exits, report which one and let cleanup stop the rest.
+while :; do
+  if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+    err "Frontend (next dev) exited — stopping the admin-service container."
+    break
+  fi
   if [ -n "$LOGS_PID" ] && ! kill -0 "$LOGS_PID" 2>/dev/null; then
-    err "admin-service container stopped."
+    err "admin-service container stopped — shutting down the frontend."
     break
   fi
   sleep 1
 done
-
-err "A service exited — stopping the rest."

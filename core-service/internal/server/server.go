@@ -9,13 +9,20 @@ import (
 
 const serviceName = "core-service"
 
-func New(addr string, logger *slog.Logger, readinessChecks ...ReadinessCheck) *http.Server {
+func New(addr string, logger *slog.Logger, otp OTPService, ident IdentityResolver, readinessChecks ...ReadinessCheck) *http.Server {
 	health := &healthEndpoints{startedAt: time.Now(), checks: readinessChecks}
+	api := &apiHandlers{logger: logger, otp: otp, identity: ident}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.liveness)
 	mux.HandleFunc("GET /readyz", health.readiness)
 	mux.HandleFunc("GET /health", health.health)
+
+	// Unauthenticated: the user has no session yet during login steps 1 and 2.
+	mux.HandleFunc("POST /api/otp/send", api.sendOTP)
+	mux.HandleFunc("POST /api/otp/verify", api.verifyOTP)
+	// Authenticated via trusted identity headers minted by the Next.js proxy.
+	mux.Handle("POST /api/chat", requireCaller(http.HandlerFunc(api.chat)))
 
 	return &http.Server{
 		Addr:              addr,

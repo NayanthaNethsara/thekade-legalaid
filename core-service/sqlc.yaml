@@ -1,0 +1,13 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    # Schema is read straight from the migrations the service applies, so there
+    # is a single source of truth — no duplicated schema file to drift.
+    schema: "migrations"
+    queries: "internal/db/queries.sql"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/db/sqlc"
+        sql_package: "pgx/v5"
+        emit_pointers_for_null_types: true

@@ -82,8 +82,14 @@ services:
       ENV: production
       PORT: "8002"
       NATS_URL: nats://nats:4222
+      DATABASE_URL: postgres://legalaid:legalaid@postgres:5432/legalaid
+      NATS_SUBJECT_INCOMING_TEXT: whatsapp.incoming.text
+      NATS_SUBJECT_OUTGOING_TEXT: whatsapp.outgoing.text
     depends_on:
-      - nats
+      nats:
+        condition: service_started
+      postgres:
+        condition: service_healthy
     ports:
       - "8002:8002"
 

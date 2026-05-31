@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db import get_db
+from app.core.security import require_admin
 from app.repositories import document as repo
 from app.schemas.document import (
     ChunkOut,
@@ -36,7 +37,11 @@ def list_documents(db: Session = Depends(get_db)):
     return repo.list_documents(db)
 
 
-@router.post("/scan", response_model=ParseNewResult)
+@router.post(
+    "/scan",
+    response_model=ParseNewResult,
+    dependencies=[Depends(require_admin)],
+)
 def scan_and_parse(db: Session = Depends(get_db)):
     """Parsing hook: register new PDFs in DATA_DIR and parse the unparsed ones.
 
@@ -45,9 +50,17 @@ def scan_and_parse(db: Session = Depends(get_db)):
     return rag.parse_new(db)
 
 
-@router.post("/upload", response_model=DocumentOut)
+@router.post(
+    "/upload",
+    response_model=DocumentOut,
+    dependencies=[Depends(require_admin)],
+)
 def upload_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """Add a new PDF to DATA_DIR and register it (status: pending)."""
+    """Add a new PDF to DATA_DIR and register it (status: pending).
+
+    Admin-only: the role is enforced from the forwarded `X-User-Role` header
+    before the file is read or written.
+    """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only .pdf files are accepted")
     if repo.get_by_filename(db, file.filename):
@@ -72,7 +85,11 @@ def get_document(doc_id: int, db: Session = Depends(get_db)):
     return _get_or_404(db, doc_id)
 
 
-@router.post("/{doc_id}/parse", response_model=DocumentOut)
+@router.post(
+    "/{doc_id}/parse",
+    response_model=DocumentOut,
+    dependencies=[Depends(require_admin)],
+)
 def parse_document(
     doc_id: int,
     force: bool = Query(False, description="Re-parse even if already parsed "
@@ -105,14 +122,22 @@ def get_markdown(doc_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.put("/{doc_id}/markdown", response_model=DocumentOut)
+@router.put(
+    "/{doc_id}/markdown",
+    response_model=DocumentOut,
+    dependencies=[Depends(require_admin)],
+)
 def update_markdown(doc_id: int, body: MarkdownIn, db: Session = Depends(get_db)):
     """Save human-edited Markdown. Indexed documents become stale until re-approved."""
     doc = _get_or_404(db, doc_id)
     return rag.save_markdown(db, doc, body.content)
 
 
-@router.post("/{doc_id}/approve", response_model=DocumentOut)
+@router.post(
+    "/{doc_id}/approve",
+    response_model=DocumentOut,
+    dependencies=[Depends(require_admin)],
+)
 def approve_document(doc_id: int, db: Session = Depends(get_db)):
     """Approve the current Markdown and (re)build this document's vector index."""
     doc = _get_or_404(db, doc_id)
@@ -130,7 +155,7 @@ def get_chunks(doc_id: int, db: Session = Depends(get_db)):
     return repo.get_chunks(db, doc_id)
 
 
-@router.delete("/{doc_id}")
+@router.delete("/{doc_id}", dependencies=[Depends(require_admin)])
 def delete_document(
     doc_id: int,
     drop: bool = Query(False, description="Also remove the tracking row "

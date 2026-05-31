@@ -7,6 +7,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { auth } from "@/auth";
 import { ragApi, RagApiError } from "@/lib/api/rag";
 import type { ActionResult, SearchState } from "@/types/action";
 import type { ParseNewResult } from "@/types/rag";
@@ -19,11 +20,14 @@ function errorMessage(err: unknown): string {
   return "Something went wrong";
 }
 
-// Placeholder for upcoming role-based access control. Wire real auth here and
-// call it at the top of every action. Server Actions are reachable via direct
-// POST requests, so this is the security boundary — not the UI.
+// Role-based access control for RAG mutations. Server Actions are reachable
+// via direct POST requests, so this is the security boundary — not the UI or
+// the proxy. Called at the top of every action below.
 async function requireAdmin(): Promise<void> {
-  // TODO: const session = await auth(); if (session?.role !== "admin") throw ...
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") {
+    throw new Error("Forbidden: admin role required");
+  }
 }
 
 /** Register new PDFs in data/ and parse the ones not parsed yet. */

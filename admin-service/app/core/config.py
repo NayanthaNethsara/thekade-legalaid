@@ -9,6 +9,13 @@ class Settings(BaseSettings):
     # Used by Alembic. Falls back to DATABASE_URL when empty.
     DIRECT_URL: str = ""
 
+    # ------------------------------------------------------------- Internal auth
+    # Shared secret for verifying HMAC-signed requests from the Next.js edge.
+    # Empty means signature verification fails closed (every RAG route 401/500s).
+    INTERNAL_AUTH_SECRET: str = ""
+    # Redis backing the request-nonce store used to reject replays.
+    REDIS_URL: str = "redis://localhost:6379"
+
     # ------------------------------------------------------------- File storage
     # Where source PDFs (and other documents) live.
     DATA_DIR: str = "data"

@@ -5,6 +5,8 @@
 
 import { NextResponse } from "next/server";
 
+import { internalAuthHeaders } from "@/lib/internal-auth";
+
 const CORE_SERVICE_URL =
   process.env.CORE_SERVICE_URL ?? "http://localhost:8002";
 
@@ -28,7 +30,10 @@ export async function POST(request: Request) {
   try {
     res = await fetch(`${CORE_SERVICE_URL}/api/otp/send`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...internalAuthHeaders("POST", "/api/otp/send"),
+      },
       body: JSON.stringify({ phone }),
     });
   } catch {

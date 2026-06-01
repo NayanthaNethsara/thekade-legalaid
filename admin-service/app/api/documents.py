@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db import get_db
-from app.core.security import require_admin
+from app.core.security import require_admin, verify_internal_signature
 from app.repositories import document as repo
 from app.schemas.document import (
     ChunkOut,
@@ -22,7 +22,13 @@ from app.schemas.document import (
 )
 from app.services import rag
 
-router = APIRouter(prefix="/documents", tags=["documents"])
+# Every route on these routers requires a valid edge signature; mutating routes
+# additionally depend on require_admin for the role check.
+router = APIRouter(
+    prefix="/documents",
+    tags=["documents"],
+    dependencies=[Depends(verify_internal_signature)],
+)
 
 
 def _get_or_404(db: Session, doc_id: int):
@@ -180,7 +186,10 @@ def delete_document(
 
 
 # Mounted separately in main (not under /documents) — see app.main.
-search_router = APIRouter(tags=["search"])
+search_router = APIRouter(
+    tags=["search"],
+    dependencies=[Depends(verify_internal_signature)],
+)
 
 
 @search_router.post("/search", response_model=SearchOut)

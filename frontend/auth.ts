@@ -9,6 +9,8 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
+import { internalAuthHeaders } from "@/lib/internal-auth";
+
 const CORE_SERVICE_URL =
   process.env.CORE_SERVICE_URL ?? "http://localhost:8002";
 
@@ -47,7 +49,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           res = await fetch(`${CORE_SERVICE_URL}/api/otp/verify`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...internalAuthHeaders("POST", "/api/otp/verify"),
+            },
             body: JSON.stringify({ phone, otp }),
           });
         } catch {

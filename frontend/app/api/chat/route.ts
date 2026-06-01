@@ -1,12 +1,10 @@
-// Secure proxy for web chat. The browser talks only to this Route Handler;
-// it authenticates the session here and forwards the payload to the Go
-// core-service with the caller's identity stamped into trusted internal
-// headers (X-User-ID, X-User-Role). The core-service trusts these because it
-// is reachable only from within the network perimeter.
+// Web chat proxy: authenticates the session, then forwards to core-service with
+// HMAC-signed identity headers so it can reject calls not from this edge.
 
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
+import { internalAuthHeaders } from "@/lib/internal-auth";
 
 const CORE_SERVICE_URL =
   process.env.CORE_SERVICE_URL ?? "http://localhost:8002";
@@ -25,8 +23,10 @@ export async function POST(request: Request) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-User-ID": session.user.id,
-        "X-User-Role": session.user.role,
+        ...internalAuthHeaders("POST", "/api/chat", {
+          userId: session.user.id,
+          role: session.user.role,
+        }),
       },
       body: payload,
     });

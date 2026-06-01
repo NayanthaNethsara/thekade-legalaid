@@ -17,6 +17,7 @@ import (
 	"github.com/NayanthaNethsara/thekade-legalaid/core-service/internal/identity"
 	"github.com/NayanthaNethsara/thekade-legalaid/core-service/internal/messaging"
 	"github.com/NayanthaNethsara/thekade-legalaid/core-service/internal/otp"
+	"github.com/NayanthaNethsara/thekade-legalaid/core-service/internal/replay"
 	"github.com/NayanthaNethsara/thekade-legalaid/core-service/internal/server"
 	"github.com/NayanthaNethsara/thekade-legalaid/core-service/internal/worker"
 	"github.com/NayanthaNethsara/thekade-legalaid/core-service/migrations"
@@ -50,6 +51,13 @@ func main() {
 	}
 	defer nc.Drain() //nolint:errcheck // best-effort flush on shutdown
 
+	nonceStore, err := replay.NewStore(cfg.RedisURL)
+	if err != nil {
+		logger.Error("failed to configure replay store", "error", err)
+		os.Exit(1)
+	}
+	defer nonceStore.Close() //nolint:errcheck // best-effort on shutdown
+
 	otpService := otp.NewService(pool, nc, cfg.OutgoingTextSubject)
 
 	matcher := identity.NewMatcher(pool)
@@ -61,7 +69,7 @@ func main() {
 	}
 	defer sub.Unsubscribe() //nolint:errcheck // best-effort on shutdown
 
-	srv := server.New(":"+cfg.Port, logger, otpService, matcher,
+	srv := server.New(":"+cfg.Port, logger, otpService, matcher, cfg.InternalAuthSecret, nonceStore,
 		server.ReadinessCheck{
 			Name: "nats",
 			Probe: func(context.Context) error {

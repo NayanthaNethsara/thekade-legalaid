@@ -6,6 +6,7 @@
 // the browser.
 
 import { auth } from "@/auth";
+import { internalAuthHeaders } from "@/lib/internal-auth";
 import type {
   MarkdownDoc,
   ParseNewResult,
@@ -28,11 +29,14 @@ export class RagApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  // Forward the verified role so admin-service can enforce RBAC on mutating
-  // routes. The session is the source of truth; reads ignore the header.
+  // Sign the call so admin-service can verify it came from this edge, and
+  // forward the verified role so it can enforce RBAC on mutating routes. The
+  // session is the source of truth.
   const session = await auth();
+  const method = (init?.method ?? "GET").toUpperCase();
   const headers = new Headers(init?.headers);
-  if (session?.user?.role) headers.set("X-User-Role", session.user.role);
+  const signed = internalAuthHeaders(method, path, { role: session?.user?.role });
+  for (const [name, value] of Object.entries(signed)) headers.set(name, value);
 
   let res: Response;
   try {

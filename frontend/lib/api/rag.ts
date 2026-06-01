@@ -5,6 +5,8 @@
 // Server Actions — this talks to the backend directly and is never bundled for
 // the browser.
 
+import { auth } from "@/auth";
+import { internalAuthHeaders } from "@/lib/internal-auth";
 import type {
   MarkdownDoc,
   ParseNewResult,
@@ -27,9 +29,22 @@ export class RagApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Sign the call so admin-service can verify it came from this edge, and
+  // forward the verified role so it can enforce RBAC on mutating routes. The
+  // session is the source of truth.
+  const session = await auth();
+  const method = (init?.method ?? "GET").toUpperCase();
+  const headers = new Headers(init?.headers);
+  const signed = internalAuthHeaders(method, path, { role: session?.user?.role });
+  for (const [name, value] of Object.entries(signed)) headers.set(name, value);
+
   let res: Response;
   try {
-    res = await fetch(`${BASE_URL}${path}`, { cache: "no-store", ...init });
+    res = await fetch(`${BASE_URL}${path}`, {
+      cache: "no-store",
+      ...init,
+      headers,
+    });
   } catch {
     throw new RagApiError(
       `Cannot reach the RAG service at ${BASE_URL}. Is admin-service running?`,

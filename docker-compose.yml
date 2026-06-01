@@ -66,10 +66,13 @@ services:
       - ./admin-service/.env
     environment:
       DATABASE_URL: postgresql://legalaid:legalaid@postgres:5432/legalaid
+      REDIS_URL: redis://redis:6379
     volumes:
       - ./admin-service:/app
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "8001:8001"
@@ -82,8 +85,18 @@ services:
       ENV: production
       PORT: "8002"
       NATS_URL: nats://nats:4222
+      DATABASE_URL: postgres://legalaid:legalaid@postgres:5432/legalaid
+      NATS_SUBJECT_INCOMING_TEXT: whatsapp.incoming.text
+      NATS_SUBJECT_OUTGOING_TEXT: whatsapp.outgoing.text
+      INTERNAL_AUTH_SECRET: ${INTERNAL_AUTH_SECRET:-98b87a4463adf02ab47898a238da88c88848f3ad144f3d9ad2b0a6fc0cc6cd0b}
+      REDIS_URL: redis://redis:6379
     depends_on:
-      - nats
+      nats:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "8002:8002"
 

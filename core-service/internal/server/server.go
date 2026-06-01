@@ -9,13 +9,22 @@ import (
 
 const serviceName = "core-service"
 
-func New(addr string, logger *slog.Logger, readinessChecks ...ReadinessCheck) *http.Server {
+func New(addr string, logger *slog.Logger, otp OTPService, ident IdentityResolver, internalAuthSecret string, nonces nonceChecker, readinessChecks ...ReadinessCheck) *http.Server {
 	health := &healthEndpoints{startedAt: time.Now(), checks: readinessChecks}
+	api := &apiHandlers{logger: logger, otp: otp, identity: ident}
+	edge := edgeAuth{secret: internalAuthSecret, nonces: nonces, log: logger}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.liveness)
 	mux.HandleFunc("GET /readyz", health.readiness)
 	mux.HandleFunc("GET /health", health.health)
+
+	// Pre-session (no user yet) but still edge-only: the signature proves the
+	// call came from Next.js, blocking direct abuse of OTP send/verify.
+	mux.Handle("POST /api/otp/send", edge.require(false, http.HandlerFunc(api.sendOTP)))
+	mux.Handle("POST /api/otp/verify", edge.require(false, http.HandlerFunc(api.verifyOTP)))
+	// Authenticated: signature plus a verified user identity from the edge.
+	mux.Handle("POST /api/chat", edge.require(true, http.HandlerFunc(api.chat)))
 
 	return &http.Server{
 		Addr:              addr,

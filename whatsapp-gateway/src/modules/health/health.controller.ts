@@ -18,14 +18,17 @@ export class HealthController {
           incomingTextSubject: this.configService.get<string>(
             'nats.subjects.incomingText',
           ),
-          incomingVoiceSubject: this.configService.get<string>(
-            'nats.subjects.incomingVoice',
+          incomingImageSubject: this.configService.get<string>(
+            'nats.subjects.incomingImage',
+          ),
+          incomingVideoSubject: this.configService.get<string>(
+            'nats.subjects.incomingVideo',
+          ),
+          incomingAudioSubject: this.configService.get<string>(
+            'nats.subjects.incomingAudio',
           ),
           incomingDocumentSubject: this.configService.get<string>(
             'nats.subjects.incomingDocument',
-          ),
-          incomingLegacyFileSubject: this.configService.get<string>(
-            'nats.subjects.incomingFile',
           ),
           outgoingTextSubject: this.configService.get<string>(
             'nats.subjects.outgoingText',
@@ -33,14 +36,6 @@ export class HealthController {
           outgoingMediaSubject: this.configService.get<string>(
             'nats.subjects.outgoingMedia',
           ),
-        },
-        azure: {
-          connectionString: this.configService.get<string>(
-            'azure.storageConnectionString',
-          )
-            ? 'Set'
-            : 'Missing',
-          containerName: this.configService.get<string>('azure.containerName'),
         },
         meta: {
           appSecret: this.configService.get<string>('meta.appSecret')

@@ -45,8 +45,14 @@ export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
     }
 
     await Promise.all([
-      this.subscribeToSubject(this.textSubject, 'whatsapp_gateway_outgoing_text'),
-      this.subscribeToSubject(this.mediaSubject, 'whatsapp_gateway_outgoing_media'),
+      this.subscribeToSubject(
+        this.textSubject,
+        'whatsapp_gateway_outgoing_text',
+      ),
+      this.subscribeToSubject(
+        this.mediaSubject,
+        'whatsapp_gateway_outgoing_media',
+      ),
     ]);
   }
 
@@ -72,7 +78,7 @@ export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
     ) {
       return {
         to: payload.to,
-        type: normalizedType as OutgoingWhatsAppMessageDto['type'],
+        type: normalizedType,
         content: {
           mediaUrl: content.mediaUrl,
           mediaId: content.mediaId,
@@ -163,7 +169,9 @@ export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
         const mediaIdOrUrl =
           message.content?.mediaUrl ?? message.content?.mediaId;
         if (!mediaIdOrUrl) {
-          this.logger.error('Invalid document message - missing media reference');
+          this.logger.error(
+            'Invalid document message - missing media reference',
+          );
           return false;
         }
 

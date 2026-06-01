@@ -74,6 +74,8 @@ export interface MediaMessage {
   mime_type?: string;
   sha256?: string;
   caption?: string;
+  // Set by WhatsApp on audio messages recorded as a voice note.
+  voice?: boolean;
 }
 
 export interface DocumentMessage extends MediaMessage {

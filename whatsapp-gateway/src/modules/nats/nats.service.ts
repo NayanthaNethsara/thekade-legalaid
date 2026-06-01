@@ -30,9 +30,10 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
       this.configService.get<string>('nats.streamName') || 'LEGALAID_EVENTS';
     this.subjects = [
       this.configService.get<string>('nats.subjects.incomingText') || '',
-      this.configService.get<string>('nats.subjects.incomingVoice') || '',
+      this.configService.get<string>('nats.subjects.incomingImage') || '',
+      this.configService.get<string>('nats.subjects.incomingVideo') || '',
+      this.configService.get<string>('nats.subjects.incomingAudio') || '',
       this.configService.get<string>('nats.subjects.incomingDocument') || '',
-      this.configService.get<string>('nats.subjects.incomingFile') || '',
       this.configService.get<string>('nats.subjects.outgoingText') || '',
       this.configService.get<string>('nats.subjects.outgoingMedia') || '',
     ].filter(Boolean);

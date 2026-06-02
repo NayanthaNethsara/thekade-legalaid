@@ -113,10 +113,10 @@
     },
     {
       "id": 6,
-      "title": "Logs (all services)",
+      "title": "Logs - WhatsApp Gateway",
       "type": "logs",
       "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 16 },
       "options": {
         "showTime": true,
         "wrapLogMessage": true,
@@ -125,7 +125,45 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{container=~\".+\"}",
+          "expr": "{service=\"whatsapp-gateway\"}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Logs - Core Service",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 25 },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=\"core-service\"}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Logs - Admin Service",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 34 },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=\"admin-service\"}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
       ]

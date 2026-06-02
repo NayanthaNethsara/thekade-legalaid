@@ -22,6 +22,7 @@ monitoring containers start alongside them.
 
 Grafana auto-provisions the Prometheus + Loki datasources and the
 **KakilleAI Overview** dashboard (targets up, message rates, memory, logs).
+Grafana also opens the KakilleAI dashboard by default when you land on the home page.
 
 ## What's scraped
 
@@ -37,11 +38,15 @@ Grafana auto-provisions the Prometheus + Loki datasources and the
 ## Logs
 
 Promtail discovers every container via the Docker socket and ships logs to Loki,
-labeled by `container` and compose `service`. Query in Grafana → Explore →
-Loki, e.g. `{service="core-service"}` or `{container=~"whatsapp.*"}`.
+labeled by `container`, `service`, and `stream`. Query in Grafana → Explore →
+Loki, e.g. `{service="core-service"}` or `{service="whatsapp-gateway"}`.
 
 Both app services log JSON in production, so log lines parse cleanly in Loki.
 No PII (phone numbers, message bodies) is logged.
+The WhatsApp gateway writes logs to stdout in production; it does not need a
+local `logs/` directory inside the container.
+The default dashboard now includes separate log panels for WhatsApp Gateway,
+Core Service, and Admin Service.
 
 ## Config
 

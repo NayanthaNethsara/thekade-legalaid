@@ -11,9 +11,7 @@ import { PinoAppLogger } from './common/logger';
 
 @Module({
   imports: [
-    PinoAppLogger.registerAsync({
-      logDestination: 'logs/app.log',
-    }),
+    PinoAppLogger.registerAsync({}),
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],

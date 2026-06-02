@@ -8,7 +8,9 @@ There are two distinct schemas in this document:
 - **Inbound (what Meta sends us)** — modeled in
   [webhook-event.dto.ts](../src/modules/webhook/dto/webhook-event.dto.ts).
 - **Outbound (what we publish to the queue)** — modeled in
-  [nats-message.dto.ts](../src/modules/nats/dto/nats-message.dto.ts).
+  [nats-message.dto.ts](../src/modules/nats/dto/nats-message.dto.ts). The full
+  queue contract is documented separately in
+  [incoming-queues.md](incoming-queues.md).
 
 The gateway's job is to translate the first into the second.
 

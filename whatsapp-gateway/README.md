@@ -4,7 +4,8 @@ A NestJS-based gateway service that bridges WhatsApp Cloud API with AI workers t
 
 ## Documentation
 
-- [WhatsApp Webhook Reference](docs/whatsapp-webhook.md) — what Meta sends, the inbound DTO, and the normalized queue contract.
+- [WhatsApp Webhook Reference](docs/whatsapp-webhook.md) — what Meta sends and the inbound DTO.
+- [Incoming Message Queues](docs/incoming-queues.md) — the normalized contract published to NATS (subjects, envelope, per-type payloads).
 
 ## Overview
 

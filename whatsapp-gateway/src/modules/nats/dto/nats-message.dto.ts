@@ -1,14 +1,14 @@
 // ============================================================================
 // Incoming message formats (WhatsApp Cloud API -> NATS)
 //
-// Every incoming WhatsApp message is normalized into one of four standardized
-// formats before it is published to NATS: text, image, video, audio. Each
-// format owns a dedicated NATS subject so a consumer can subscribe only to the
-// media types it can handle. Document is kept as an additional media format
-// for backward compatibility.
+// Every incoming WhatsApp message is normalized into one of five standardized
+// formats before it is published to NATS: text, image, video, audio, document.
+// Each format owns a dedicated NATS subject so a consumer can subscribe only to
+// the types it can handle.
 //
-// All formats share the same envelope (sender, recipient, timestamps, reply
-// context) so consumers can rely on a stable shape regardless of media type.
+// All formats share the same envelope (sender, recipient, timestamp, contact
+// name, reply context, metadata) so consumers can rely on a stable shape
+// regardless of message type. See docs/incoming-queues.md for the full contract.
 // ============================================================================
 
 export interface IncomingMessageMetadata {

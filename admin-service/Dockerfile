@@ -12,8 +12,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 
 COPY requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r requirements.txt
+RUN pip install -r requirements.txt
 
 FROM python:3.11-slim AS runtime
 
@@ -27,7 +26,10 @@ WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
 
-COPY . .
+COPY alembic ./alembic
+COPY app ./app
+COPY alembic.ini ./alembic.ini
+COPY README.md ./README.md
 
 RUN mkdir -p /app/data/markdown /app/logs && chown -R app:app /app
 

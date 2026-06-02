@@ -7,6 +7,9 @@ python-multipart==0.0.20
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 
+# ── Monitoring (Prometheus /metrics) ──────────────────────────────────────
+prometheus-fastapi-instrumentator>=7.0.0
+
 # ── Internal auth (request-nonce replay store) ────────────────────────────
 redis>=5.0.0
 

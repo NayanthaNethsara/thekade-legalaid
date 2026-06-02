@@ -16,6 +16,9 @@ import { IncomingImageProducer } from '../nats/incoming-image-producer';
 import { IncomingVideoProducer } from '../nats/incoming-video-producer';
 import { IncomingAudioProducer } from '../nats/incoming-audio-producer';
 import { IncomingDocumentProducer } from '../nats/incoming-document-producer';
+import { InjectMetric } from '@willsoto/nestjs-prometheus';
+import { Counter } from 'prom-client';
+import { INCOMING_MESSAGES } from '../metrics/metrics.module';
 import {
   IncomingMessageContext,
   IncomingMessageMetadata,
@@ -67,6 +70,8 @@ export class WebhookService {
     private readonly incomingVideoProducer: IncomingVideoProducer,
     private readonly incomingAudioProducer: IncomingAudioProducer,
     private readonly incomingDocumentProducer: IncomingDocumentProducer,
+    @InjectMetric(INCOMING_MESSAGES)
+    private readonly incomingMessages: Counter<string>,
   ) {}
 
   private buildContext(
@@ -318,6 +323,8 @@ export class WebhookService {
     metadata: WhatsAppMetadata,
     contactName: string | null,
   ): Promise<void> {
+    this.incomingMessages.inc({ type: message.type });
+
     switch (message.type) {
       case 'text':
       case 'interactive':

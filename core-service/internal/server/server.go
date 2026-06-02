@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const serviceName = "core-service"
@@ -18,6 +20,7 @@ func New(addr string, logger *slog.Logger, otp OTPService, ident IdentityResolve
 	mux.HandleFunc("GET /healthz", health.liveness)
 	mux.HandleFunc("GET /readyz", health.readiness)
 	mux.HandleFunc("GET /health", health.health)
+	mux.Handle("GET /metrics", promhttp.Handler())
 
 	// Pre-session (no user yet) but still edge-only: the signature proves the
 	// call came from Next.js, blocking direct abuse of OTP send/verify.
@@ -44,6 +47,11 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 
 func logRequests(logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip scrape/probe noise from the access log.
+		if r.URL.Path == "/metrics" {
+			next.ServeHTTP(w, r)
+			return
+		}
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		logger.Info("request",

@@ -13,6 +13,7 @@ import (
 	"github.com/nats-io/nats.go"
 
 	"github.com/NayanthaNethsara/thekade-legalaid/core-service/internal/identity"
+	"github.com/NayanthaNethsara/thekade-legalaid/core-service/internal/metrics"
 )
 
 // identityTimeout bounds the per-message identity lookup so a slow database
@@ -70,11 +71,13 @@ func (w *Worker) handle(msg *nats.Msg) {
 	if err := json.Unmarshal(msg.Data, &in); err != nil {
 		// Do not log the raw payload; it carries the sender and message body.
 		w.logger.Error("worker: malformed incoming message", "error", err)
+		metrics.IncomingMessages.WithLabelValues("malformed").Inc()
 		return
 	}
 	if in.From == "" {
 		w.logger.Warn("worker: incoming message missing sender",
 			"message_id", in.MessageID)
+		metrics.IncomingMessages.WithLabelValues("no_sender").Inc()
 		return
 	}
 
@@ -90,6 +93,7 @@ func (w *Worker) handle(msg *nats.Msg) {
 	if err != nil {
 		w.logger.Error("worker: identity resolution failed",
 			"error", err, "message_id", in.MessageID)
+		metrics.IncomingMessages.WithLabelValues("identity_failed").Inc()
 		return
 	}
 
@@ -101,9 +105,12 @@ func (w *Worker) handle(msg *nats.Msg) {
 	if err := w.reply(in.From, fmt.Sprintf("Received: %s", in.Text)); err != nil {
 		w.logger.Error("worker: failed to send reply",
 			"error", err, "message_id", in.MessageID)
+		metrics.IncomingMessages.WithLabelValues("reply_failed").Inc()
 		return
 	}
 
+	metrics.IncomingMessages.WithLabelValues("handled").Inc()
+	metrics.RepliesPublished.Inc()
 	w.logger.Info("worker: reply published",
 		"subject", w.outgoingSubject, "message_id", in.MessageID)
 }

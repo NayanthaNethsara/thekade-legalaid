@@ -1,0 +1,37 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Application services (each exposes /metrics).
+  - job_name: whatsapp-gateway
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['whatsapp-gateway:3000']
+
+  - job_name: core-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['core-service:8002']
+
+  - job_name: admin-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['admin-service:8001']
+
+  # Infrastructure exporters.
+  - job_name: nats
+    static_configs:
+      - targets: ['nats-exporter:7777']
+
+  - job_name: postgres
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  - job_name: redis
+    static_configs:
+      - targets: ['redis-exporter:9121']

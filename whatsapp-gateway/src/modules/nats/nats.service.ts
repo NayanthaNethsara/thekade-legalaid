@@ -30,11 +30,11 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
       this.configService.get<string>('nats.streamName') || 'LEGALAID_EVENTS';
     this.subjects = [
       this.configService.get<string>('nats.subjects.incomingText') || '',
-      this.configService.get<string>('nats.subjects.incomingVoice') || '',
+      this.configService.get<string>('nats.subjects.incomingImage') || '',
+      this.configService.get<string>('nats.subjects.incomingVideo') || '',
+      this.configService.get<string>('nats.subjects.incomingAudio') || '',
       this.configService.get<string>('nats.subjects.incomingDocument') || '',
-      this.configService.get<string>('nats.subjects.incomingFile') || '',
-      this.configService.get<string>('nats.subjects.outgoingText') || '',
-      this.configService.get<string>('nats.subjects.outgoingMedia') || '',
+      this.configService.get<string>('nats.subjects.outgoing') || '',
     ].filter(Boolean);
 
     if (!this.natsUrl) {
@@ -134,13 +134,13 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
             new TextDecoder().decode(message.data),
           ) as unknown;
           await handler(payload);
-          await message.ack();
+          message.ack();
         } catch (error) {
           this.logger.error(
             `Failed to process JetStream message on ${subject}`,
             error instanceof Error ? error.stack : undefined,
           );
-          await message.nak();
+          message.nak();
         }
       }
     })();

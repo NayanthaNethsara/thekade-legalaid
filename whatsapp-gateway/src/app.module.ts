@@ -7,7 +7,6 @@ import { NatsModule } from './modules/nats/nats.module';
 import configuration from './config/configuration';
 import { validationSchema } from './config/validation';
 import { PinoAppLogger } from './common/logger';
-import { AzureModule } from './modules/azure/azure.module';
 
 @Module({
   imports: [
@@ -27,7 +26,6 @@ import { AzureModule } from './modules/azure/azure.module';
     WhatsAppModule,
     WebhookModule,
     HealthModule,
-    AzureModule,
     NatsModule,
   ],
 })

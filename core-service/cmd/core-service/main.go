@@ -58,7 +58,7 @@ func main() {
 	}
 	defer nonceStore.Close() //nolint:errcheck // best-effort on shutdown
 
-	otpService := otp.NewService(pool, nc, cfg.OutgoingTextSubject)
+	otpService := otp.NewService(pool, nc, cfg.OutgoingSubject)
 
 	matcher := identity.NewMatcher(pool)
 	inboundWorker := worker.New(matcher, logger)

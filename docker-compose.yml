@@ -87,7 +87,7 @@ services:
       NATS_URL: nats://nats:4222
       DATABASE_URL: postgres://legalaid:legalaid@postgres:5432/legalaid
       NATS_SUBJECT_INCOMING_TEXT: whatsapp.incoming.text
-      NATS_SUBJECT_OUTGOING_TEXT: whatsapp.outgoing.text
+      NATS_SUBJECT_OUTGOING: whatsapp.outgoing
       INTERNAL_AUTH_SECRET: ${INTERNAL_AUTH_SECRET:-98b87a4463adf02ab47898a238da88c88848f3ad144f3d9ad2b0a6fc0cc6cd0b}
       REDIS_URL: redis://redis:6379
     depends_on:

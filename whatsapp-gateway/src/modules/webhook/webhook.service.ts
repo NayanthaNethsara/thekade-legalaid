@@ -8,26 +8,51 @@ import type {
   WhatsAppMessage,
   WhatsAppMetadata,
   MessageContext,
+  Contact,
 } from './dto/webhook-event.dto';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
-import { IncomingDocumentProducer } from '../nats/incoming-document-producer';
 import { IncomingMessageProducer } from '../nats/incoming-message-producer';
-import { IncomingFileProducer } from '../nats/incoming-file-producer';
-import { IncomingVoiceProducer } from '../nats/incoming-voice-producer';
-import { BlobStorageService } from '../azure/blob-storage.service';
+import { IncomingImageProducer } from '../nats/incoming-image-producer';
+import { IncomingVideoProducer } from '../nats/incoming-video-producer';
+import { IncomingAudioProducer } from '../nats/incoming-audio-producer';
+import { IncomingDocumentProducer } from '../nats/incoming-document-producer';
 import {
-  IncomingFileMessageDto,
-  IncomingDocumentMessageDto,
-  IncomingWhatsAppMessageDto,
-  IncomingVoiceMessageDto,
+  IncomingMessageContext,
+  IncomingMessageMetadata,
+  IncomingTextMessageDto,
+  IncomingTextSource,
 } from '../nats/dto/nats-message.dto';
 
-type UploadableMessageType = 'image' | 'video' | 'audio' | 'document';
+type MediaMessageType = 'image' | 'video' | 'audio' | 'document';
+
+/** Common envelope shared by every standardized incoming format. */
+type IncomingEnvelope = {
+  messageId: string;
+  from: string;
+  to: string;
+  timestamp: string;
+  contactName: string | null;
+  context: IncomingMessageContext | null;
+  metadata: IncomingMessageMetadata;
+};
+
+/** Envelope plus the media metadata extracted from the webhook payload. */
+type IncomingMedia = IncomingEnvelope & {
+  mediaId: string;
+  mimeType: string | null;
+  sha256: string | null;
+  caption: string | null;
+  filename: string | null;
+  isVoice: boolean;
+};
+
 type MediaDetails = {
   mediaId: string;
   mimeType: string | null;
   caption: string | null;
   filename: string | null;
+  sha256: string | null;
+  isVoice: boolean;
 };
 
 @Injectable()
@@ -37,16 +62,16 @@ export class WebhookService {
   constructor(
     private readonly whatsappService: WhatsAppService,
     private readonly configService: ConfigService,
-    private readonly incomingDocumentProducer: IncomingDocumentProducer,
     private readonly incomingMessageProducer: IncomingMessageProducer,
-    private readonly incomingFileProducer: IncomingFileProducer,
-    private readonly incomingVoiceProducer: IncomingVoiceProducer,
-    private readonly blobStorageService: BlobStorageService,
+    private readonly incomingImageProducer: IncomingImageProducer,
+    private readonly incomingVideoProducer: IncomingVideoProducer,
+    private readonly incomingAudioProducer: IncomingAudioProducer,
+    private readonly incomingDocumentProducer: IncomingDocumentProducer,
   ) {}
 
   private buildContext(
     context: MessageContext | undefined,
-  ): IncomingWhatsAppMessageDto['context'] {
+  ): IncomingMessageContext | null {
     if (!context) {
       return null;
     }
@@ -57,66 +82,116 @@ export class WebhookService {
     };
   }
 
-  private extractMediaDetails(
+  private resolveContactName(
+    contacts: Contact[] | undefined,
+    waId: string,
+  ): string | null {
+    if (!contacts || contacts.length === 0) {
+      return null;
+    }
+
+    const match = contacts.find((contact) => contact.wa_id === waId);
+    return (match ?? contacts[0]).profile?.name ?? null;
+  }
+
+  private buildEnvelope(
     message: WhatsAppMessage,
-    expectedType: UploadableMessageType,
-  ): MediaDetails | null {
-    switch (expectedType) {
-      case 'image': {
-        const mediaId = message.image?.id;
-        if (!mediaId) {
-          return null;
-        }
+    metadata: WhatsAppMetadata,
+    contactName: string | null,
+  ): IncomingEnvelope {
+    return {
+      messageId: message.id,
+      from: message.from,
+      to: metadata.phone_number_id,
+      timestamp: message.timestamp,
+      contactName,
+      context: this.buildContext(message.context),
+      metadata: {
+        phoneNumberId: metadata.phone_number_id,
+        displayPhoneNumber: metadata.display_phone_number,
+      },
+    };
+  }
 
-        return {
-          mediaId,
-          mimeType: message.image?.mime_type ?? null,
-          caption: message.image?.caption ?? null,
-          filename: null,
-        };
+  /**
+   * Collapse the several text-bearing message shapes (plain text, interactive
+   * button/list reply, template quick reply) into a single normalized payload.
+   */
+  private normalizeTextPayload(message: WhatsAppMessage): {
+    text: string;
+    source: IncomingTextSource;
+    replyId: string | null;
+  } | null {
+    switch (message.type) {
+      case 'text': {
+        const body = message.text?.body;
+        return body ? { text: body, source: 'text', replyId: null } : null;
       }
-      case 'video': {
-        const mediaId = message.video?.id;
-        if (!mediaId) {
-          return null;
+      case 'interactive': {
+        const buttonReply = message.interactive?.button_reply;
+        if (buttonReply) {
+          return {
+            text: buttonReply.title,
+            source: 'button_reply',
+            replyId: buttonReply.id,
+          };
         }
 
-        return {
-          mediaId,
-          mimeType: message.video?.mime_type ?? null,
-          caption: message.video?.caption ?? null,
-          filename: null,
-        };
+        const listReply = message.interactive?.list_reply;
+        if (listReply) {
+          return {
+            text: listReply.title,
+            source: 'list_reply',
+            replyId: listReply.id,
+          };
+        }
+
+        return null;
       }
-      case 'audio': {
-        const mediaId = message.audio?.id;
-        if (!mediaId) {
-          return null;
-        }
-
-        return {
-          mediaId,
-          mimeType: message.audio?.mime_type ?? null,
-          caption: null,
-          filename: null,
-        };
-      }
-      case 'document': {
-        const mediaId = message.document?.id;
-        if (!mediaId) {
-          return null;
-        }
-
-        return {
-          mediaId,
-          mimeType: message.document?.mime_type ?? null,
-          caption: message.document?.caption ?? null,
-          filename: message.document?.filename ?? null,
-        };
+      case 'button': {
+        const button = message.button;
+        return button?.text
+          ? {
+              text: button.text,
+              source: 'quick_reply',
+              replyId: button.payload ?? null,
+            }
+          : null;
       }
       default:
         return null;
     }
+  }
+
+  private extractMediaDetails(
+    message: WhatsAppMessage,
+    expectedType: MediaMessageType,
+  ): MediaDetails | null {
+    const media =
+      expectedType === 'image'
+        ? message.image
+        : expectedType === 'video'
+          ? message.video
+          : expectedType === 'audio'
+            ? message.audio
+            : message.document;
+
+    if (!media?.id) {
+      return null;
+    }
+
+    return {
+      mediaId: media.id,
+      mimeType: media.mime_type ?? null,
+      caption: expectedType === 'audio' ? null : (media.caption ?? null),
+      filename:
+        expectedType === 'document'
+          ? (message.document?.filename ?? null)
+          : null,
+      sha256: media.sha256 ?? null,
+      isVoice:
+        expectedType === 'audio' ? (message.audio?.voice ?? false) : false,
+    };
   }
 
   /**
@@ -222,322 +297,204 @@ export class WebhookService {
 
     if (value.messages) {
       for (const message of value.messages) {
-        await this.handleIncomingWhatsAppMessage(message, value.metadata);
+        const contactName = this.resolveContactName(
+          value.contacts,
+          message.from,
+        );
+        await this.handleIncomingWhatsAppMessage(
+          message,
+          value.metadata,
+          contactName,
+        );
       }
     }
   }
 
   /**
-   * Handle incoming WhatsApp messages - route by type
+   * Route an incoming message to the handler for its standardized format.
    */
   private async handleIncomingWhatsAppMessage(
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
+    contactName: string | null,
   ): Promise<void> {
-    const { type } = message;
-
-    switch (type) {
+    switch (message.type) {
       case 'text':
-        await this.handleTextMessage(message, metadata);
-        break;
       case 'interactive':
       case 'button':
-        await this.handleInteractiveMessage(message, metadata);
-        break;
-      case 'audio':
-        await this.handleVoiceMessage(message, metadata);
-        break;
-      case 'document':
-        await this.handleDocumentMessage(message, metadata);
+        await this.handleTextMessage(message, metadata, contactName);
         break;
       case 'image':
+        await this.handleImageMessage(message, metadata, contactName);
+        break;
       case 'video':
-      case 'location':
-        await this.handleNonTextMessage(message, metadata);
+        await this.handleVideoMessage(message, metadata, contactName);
+        break;
+      case 'audio':
+        await this.handleAudioMessage(message, metadata, contactName);
+        break;
+      case 'document':
+        await this.handleDocumentMessage(message, metadata, contactName);
         break;
       default:
-        this.logger.log(`Unsupported message type: ${type}`);
+        this.logger.log(`Unsupported message type: ${message.type}`);
     }
   }
 
   /**
-   * Handle text messages - send to SQS queue
+   * Normalize any text-bearing message to the text format and publish it.
    */
   private async handleTextMessage(
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
+    contactName: string | null,
   ): Promise<void> {
-    const { id: messageId, from } = message;
-
-    if (!message.text?.body) {
-      this.logger.warn(`Text message ${messageId} has no body content`);
+    const payload = this.normalizeTextPayload(message);
+    if (!payload) {
+      this.logger.warn(`Text message ${message.id} has no readable content`);
       return;
     }
 
-    const textContent = message.text.body;
+    await this.whatsappService.markMessageAsRead(message.id, true);
 
-    // Mark as read and show typing indicator for 5 seconds (for testing/debugging)
-    await this.whatsappService.markMessageAsRead(messageId, true);
-
-    this.logger.log(
-      `Typing indicator started for ${from} - waiting 5 seconds before queuing`,
-    );
-
-    // Wait 5 seconds so typing indicator is visible (for testing)
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    this.logger.log(`5 seconds passed, now sending to queue for AI processing`);
-
-    // Convert to DTO and push to SQS
-    const incomingMessageDto: IncomingWhatsAppMessageDto = {
-      messageId,
-      from,
-      to: metadata.phone_number_id,
-      timestamp: message.timestamp,
+    const textMessage: IncomingTextMessageDto = {
+      ...this.buildEnvelope(message, metadata, contactName),
       type: 'text',
-      content: textContent,
-      context: this.buildContext(message.context),
-      metadata: {
-        phoneNumberId: metadata.phone_number_id,
-        displayPhoneNumber: metadata.display_phone_number,
-      },
+      text: payload.text,
+      source: payload.source,
+      replyId: payload.replyId,
     };
 
-    await this.incomingMessageProducer.sendMessage(incomingMessageDto);
+    await this.incomingMessageProducer.sendMessage(textMessage);
   }
 
-  /**
-   * Handle interactive messages (button/list replies) - send to SQS queue
-   */
-  private async handleInteractiveMessage(
+  private async handleImageMessage(
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
+    contactName: string | null,
   ): Promise<void> {
-    const { id: messageId, from } = message;
-
-    if (!message.interactive) {
-      this.logger.warn(
-        `Interactive message ${messageId} has no interactive content`,
-      );
+    const media = this.buildMedia(message, metadata, contactName, 'image');
+    if (!media) {
       return;
     }
 
-    const interactiveContent = message.interactive;
-    const selectedText =
-      interactiveContent.button_reply?.title ||
-      interactiveContent.list_reply?.title;
-
-    if (!selectedText) {
-      this.logger.warn(`Interactive message ${messageId} has no selected text`);
-      return;
-    }
-
-    this.logger.log(
-      `Received interactive ${interactiveContent.type} from ${from}`,
-    );
-
-    // Mark as read WITH typing indicator - shows typing while processing button click
-    await this.whatsappService.markMessageAsRead(messageId, true);
-
-    // Convert to DTO and push to SQS
-    const incomingMessageDto: IncomingWhatsAppMessageDto = {
-      messageId,
-      from,
-      to: metadata.phone_number_id,
-      timestamp: message.timestamp,
-      type: 'text',
-      content: selectedText,
-      context: this.buildContext(message.context),
-      metadata: {
-        phoneNumberId: metadata.phone_number_id,
-        displayPhoneNumber: metadata.display_phone_number,
-      },
-    };
-
-    await this.incomingMessageProducer.sendMessage(incomingMessageDto);
+    await this.whatsappService.markMessageAsRead(message.id, true);
+    await this.incomingImageProducer.sendImageMessage({
+      ...this.toEnvelope(media),
+      type: 'image',
+      mediaId: media.mediaId,
+      mimeType: media.mimeType,
+      sha256: media.sha256,
+      caption: media.caption,
+    });
   }
 
-  private async handleVoiceMessage(
+  private async handleVideoMessage(
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
+    contactName: string | null,
   ): Promise<void> {
-    if (message.type !== 'audio') {
-      this.logger.warn(
-        `Unexpected message type for voice handler: ${message.type}`,
-      );
+    const media = this.buildMedia(message, metadata, contactName, 'video');
+    if (!media) {
       return;
     }
 
-    const voiceMessage = await this.buildUploadedMediaMessage(
-      message,
-      metadata,
-      'audio',
-    );
-    if (!voiceMessage || voiceMessage.type !== 'audio') {
+    await this.whatsappService.markMessageAsRead(message.id, true);
+    await this.incomingVideoProducer.sendVideoMessage({
+      ...this.toEnvelope(media),
+      type: 'video',
+      mediaId: media.mediaId,
+      mimeType: media.mimeType,
+      sha256: media.sha256,
+      caption: media.caption,
+    });
+  }
+
+  private async handleAudioMessage(
+    message: WhatsAppMessage,
+    metadata: WhatsAppMetadata,
+    contactName: string | null,
+  ): Promise<void> {
+    const media = this.buildMedia(message, metadata, contactName, 'audio');
+    if (!media) {
       return;
     }
 
-    const typedVoiceMessage: IncomingVoiceMessageDto = {
-      ...voiceMessage,
+    await this.whatsappService.markMessageAsRead(message.id, true);
+    await this.incomingAudioProducer.sendAudioMessage({
+      ...this.toEnvelope(media),
       type: 'audio',
-    };
-
-    await this.incomingVoiceProducer.sendVoiceMessage(typedVoiceMessage);
-    this.logger.log(
-      `Audio message sent to voice queue: ${voiceMessage.messageId}`,
-    );
+      mediaId: media.mediaId,
+      mimeType: media.mimeType,
+      sha256: media.sha256,
+      voice: media.isVoice,
+    });
   }
 
   private async handleDocumentMessage(
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
+    contactName: string | null,
   ): Promise<void> {
-    if (message.type !== 'document') {
-      this.logger.warn(
-        `Unexpected message type for document handler: ${message.type}`,
-      );
+    const media = this.buildMedia(message, metadata, contactName, 'document');
+    if (!media) {
       return;
     }
 
-    const documentMessage = await this.buildUploadedMediaMessage(
-      message,
-      metadata,
-      'document',
-    );
-    if (!documentMessage || documentMessage.type !== 'document') {
-      return;
-    }
-
-    const typedDocumentMessage: IncomingDocumentMessageDto = {
-      ...documentMessage,
+    await this.whatsappService.markMessageAsRead(message.id, true);
+    await this.incomingDocumentProducer.sendDocumentMessage({
+      ...this.toEnvelope(media),
       type: 'document',
-    };
-
-    await this.incomingDocumentProducer.sendDocumentMessage(
-      typedDocumentMessage,
-    );
-    this.logger.log(
-      `Document message sent to document queue: ${documentMessage.messageId}`,
-    );
+      mediaId: media.mediaId,
+      mimeType: media.mimeType,
+      sha256: media.sha256,
+      caption: media.caption,
+      filename: media.filename,
+    });
   }
 
-  private async buildUploadedMediaMessage(
-    message: WhatsAppMessage,
-    metadata: WhatsAppMetadata,
-    expectedType: UploadableMessageType,
-  ): Promise<IncomingFileMessageDto | null> {
-    const { id: messageId, from } = message;
-    this.logger.log(
-      `Received ${expectedType} message from ${from}: ${messageId}`,
-    );
-
-    try {
-      const mediaDetails = this.extractMediaDetails(message, expectedType);
-      if (!mediaDetails) {
-        this.logger.error(`No media ID found for ${expectedType} message`);
-        return null;
-      }
-
-      await this.whatsappService.markMessageAsRead(messageId, true);
-      this.logger.log(
-        `Downloading ${expectedType} from WhatsApp (ID: ${mediaDetails.mediaId})`,
-      );
-
-      const fileBuffer = await this.whatsappService.downloadMedia(
-        mediaDetails.mediaId,
-      );
-      const maxFileSize = 10 * 1024 * 1024;
-      if (fileBuffer.length > maxFileSize) {
-        this.logger.warn(
-          `File size ${fileBuffer.length} bytes exceeds 10MB limit`,
-        );
-        await this.whatsappService.sendTextMessage(
-          from,
-          `Sorry, your ${expectedType} file is too large. Maximum file size is 10MB. Please send a smaller file.`,
-        );
-        return null;
-      }
-
-      this.logger.log(
-        `Downloaded ${fileBuffer.length} bytes, uploading to Azure Blob Storage`,
-      );
-
-      const fileExtension =
-        mediaDetails.mimeType?.split('/')[1] ?? expectedType;
-      const fileName =
-        mediaDetails.filename ||
-        `${expectedType}-${messageId}.${fileExtension}`.substring(0, 100);
-      const blobUrl = await this.blobStorageService.uploadFile(
-        fileBuffer,
-        fileName,
-        mediaDetails.mimeType ?? 'application/octet-stream',
-        'temp',
-      );
-
-      this.logger.log(`File uploaded to Azure Blob Storage: ${blobUrl}`);
-
-      return {
-        messageId,
-        from,
-        to: metadata.phone_number_id,
-        timestamp: message.timestamp,
-        type: expectedType,
-        fileUrl: blobUrl,
-        mimeType: mediaDetails.mimeType,
-        caption: mediaDetails.caption,
-        filename: mediaDetails.filename,
-        metadata: {
-          phoneNumberId: metadata.phone_number_id,
-          displayPhoneNumber: metadata.display_phone_number,
-        },
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to process ${expectedType} message: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        error instanceof Error ? error.stack : '',
-      );
-
-      await this.whatsappService.sendTextMessage(
-        from,
-        `Sorry, there was an error processing your ${expectedType} file. Please try again.`,
-      );
-      return null;
-    }
+  private toEnvelope(media: IncomingMedia): IncomingEnvelope {
+    return {
+      messageId: media.messageId,
+      from: media.from,
+      to: media.to,
+      timestamp: media.timestamp,
+      contactName: media.contactName,
+      context: media.context,
+      metadata: media.metadata,
+    };
   }
 
   /**
-   * Handle media messages (image, video, audio, document) - download, upload to S3, and send to file queue
+   * Build the standardized media envelope from the webhook payload. The bytes
+   * are not fetched here; the WhatsApp `mediaId` is forwarded so a downstream
+   * consumer can download and store the file. Returns null when the payload
+   * carries no media id.
    */
-  private async handleNonTextMessage(
+  private buildMedia(
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
-  ): Promise<void> {
-    if (message.type !== 'image' && message.type !== 'video') {
-      this.logger.warn(
-        `Unexpected message type for file handler: ${message.type}`,
-      );
-      return;
-    }
-
-    const uploadedMessage = await this.buildUploadedMediaMessage(
-      message,
-      metadata,
-      message.type,
+    contactName: string | null,
+    expectedType: MediaMessageType,
+  ): IncomingMedia | null {
+    this.logger.log(
+      `Received ${expectedType} message from ${message.from}: ${message.id}`,
     );
-    if (!uploadedMessage) {
-      return;
+
+    const mediaDetails = this.extractMediaDetails(message, expectedType);
+    if (!mediaDetails) {
+      this.logger.error(`No media ID found for ${expectedType} message`);
+      return null;
     }
 
-    try {
-      await this.incomingFileProducer.sendFileMessage(uploadedMessage);
-      this.logger.log(
-        `${uploadedMessage.type} message processed and sent to legacy file queue`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to publish legacy file queue message: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        error instanceof Error ? error.stack : '',
-      );
-    }
+    return {
+      ...this.buildEnvelope(message, metadata, contactName),
+      mediaId: mediaDetails.mediaId,
+      mimeType: mediaDetails.mimeType,
+      sha256: mediaDetails.sha256,
+      caption: mediaDetails.caption,
+      filename: mediaDetails.filename,
+      isVoice: mediaDetails.isVoice,
+    };
   }
 }

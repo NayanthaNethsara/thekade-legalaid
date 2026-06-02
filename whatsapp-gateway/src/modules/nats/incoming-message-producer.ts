@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NatsService } from './nats.service';
-import { IncomingWhatsAppMessageDto } from './dto/nats-message.dto';
+import { IncomingTextMessageDto } from './dto/nats-message.dto';
 
 @Injectable()
 export class IncomingMessageProducer {
@@ -26,7 +26,7 @@ export class IncomingMessageProducer {
    * Send a single incoming WhatsApp message to NATS JetStream
    */
   async sendMessage(
-    message: IncomingWhatsAppMessageDto,
+    message: IncomingTextMessageDto,
   ): Promise<{ success: boolean }> {
     if (!this.subject) {
       this.logger.error('Incoming NATS subject not configured');

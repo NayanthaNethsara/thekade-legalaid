@@ -2,14 +2,20 @@
 
 A NestJS-based gateway service that bridges WhatsApp Cloud API with AI workers through NATS JetStream message queues.
 
+## Documentation
+
+- [WhatsApp Webhook Reference](docs/whatsapp-webhook.md) — what Meta sends and the inbound DTO.
+- [Incoming Message Queues](docs/incoming-queues.md) — the normalized contract published to NATS (subjects, envelope, per-type payloads).
+- [Outgoing Message Queue](docs/outgoing-queue.md) — the contract a producer publishes for the gateway to deliver to WhatsApp.
+
 ## Overview
 
 This service handles bidirectional message flow between WhatsApp and AI processing systems:
 
 - Receives incoming WhatsApp messages via webhook
 - Validates Meta webhook signatures
-- Routes text messages to NATS JetStream incoming topic for AI processing
-- Routes media files (image, video, audio, document) to Azure Blob Storage and file metadata topic for AI processing
+- Normalizes each incoming message into a standardized format (text, image, video, audio, document) and publishes it to a dedicated NATS JetStream subject
+- Forwards media as a WhatsApp `mediaId` plus metadata; downstream consumers fetch the bytes
 - Consumes responses from NATS JetStream outgoing topic
 - Sends processed messages back to WhatsApp users
 
@@ -27,9 +33,9 @@ WhatsApp Cloud API
         v
    [Message Router]
         |
-        +-- Text Message --> [NATS JetStream Incoming Topic] --> AI Worker
+        +-- Text  --> [NATS JetStream whatsapp.incoming.text] --> AI Worker
         |
-        +-- Media Files --> [Download from WhatsApp] --> [Upload to Azure Blob] --> [NATS JetStream Incoming File Topic] --> AI Worker
+        +-- Media --> [NATS JetStream whatsapp.incoming.{image,video,audio,document}] --> AI Worker
 
 AI Worker --> [NATS JetStream Outgoing Topic] --> [NATS JetStream Consumer] --> WhatsApp Cloud API
 ```
@@ -40,7 +46,6 @@ AI Worker --> [NATS JetStream Outgoing Topic] --> [NATS JetStream Consumer] --> 
 - Fastify (HTTP adapter)
 - TypeScript (strict mode)
 - nats (NATS JetStream client)
-- @azure/storage-blob (Azure Blob Storage)
 - WhatsApp Cloud API v21.0
 - Pino (logging)
 
@@ -49,7 +54,6 @@ AI Worker --> [NATS JetStream Outgoing Topic] --> [NATS JetStream Consumer] --> 
 - Node.js 18+ or 20+
 - pnpm package manager
 - NATS JetStream cluster (or local instance)
-- Azure Storage Account
 - Meta Developer account
 - WhatsApp Business API access
 
@@ -72,13 +76,12 @@ WHATSAPP_BUSINESS_ACCOUNT_ID=your_business_account_id
 
 # NATS JetStream Configuration
 NATS_URL=nats://localhost:4222
-NATS_SUBJECT_INCOMING=whatsapp.incoming.messages
-NATS_SUBJECT_INCOMING_FILE=whatsapp.incoming.files
-NATS_SUBJECT_OUTGOING=whatsapp.outgoing.messages
-
-# Azure Blob Storage Configuration
-AZURE_STORAGE_CONNECTION_STRING=your_connection_string
-AZURE_STORAGE_CONTAINER_NAME=whatsapp-media
+NATS_SUBJECT_INCOMING_TEXT=whatsapp.incoming.text
+NATS_SUBJECT_INCOMING_IMAGE=whatsapp.incoming.image
+NATS_SUBJECT_INCOMING_VIDEO=whatsapp.incoming.video
+NATS_SUBJECT_INCOMING_AUDIO=whatsapp.incoming.audio
+NATS_SUBJECT_INCOMING_DOCUMENT=whatsapp.incoming.document
+NATS_SUBJECT_OUTGOING=whatsapp.outgoing
 ```
 
 ## Installation
@@ -106,7 +109,7 @@ pnpm start:debug
 
 ## API Endpoints
 
-### Webhook Verification (GET /webhook)
+### Webhook Verification (GET /whatsapp/webhooks)
 
 Meta webhook verification endpoint.
 
@@ -116,7 +119,7 @@ Meta webhook verification endpoint.
 - `hub.verify_token`: Must match META_VERIFY_TOKEN
 - `hub.challenge`: Challenge string to echo back
 
-### Webhook Events (POST /webhook)
+### Webhook Events (POST /whatsapp/webhooks)
 
 Receives WhatsApp webhook events.
 
@@ -139,14 +142,22 @@ Returns service health status.
 1. WhatsApp user sends a message
 2. Meta sends webhook POST request
 3. Service validates signature using META_APP_SECRET
-4. **Text messages:**
-   - Sent to NATS JetStream incoming topic for AI processing
-   - Message marked as read with typing indicator
-5. **Media files (image, video, audio, document):**
-   - Downloaded from WhatsApp Cloud API
-   - Uploaded to Azure Blob Storage container
-   - Blob URL and metadata sent to NATS JetStream incoming file topic
-   - Message marked as read with typing indicator
+4. The message is normalized into one of the standardized incoming formats and
+   published to a dedicated NATS subject per type:
+
+   | Type | Subject | Notes |
+   | --- | --- | --- |
+   | `text` | `whatsapp.incoming.text` | Plain text, interactive button/list replies, and template quick replies are all normalized here (see `source`) |
+   | `image` | `whatsapp.incoming.image` | Carries `mediaId` and `caption` |
+   | `video` | `whatsapp.incoming.video` | Carries `mediaId` and `caption` |
+   | `audio` | `whatsapp.incoming.audio` | Carries `mediaId`; `voice` flags voice notes |
+   | `document` | `whatsapp.incoming.document` | Carries `mediaId` and `filename` |
+
+5. The message is marked as read with a typing indicator.
+6. **Media types** (image, video, audio, document) forward the WhatsApp
+   `mediaId` and content metadata only — the gateway does not download or store
+   the bytes. A downstream consumer is responsible for fetching the media via
+   the WhatsApp Cloud API using `mediaId`.
 
 ### Outgoing Messages
 
@@ -158,7 +169,12 @@ Returns service health status.
 
 ## Message Format
 
-### Incoming Topic (to AI Worker)
+### Incoming Topics (to AI Worker)
+
+All incoming formats share a common envelope (`messageId`, `from`, `to`,
+`timestamp`, `contactName`, `context`, `metadata`) and add type-specific fields.
+
+**Text** (`whatsapp.incoming.text`) — covers plain text plus button/list/quick replies:
 
 ```json
 {
@@ -166,16 +182,59 @@ Returns service health status.
   "from": "1234567890",
   "to": "0987654321",
   "timestamp": "1699876543",
+  "contactName": "Jane Doe",
+  "context": null,
   "type": "text",
-  "content": {
-    "text": "Hello"
-  },
+  "text": "Hello",
+  "source": "text",
+  "replyId": null,
   "metadata": {
     "phoneNumberId": "123456789",
     "displayPhoneNumber": "+1234567890"
   }
 }
 ```
+
+`source` is one of `text`, `button_reply`, `list_reply`, `quick_reply`. For
+interactive/quick replies, `replyId` holds the tapped button or list-row id.
+
+**Image / Video** (`whatsapp.incoming.image`, `whatsapp.incoming.video`):
+
+```json
+{
+  "messageId": "wamid.xxx",
+  "from": "1234567890",
+  "to": "0987654321",
+  "timestamp": "1699876543",
+  "contactName": "Jane Doe",
+  "context": null,
+  "type": "image",
+  "mediaId": "media-id",
+  "mimeType": "image/jpeg",
+  "sha256": "…",
+  "caption": "optional caption",
+  "metadata": {
+    "phoneNumberId": "123456789",
+    "displayPhoneNumber": "+1234567890"
+  }
+}
+```
+
+**Audio** (`whatsapp.incoming.audio`) — same media envelope, with `voice` instead
+of `caption`:
+
+```json
+{
+  "type": "audio",
+  "mediaId": "media-id",
+  "mimeType": "audio/ogg",
+  "sha256": "…",
+  "voice": true
+}
+```
+
+**Document** (`whatsapp.incoming.document`) — media envelope with `caption` and
+`filename`.
 
 ### Outgoing Topic (from AI Worker)
 
@@ -200,7 +259,6 @@ src/
 │   └── logger/         # Logging configuration
 ├── config/             # Configuration management
 ├── modules/
-│   ├── azure/          # Azure Blob Storage service
 │   ├── health/         # Health check endpoint
 │   ├── nats/          # NATS JetStream producers and consumers
 │   │   ├── dto/        # NATS JetStream message DTOs
@@ -250,20 +308,13 @@ Ensure you have a NATS JetStream broker running and accessible via `NATS_URL`. T
 
 The topics specified in `.env` should exist or be auto-created by the broker (depending on broker configuration).
 
-## Azure Setup
-
-1. Create an Azure Storage Account.
-2. Get the Connection String from "Access keys".
-3. Create a Container (e.g., `whatsapp-media`) with appropriate access level (usually Blob or Container level if direct access is needed, or Private if accessed only via SAS - current implementation assumes public read for simplicity but can be updated).
-4. Update `.env` with `AZURE_STORAGE_CONNECTION_STRING` and `AZURE_STORAGE_CONTAINER_NAME`.
-
 ## WhatsApp Setup
 
 ### Webhook Configuration
 
 1. Go to Meta Developer Console
 2. Navigate to WhatsApp > Configuration
-3. Set Callback URL: `https://your-domain.com/webhook`
+3. Set Callback URL: `https://your-domain.com/whatsapp/webhooks`
 4. Set Verify Token: Same as META_VERIFY_TOKEN
 5. Subscribe to webhook fields: `messages`
 

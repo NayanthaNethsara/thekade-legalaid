@@ -4,12 +4,17 @@ FROM node:22.18.0-alpine
 # Set the working directory inside the container
 WORKDIR /usr/src/app
 
-# Use pnpm with the lockfile for reproducible installs
-# Copy package.json and pnpm-lock.yaml first to leverage Docker layer caching
+RUN corepack enable
+
+# Copy the manifest first so the dependency layer is only invalidated when the
+# lockfile changes, not on every source edit.
 COPY package.json pnpm-lock.yaml ./
 
-# Enable Corepack and install dependencies using pnpm respecting the lockfile
-RUN corepack enable && pnpm install --frozen-lockfile
+# Cache the pnpm content-addressable store across builds (requires BuildKit, the
+# default in Compose v2). Packages already in the store are not re-downloaded
+# even when the lockfile changes.
+RUN --mount=type=cache,target=/pnpm/store \
+    pnpm install --frozen-lockfile --store-dir /pnpm/store
 
 # Copy the rest of the application files
 COPY . .

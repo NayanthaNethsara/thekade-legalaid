@@ -8,11 +8,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/nats-io/nats.go"
 
 	"github.com/NayanthaNethsara/thekade-legalaid/core-service/internal/identity"
 )
+
+// identityTimeout bounds the per-message identity lookup so a slow database
+// cannot stall the NATS handler indefinitely.
+const identityTimeout = 5 * time.Second
 
 // incomingText mirrors the whatsapp-gateway IncomingTextMessageDto. Only the
 // fields this worker needs are declared.
@@ -51,24 +56,40 @@ func New(matcher *identity.Matcher, nc *nats.Conn, outgoingSubject string, logge
 // Subscribe binds the inbound-text handler to the given subject. The returned
 // subscription should be drained/unsubscribed on shutdown.
 func (w *Worker) Subscribe(subject string) (*nats.Subscription, error) {
-	return w.nc.Subscribe(subject, w.handle)
+	sub, err := w.nc.Subscribe(subject, w.handle)
+	if err != nil {
+		return nil, fmt.Errorf("worker: subscribe %q: %w", subject, err)
+	}
+	w.logger.Info("worker: subscribed to incoming text",
+		"incoming_subject", subject, "outgoing_subject", w.outgoingSubject)
+	return sub, nil
 }
 
 func (w *Worker) handle(msg *nats.Msg) {
 	var in incomingText
 	if err := json.Unmarshal(msg.Data, &in); err != nil {
+		// Do not log the raw payload; it carries the sender and message body.
 		w.logger.Error("worker: malformed incoming message", "error", err)
 		return
 	}
 	if in.From == "" {
-		w.logger.Warn("worker: incoming message missing sender", "message_id", in.MessageID)
+		w.logger.Warn("worker: incoming message missing sender",
+			"message_id", in.MessageID)
 		return
 	}
 
-	user, err := w.matcher.MatchOrRegister(context.Background(), in.From)
+	// Never log the sender number or message body (PII). text_len gives a signal
+	// that content arrived without exposing it.
+	w.logger.Info("worker: incoming text",
+		"message_id", in.MessageID, "text_len", len(in.Text))
+
+	ctx, cancel := context.WithTimeout(context.Background(), identityTimeout)
+	defer cancel()
+
+	user, err := w.matcher.MatchOrRegister(ctx, in.From)
 	if err != nil {
 		w.logger.Error("worker: identity resolution failed",
-			"error", err, "phone", in.From, "message_id", in.MessageID)
+			"error", err, "message_id", in.MessageID)
 		return
 	}
 
@@ -80,7 +101,11 @@ func (w *Worker) handle(msg *nats.Msg) {
 	if err := w.reply(in.From, fmt.Sprintf("Received: %s", in.Text)); err != nil {
 		w.logger.Error("worker: failed to send reply",
 			"error", err, "message_id", in.MessageID)
+		return
 	}
+
+	w.logger.Info("worker: reply published",
+		"subject", w.outgoingSubject, "message_id", in.MessageID)
 }
 
 // reply publishes a text message to the outgoing subject for the gateway to

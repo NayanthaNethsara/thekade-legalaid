@@ -83,7 +83,7 @@ func (h *apiHandlers) verifyOTP(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.identity.MatchOrRegister(r.Context(), req.Phone)
 	if err != nil {
-		h.logger.Error("failed to resolve identity", "error", err, "phone", req.Phone)
+		h.logger.Error("failed to resolve identity", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "could not resolve user"})
 		return
 	}

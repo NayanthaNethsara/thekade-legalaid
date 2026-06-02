@@ -6,9 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-  consumerOpts,
   connect,
-  createInbox,
   JetStreamClient,
   JetStreamManager,
   NatsConnection,
@@ -107,42 +105,55 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
     await this.js.publish(subject, encoded);
   }
 
+  /**
+   * Subscribe to a subject over core NATS. Used for real-time consumption
+   * (e.g. outgoing replies a producer publishes with core publish). This avoids
+   * the restart fragility of a durable push consumer bound to an ephemeral
+   * delivery inbox, at the cost of replaying messages published while down.
+   */
   async subscribe(
     subject: string,
-    durableName: string,
     handler: (payload: unknown) => Promise<void>,
   ): Promise<void> {
-    if (!this.js) {
+    if (!this.nc) {
       await this.onModuleInit();
     }
-    if (!this.js) {
-      throw new Error('NATS JetStream is not initialized');
+    if (!this.nc) {
+      throw new Error('NATS connection is not initialized');
     }
 
-    const opts = consumerOpts();
-    opts.bindStream(this.streamName);
-    opts.durable(durableName);
-    opts.manualAck();
-    opts.deliverTo(createInbox());
-
-    const subscription = await this.js.subscribe(subject, opts);
-
-    void (async () => {
-      for await (const message of subscription) {
-        try {
-          const payload = JSON.parse(
-            new TextDecoder().decode(message.data),
-          ) as unknown;
-          await handler(payload);
-          message.ack();
-        } catch (error) {
+    this.nc.subscribe(subject, {
+      callback: (err, message) => {
+        if (err) {
           this.logger.error(
-            `Failed to process JetStream message on ${subject}`,
-            error instanceof Error ? error.stack : undefined,
+            `NATS subscription error on ${subject}: ${err.message}`,
           );
-          message.nak();
+          return;
         }
-      }
-    })();
+
+        const raw = new TextDecoder().decode(message.data);
+        this.logger.debug(`Message received from NATS on ${subject}: ${raw}`);
+
+        let payload: unknown;
+        try {
+          payload = JSON.parse(raw);
+        } catch (parseError) {
+          this.logger.error(
+            `Failed to parse message on ${subject}`,
+            parseError instanceof Error ? parseError.stack : undefined,
+          );
+          return;
+        }
+
+        void handler(payload).catch((handlerError: unknown) => {
+          this.logger.error(
+            `Handler failed for ${subject}`,
+            handlerError instanceof Error ? handlerError.stack : undefined,
+          );
+        });
+      },
+    });
+
+    this.logger.log(`Subscribed (core NATS) to subject: ${subject}`);
   }
 }

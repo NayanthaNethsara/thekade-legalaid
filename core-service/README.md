@@ -2,8 +2,11 @@
 
 kakilleAI **LLM & agent orchestration** service (Go).
 
-> Status: **skeleton** — connects to NATS and serves a health endpoint. Agent
-> frameworks and REST orchestration routes are added on top of this.
+> Status: **PARKED / not deployed.** Superseded by the Python `backend-service`,
+> which now owns auth/OTP/identity, WhatsApp NATS I/O, RAG, and the agent
+> orchestrator. This folder is kept for reference only — it has been removed from
+> `docker-compose.yml`, the dev scripts, and the monitoring stack. It is not
+> started by the stack and nothing depends on it.
 
 ## Planned building blocks
 

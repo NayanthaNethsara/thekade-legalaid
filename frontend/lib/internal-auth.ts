@@ -1,5 +1,5 @@
-// Signs Next.js -> backend (core-service / admin-service) calls so they can
-// reject anything not minted by this edge. The per-request nonce lets backends
+// Signs Next.js -> backend-service calls so they can
+// reject anything not minted by this edge. The per-request nonce lets the backend
 // reject replays. Server-side only: the secret must never reach the browser.
 
 import { createHmac, randomBytes } from "node:crypto";

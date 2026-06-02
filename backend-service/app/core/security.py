@@ -1,16 +1,18 @@
-"""Edge-request authentication and RBAC for the RAG routers.
+"""Edge-request authentication and RBAC.
 
 The Next.js edge signs each forwarded request with the shared secret and relays
-the verified role. `verify_internal_signature` rejects anything not signed by
-the edge (and replays); `require_admin` additionally gates mutations on role.
+the verified identity. `verify_internal_signature` rejects anything not signed by
+the edge (and replays); `require_admin` gates mutations on role; `require_user`
+gates authenticated routes (chat) on a non-empty verified user id.
 """
 
 import hashlib
 import hmac
 import time
+from dataclasses import dataclass
 
 import redis
-from fastapi import Header, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 
 from app.core.config import settings
 
@@ -73,3 +75,38 @@ def require_admin(x_user_role: str | None = Header(default=None)) -> str:
     if x_user_role != ADMIN_ROLE:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
     return x_user_role
+
+
+@dataclass(frozen=True)
+class Caller:
+    """The identity the edge signs onto each proxied request."""
+
+    user_id: str
+    role: str
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == ADMIN_ROLE
+
+
+def get_caller(
+    _: None = Depends(verify_internal_signature),
+    x_user_id: str | None = Header(default=None),
+    x_user_role: str | None = Header(default=None),
+) -> Caller:
+    """Resolve the verified caller from the (already signature-checked) headers."""
+    return Caller(user_id=x_user_id or "", role=x_user_role or "")
+
+
+def require_user(caller: Caller = Depends(get_caller)) -> Caller:
+    """Gate a route on a valid signature plus a non-empty verified user id.
+
+    Mirrors core-service's edge-auth with requireUser=true: the call must be
+    signed by the edge and carry an identity (chat is per-user).
+    """
+    if not caller.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing identity headers",
+        )
+    return caller

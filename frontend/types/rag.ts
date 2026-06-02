@@ -1,4 +1,4 @@
-// Domain types for the kakilleAI RAG builder. These mirror the admin-service
+// Domain types for the kakilleAI RAG builder. These mirror the backend-service
 // (FastAPI) response shapes and are shared across the API client, server
 // actions, and UI.
 

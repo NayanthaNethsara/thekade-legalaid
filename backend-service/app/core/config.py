@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """kakilleAI admin-service configuration (loaded from .env)."""
+    """kakilleAI backend-service configuration (loaded from .env)."""
 
     # ----------------------------------------------------------------- Database
     DATABASE_URL: str
@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     INTERNAL_AUTH_SECRET: str = ""
     # Redis backing the request-nonce store used to reject replays.
     REDIS_URL: str = "redis://localhost:6379"
+
+    # ----------------------------------------------------------- WhatsApp / NATS
+    NATS_URL: str = "nats://localhost:4222"
+    # Subjects shared with the whatsapp-gateway.
+    NATS_SUBJECT_INCOMING_TEXT: str = "whatsapp.incoming.text"
+    NATS_SUBJECT_OUTGOING: str = "whatsapp.outgoing"
 
     # ------------------------------------------------------------- File storage
     # Where source PDFs (and other documents) live.

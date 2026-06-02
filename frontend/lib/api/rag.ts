@@ -1,4 +1,4 @@
-// Server-side client for the kakilleAI admin-service (RAG builder).
+// Server-side client for the kakilleAI backend-service (RAG builder).
 //
 // Reads use `cache: "no-store"` because RAG management data changes as soon as
 // documents are parsed/approved/deleted. Import only from Server Components and
@@ -29,7 +29,7 @@ export class RagApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  // Sign the call so admin-service can verify it came from this edge, and
+  // Sign the call so backend-service can verify it came from this edge, and
   // forward the verified role so it can enforce RBAC on mutating routes. The
   // session is the source of truth.
   const session = await auth();
@@ -47,7 +47,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new RagApiError(
-      `Cannot reach the RAG service at ${BASE_URL}. Is admin-service running?`,
+      `Cannot reach the RAG service at ${BASE_URL}. Is backend-service running?`,
       0,
     );
   }

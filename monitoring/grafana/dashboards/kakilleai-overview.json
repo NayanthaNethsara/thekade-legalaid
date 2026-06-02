@@ -82,26 +82,11 @@
       ]
     },
     {
-      "id": 4,
-      "title": "core-service incoming text handled /s",
-      "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (result) (rate(core_incoming_messages_total[5m]))",
-          "legendFormat": "{{result}}",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
-        }
-      ]
-    },
-    {
       "id": 5,
       "title": "Process resident memory (bytes)",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
           "refId": "A",
@@ -131,8 +116,8 @@
       ]
     },
     {
-      "id": 7,
-      "title": "Logs - Core Service",
+      "id": 8,
+      "title": "Logs - Backend Service",
       "type": "logs",
       "datasource": { "type": "loki", "uid": "loki" },
       "gridPos": { "h": 9, "w": 24, "x": 0, "y": 25 },
@@ -144,26 +129,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{service=\"core-service\"}",
-          "datasource": { "type": "loki", "uid": "loki" }
-        }
-      ]
-    },
-    {
-      "id": 8,
-      "title": "Logs - Admin Service",
-      "type": "logs",
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 34 },
-      "options": {
-        "showTime": true,
-        "wrapLogMessage": true,
-        "sortOrder": "Descending"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "{service=\"admin-service\"}",
+          "expr": "{service=\"backend-service\"}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
       ]

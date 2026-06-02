@@ -32,18 +32,18 @@ dev stack — Postgres, this service, and the frontend — is the repo-root scri
 ./start-dev.sh          # from the repository root
 ```
 
-Or start just Postgres + admin-service with compose (migrations run inside the
+Or start just Postgres + backend-service with compose (migrations run inside the
 container on startup):
 
 ```bash
 # from the repo root
-docker compose up -d --build postgres admin-service
-# logs:   docker compose logs -f admin-service
+docker compose up -d --build postgres backend-service
+# logs:   docker compose logs -f backend-service
 ```
 
 The service listens on http://localhost:8001 (API docs at `/docs`).
 
-Configure `admin-service/.env` (see `.env.example`). A **valid** `GEMINI_API_KEY`
+Configure `backend-service/.env` (see `.env.example`). A **valid** `GEMINI_API_KEY`
 is required for the approve/index and search steps (embeddings use
 `gemini-embedding-001` at 768 dims via the `google-genai` SDK). Note that
 `docker-compose.yml` overrides `DATABASE_URL` to reach Postgres over the compose

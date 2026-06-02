@@ -25,3 +25,6 @@ pymupdf4llm>=0.0.17
 
 # ── Embeddings (Google Gemini) ────────────────────────────────────────────
 google-genai>=1.0.0
+
+# ── WhatsApp messaging (NATS) ─────────────────────────────────────────────
+nats-py>=2.9.0

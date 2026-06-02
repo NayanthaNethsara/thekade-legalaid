@@ -13,15 +13,10 @@ scrape_configs:
     static_configs:
       - targets: ['whatsapp-gateway:3000']
 
-  - job_name: core-service
+  - job_name: backend-service
     metrics_path: /metrics
     static_configs:
-      - targets: ['core-service:8002']
-
-  - job_name: admin-service
-    metrics_path: /metrics
-    static_configs:
-      - targets: ['admin-service:8001']
+      - targets: ['backend-service:8001']
 
   # Infrastructure exporters.
   - job_name: nats

@@ -49,6 +49,9 @@ AI Worker --> [NATS JetStream Outgoing Topic] --> [NATS JetStream Consumer] --> 
 - WhatsApp Cloud API v21.0
 - Pino (logging)
 
+Production logs are written to stdout only so Docker and Loki can collect them
+without creating a writable `logs/` directory in the container.
+
 ## Prerequisites
 
 - Node.js 18+ or 20+
@@ -145,13 +148,13 @@ Returns service health status.
 4. The message is normalized into one of the standardized incoming formats and
    published to a dedicated NATS subject per type:
 
-   | Type | Subject | Notes |
-   | --- | --- | --- |
-   | `text` | `whatsapp.incoming.text` | Plain text, interactive button/list replies, and template quick replies are all normalized here (see `source`) |
-   | `image` | `whatsapp.incoming.image` | Carries `mediaId` and `caption` |
-   | `video` | `whatsapp.incoming.video` | Carries `mediaId` and `caption` |
-   | `audio` | `whatsapp.incoming.audio` | Carries `mediaId`; `voice` flags voice notes |
-   | `document` | `whatsapp.incoming.document` | Carries `mediaId` and `filename` |
+   | Type       | Subject                      | Notes                                                                                                          |
+   | ---------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
+   | `text`     | `whatsapp.incoming.text`     | Plain text, interactive button/list replies, and template quick replies are all normalized here (see `source`) |
+   | `image`    | `whatsapp.incoming.image`    | Carries `mediaId` and `caption`                                                                                |
+   | `video`    | `whatsapp.incoming.video`    | Carries `mediaId` and `caption`                                                                                |
+   | `audio`    | `whatsapp.incoming.audio`    | Carries `mediaId`; `voice` flags voice notes                                                                   |
+   | `document` | `whatsapp.incoming.document` | Carries `mediaId` and `filename`                                                                               |
 
 5. The message is marked as read with a typing indicator.
 6. **Media types** (image, video, audio, document) forward the WhatsApp

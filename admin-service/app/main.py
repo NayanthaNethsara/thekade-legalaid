@@ -9,6 +9,7 @@ Indexing is per-file: approving one document never affects the others.
 
 import uvicorn
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.documents import router as documents_router
 from app.api.documents import search_router
@@ -24,6 +25,9 @@ app = FastAPI(
 
 app.include_router(documents_router)
 app.include_router(search_router)
+
+# Expose Prometheus metrics at /metrics (default HTTP request metrics).
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get("/health", tags=["health"])

@@ -2,7 +2,6 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 
 interface PinoAppLoggerOptions {
-  logDestination: string;
 }
 
 // Keep only the useful request fields. Full header dumps are noisy and leak the
@@ -21,17 +20,9 @@ export class PinoAppLogger {
     const isProduction = process.env.NODE_ENV === 'production';
     const level = process.env.LOG_LEVEL ?? (isProduction ? 'info' : 'debug');
 
-    const fileTarget = {
-      target: 'pino/file',
-      options: {
-        destination: options.logDestination,
-        sync: true,
-        mkdir: true,
-      },
-    };
-
-    // Production emits structured JSON to stdout (for log collectors / docker
-    // logs); development uses a human-readable pretty stream.
+    // Production emits structured JSON to stdout for Docker/Loki collection.
+    // Development uses a human-readable pretty stream and can optionally write
+    // to a file if a destination is configured.
     const consoleTarget = isProduction
       ? { target: 'pino/file', options: { destination: 1 } }
       : {
@@ -53,7 +44,7 @@ export class PinoAppLogger {
               res: serializeResponse,
             },
             transport: {
-              targets: [consoleTarget, fileTarget],
+              targets: [consoleTarget],
             },
           },
         }),

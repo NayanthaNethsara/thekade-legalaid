@@ -1,29 +1,32 @@
-# Use the official Node.js image as the base image
-FROM node:22.18.0-alpine
+FROM node:22.18.0-alpine AS base
 
-# Set the working directory inside the container
 WORKDIR /usr/src/app
 
 RUN corepack enable
 
-# Copy the manifest first so the dependency layer is only invalidated when the
-# lockfile changes, not on every source edit.
+FROM base AS deps
+
 COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
-# Cache the pnpm content-addressable store across builds (requires BuildKit, the
-# default in Compose v2). Packages already in the store are not re-downloaded
-# even when the lockfile changes.
-RUN --mount=type=cache,target=/pnpm/store \
-    pnpm install --frozen-lockfile --store-dir /pnpm/store
+FROM deps AS build
 
-# Copy the rest of the application files
 COPY . .
-
-# Build the NestJS application
 RUN pnpm run build
 
-# Expose the application port
+FROM base AS runtime
+
+ENV NODE_ENV=production
+
+RUN addgroup -S app && adduser -S -G app app
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod && pnpm store prune
+
+COPY --from=build /usr/src/app/dist ./dist
+
+USER app
+
 EXPOSE 3000
 
-# Command to run the application
 CMD ["node", "dist/main"]

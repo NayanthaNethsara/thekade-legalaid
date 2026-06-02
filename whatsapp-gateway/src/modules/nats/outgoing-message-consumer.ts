@@ -5,8 +5,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectMetric } from '@willsoto/nestjs-prometheus';
+import { Counter } from 'prom-client';
 import { NatsService } from './nats.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { OUTGOING_MESSAGES } from '../metrics/metrics.module';
 import {
   OutgoingMessageDto,
   OutgoingMediaContent,
@@ -31,6 +34,8 @@ export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
     private readonly configService: ConfigService,
     private readonly natsService: NatsService,
     private readonly whatsappService: WhatsAppService,
+    @InjectMetric(OUTGOING_MESSAGES)
+    private readonly outgoingMessages: Counter<string>,
   ) {
     this.outgoingSubject =
       this.configService.get<string>('nats.subjects.outgoing') || '';
@@ -189,7 +194,11 @@ export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
       this.logger.log(
         `Processing outgoing ${payload.type} message to: ${payload.to}`,
       );
-      await this.sendWhatsAppMessage(payload);
+      const sent = await this.sendWhatsAppMessage(payload);
+      this.outgoingMessages.inc({
+        type: payload.type,
+        status: sent ? 'sent' : 'failed',
+      });
     });
   }
 }

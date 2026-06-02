@@ -6,6 +6,7 @@ A NestJS-based gateway service that bridges WhatsApp Cloud API with AI workers t
 
 - [WhatsApp Webhook Reference](docs/whatsapp-webhook.md) — what Meta sends and the inbound DTO.
 - [Incoming Message Queues](docs/incoming-queues.md) — the normalized contract published to NATS (subjects, envelope, per-type payloads).
+- [Outgoing Message Queue](docs/outgoing-queue.md) — the contract a producer publishes for the gateway to deliver to WhatsApp.
 
 ## Overview
 
@@ -80,8 +81,7 @@ NATS_SUBJECT_INCOMING_IMAGE=whatsapp.incoming.image
 NATS_SUBJECT_INCOMING_VIDEO=whatsapp.incoming.video
 NATS_SUBJECT_INCOMING_AUDIO=whatsapp.incoming.audio
 NATS_SUBJECT_INCOMING_DOCUMENT=whatsapp.incoming.document
-NATS_SUBJECT_OUTGOING_TEXT=whatsapp.outgoing.text
-NATS_SUBJECT_OUTGOING_MEDIA=whatsapp.outgoing.media
+NATS_SUBJECT_OUTGOING=whatsapp.outgoing
 ```
 
 ## Installation

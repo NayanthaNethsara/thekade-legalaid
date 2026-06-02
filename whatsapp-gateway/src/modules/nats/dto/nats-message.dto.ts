@@ -93,83 +93,108 @@ export type IncomingMessageDto =
   | IncomingAudioMessageDto
   | IncomingDocumentMessageDto;
 
-export interface OutgoingTextMessageDto {
+// ============================================================================
+// Outgoing message formats (NATS -> WhatsApp Cloud API)
+//
+// A producer (e.g. core-service or an AI worker) publishes one of these to an
+// outgoing subject; the gateway consumes it and calls the WhatsApp send API.
+// Every format shares the { to, type, content } envelope. See
+// docs/outgoing-queue.md for the full contract.
+// ============================================================================
+
+interface OutgoingMessageBase {
+  // Recipient WhatsApp id / phone number in international format.
   to: string;
-  type: 'text';
-  content: {
-    text: string;
-  };
+  // Quote an earlier message in the reply. Optional; reserved for future use.
   replyToMessageId?: string;
 }
 
-export interface OutgoingMediaMessageDto {
-  to: string;
-  type: 'image' | 'video' | 'audio' | 'document' | 'template' | 'interactive';
-  content: OutgoingWhatsAppMessageDto['content'];
-  replyToMessageId?: string;
+export interface OutgoingTextMessageDto extends OutgoingMessageBase {
+  type: 'text';
+  content: { text: string };
 }
-export interface OutgoingWhatsAppMessageDto {
-  to: string;
-  type:
-    | 'text'
-    | 'image'
-    | 'video'
-    | 'audio'
-    | 'document'
-    | 'template'
-    | 'interactive';
-  content: {
+
+/** Media is referenced by a public URL (`mediaUrl`) or a pre-uploaded id. */
+export interface OutgoingMediaContent {
+  mediaUrl?: string;
+  mediaId?: string;
+  caption?: string;
+}
+
+export interface OutgoingImageMessageDto extends OutgoingMessageBase {
+  type: 'image';
+  content: OutgoingMediaContent;
+}
+
+export interface OutgoingVideoMessageDto extends OutgoingMessageBase {
+  type: 'video';
+  content: OutgoingMediaContent;
+}
+
+export interface OutgoingAudioMessageDto extends OutgoingMessageBase {
+  type: 'audio';
+  // Audio messages do not support a caption.
+  content: Omit<OutgoingMediaContent, 'caption'>;
+}
+
+export interface OutgoingDocumentMessageDto extends OutgoingMessageBase {
+  type: 'document';
+  content: OutgoingMediaContent & { filename?: string };
+}
+
+export interface OutgoingInteractiveContent {
+  type: 'button' | 'list';
+  header?: {
+    type: 'text' | 'image' | 'video' | 'document';
     text?: string;
-    mediaUrl?: string;
     mediaId?: string;
-    caption?: string;
-    filename?: string;
-    template?: {
-      name: string;
-      language: string;
-      components?: Array<{
-        type: string;
-        parameters: Array<{
-          type: string;
-          text?: string;
-          image?: { link: string };
-          video?: { link: string };
-          document?: { link: string };
-        }>;
-      }>;
-    };
-    interactive?: {
-      type: 'button' | 'list';
-      header?: {
-        type: 'text' | 'image' | 'video' | 'document';
-        text?: string;
-        mediaId?: string;
-      };
-      body: {
-        text: string;
-      };
-      footer?: {
-        text: string;
-      };
-      action: {
-        buttons?: Array<{
-          type: 'reply';
-          reply: {
-            id: string;
-            title: string;
-          };
-        }>;
-        button?: string;
-        sections?: Array<{
-          title?: string;
-          rows: Array<{
-            id: string;
-            title: string;
-            description?: string;
-          }>;
-        }>;
-      };
-    };
   };
-  replyToMessageId?: string;
+  body: { text: string };
+  footer?: { text: string };
+  action: {
+    buttons?: Array<{
+      type: 'reply';
+      reply: { id: string; title: string };
+    }>;
+    button?: string;
+    sections?: Array<{
+      title?: string;
+      rows: Array<{ id: string; title: string; description?: string }>;
+    }>;
+  };
 }
+
+export interface OutgoingInteractiveMessageDto extends OutgoingMessageBase {
+  type: 'interactive';
+  content: { interactive: OutgoingInteractiveContent };
+}
+
+export interface OutgoingTemplateContent {
+  name: string;
+  language: string;
+  components?: Array<{
+    type: string;
+    parameters: Array<{
+      type: string;
+      text?: string;
+      image?: { link: string };
+      video?: { link: string };
+      document?: { link: string };
+    }>;
+  }>;
+}
+
+export interface OutgoingTemplateMessageDto extends OutgoingMessageBase {
+  type: 'template';
+  content: { template: OutgoingTemplateContent };
+}
+
+/** Discriminated union of every outgoing format the gateway can relay. */
+export type OutgoingMessageDto =
+  | OutgoingTextMessageDto
+  | OutgoingImageMessageDto
+  | OutgoingVideoMessageDto
+  | OutgoingAudioMessageDto
+  | OutgoingDocumentMessageDto
+  | OutgoingInteractiveMessageDto
+  | OutgoingTemplateMessageDto;

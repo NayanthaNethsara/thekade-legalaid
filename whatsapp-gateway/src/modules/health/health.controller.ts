@@ -30,11 +30,8 @@ export class HealthController {
           incomingDocumentSubject: this.configService.get<string>(
             'nats.subjects.incomingDocument',
           ),
-          outgoingTextSubject: this.configService.get<string>(
-            'nats.subjects.outgoingText',
-          ),
-          outgoingMediaSubject: this.configService.get<string>(
-            'nats.subjects.outgoingMedia',
+          outgoingSubject: this.configService.get<string>(
+            'nats.subjects.outgoing',
           ),
         },
         meta: {

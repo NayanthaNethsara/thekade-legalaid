@@ -29,12 +29,7 @@ export default () => ({
       incomingDocument:
         process.env.NATS_SUBJECT_INCOMING_DOCUMENT ||
         'whatsapp.incoming.media.document',
-      outgoingText:
-        process.env.NATS_SUBJECT_OUTGOING_TEXT ||
-        process.env.NATS_SUBJECT_OUTGOING ||
-        'whatsapp.outgoing.text',
-      outgoingMedia:
-        process.env.NATS_SUBJECT_OUTGOING_MEDIA || 'whatsapp.outgoing.media',
+      outgoing: process.env.NATS_SUBJECT_OUTGOING || 'whatsapp.outgoing',
     },
   },
 });

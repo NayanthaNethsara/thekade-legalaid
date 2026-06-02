@@ -22,7 +22,5 @@ export const validationSchema = Joi.object({
   NATS_SUBJECT_INCOMING_DOCUMENT: Joi.string().default(
     'whatsapp.incoming.media.document',
   ),
-  NATS_SUBJECT_OUTGOING: Joi.string().optional(),
-  NATS_SUBJECT_OUTGOING_TEXT: Joi.string().default('whatsapp.outgoing.text'),
-  NATS_SUBJECT_OUTGOING_MEDIA: Joi.string().default('whatsapp.outgoing.media'),
+  NATS_SUBJECT_OUTGOING: Joi.string().default('whatsapp.outgoing'),
 });

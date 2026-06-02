@@ -7,216 +7,164 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { NatsService } from './nats.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
-import { OutgoingWhatsAppMessageDto } from './dto/nats-message.dto';
+import {
+  OutgoingMessageDto,
+  OutgoingMediaContent,
+} from './dto/nats-message.dto';
 
-type LegacyOutgoingWhatsAppMessage = OutgoingWhatsAppMessageDto & {
-  text?: string;
-};
+const OUTGOING_TYPES: ReadonlyArray<OutgoingMessageDto['type']> = [
+  'text',
+  'image',
+  'video',
+  'audio',
+  'document',
+  'interactive',
+  'template',
+];
 
 @Injectable()
 export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OutgoingMessageConsumer.name);
-  private readonly mediaSubject: string;
-  private readonly textSubject: string;
+  private readonly outgoingSubject: string;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly natsService: NatsService,
     private readonly whatsappService: WhatsAppService,
   ) {
-    this.textSubject =
-      this.configService.get<string>('nats.subjects.outgoingText') || '';
-    this.mediaSubject =
-      this.configService.get<string>('nats.subjects.outgoingMedia') || '';
+    this.outgoingSubject =
+      this.configService.get<string>('nats.subjects.outgoing') || '';
 
-    if (!this.textSubject && !this.mediaSubject) {
+    if (!this.outgoingSubject) {
       this.logger.warn(
-        'Outgoing NATS subjects not configured. Set NATS_SUBJECT_OUTGOING_TEXT and NATS_SUBJECT_OUTGOING_MEDIA in environment',
+        'Outgoing NATS subject not configured. Set NATS_SUBJECT_OUTGOING in environment',
       );
     }
   }
 
   async onModuleInit() {
-    if (!this.textSubject && !this.mediaSubject) {
+    if (!this.outgoingSubject) {
       this.logger.error(
-        'Outgoing NATS subjects not configured. Consumer not started.',
+        'Outgoing NATS subject not configured. Consumer not started.',
       );
       return;
     }
 
-    await Promise.all([
-      this.subscribeToSubject(
-        this.textSubject,
-        'whatsapp_gateway_outgoing_text',
-      ),
-      this.subscribeToSubject(
-        this.mediaSubject,
-        'whatsapp_gateway_outgoing_media',
-      ),
-    ]);
+    await this.subscribeToSubject(
+      this.outgoingSubject,
+      'whatsapp_gateway_outgoing',
+    );
   }
 
   onModuleDestroy() {
-    // NATS service handles disconnection
+    // NATS service handles disconnection.
   }
 
-  private normalizeOutgoingMessage(
-    payload: LegacyOutgoingWhatsAppMessage,
-  ): OutgoingWhatsAppMessageDto | null {
-    const content = payload.content ?? {};
-    const normalizedType = payload.type ?? 'text';
-    const normalizedText = content.text ?? payload.text;
-    const mediaReference = content.mediaUrl ?? content.mediaId;
-
-    if (!payload.to) {
-      return null;
+  private isOutgoingMessage(payload: unknown): payload is OutgoingMessageDto {
+    if (typeof payload !== 'object' || payload === null) {
+      return false;
     }
 
-    if (
-      ['image', 'video', 'audio', 'document'].includes(normalizedType) &&
-      mediaReference
-    ) {
-      return {
-        to: payload.to,
-        type: normalizedType,
-        content: {
-          mediaUrl: content.mediaUrl,
-          mediaId: content.mediaId,
-          caption: content.caption,
-          filename: content.filename,
-        },
-        replyToMessageId: payload.replyToMessageId,
-      };
-    }
+    const candidate = payload as { to?: unknown; type?: unknown };
+    return (
+      typeof candidate.to === 'string' &&
+      typeof candidate.type === 'string' &&
+      OUTGOING_TYPES.includes(candidate.type as OutgoingMessageDto['type'])
+    );
+  }
 
-    if (normalizedType === 'template' && content.template) {
-      return {
-        to: payload.to,
-        type: 'template',
-        content: {
-          template: content.template,
-        },
-        replyToMessageId: payload.replyToMessageId,
-      };
-    }
-
-    if (normalizedType === 'interactive' && content.interactive) {
-      return {
-        to: payload.to,
-        type: 'interactive',
-        content: {
-          text: normalizedText,
-          interactive: content.interactive,
-        },
-        replyToMessageId: payload.replyToMessageId,
-      };
-    }
-
-    if (!normalizedText) {
-      return null;
-    }
-
-    return {
-      to: payload.to,
-      type: 'text',
-      content: {
-        text: normalizedText,
-      },
-      replyToMessageId: payload.replyToMessageId,
-    };
+  private mediaReference(content: OutgoingMediaContent): string | null {
+    return content.mediaUrl ?? content.mediaId ?? null;
   }
 
   /**
-   * Send message via WhatsApp (text or interactive)
+   * Dispatch an outgoing message to the matching WhatsApp send call.
    */
   private async sendWhatsAppMessage(
-    message: OutgoingWhatsAppMessageDto,
+    message: OutgoingMessageDto,
   ): Promise<boolean> {
     try {
-      // Validate message structure
-      if (!message.to) {
-        this.logger.error('Invalid message - missing recipient');
-        return false;
-      }
-
-      // Handle interactive messages
-      if (message.type === 'interactive' && message.content?.interactive) {
-        if (!message.content.interactive.body?.text) {
-          this.logger.error('Invalid interactive message - missing body text');
-          return false;
-        }
-
-        await this.whatsappService.sendInteractiveMessage(
-          message.to,
-          message.content.interactive,
-        );
-
-        this.logger.log(`Interactive message sent to ${message.to}`);
-        return true;
-      }
-
-      if (message.type === 'template' && message.content?.template) {
-        await this.whatsappService.sendTemplateMessage(
-          message.to,
-          message.content.template,
-        );
-
-        this.logger.log(`Template message sent to ${message.to}`);
-        return true;
-      }
-
-      if (message.type === 'document') {
-        const mediaIdOrUrl =
-          message.content?.mediaUrl ?? message.content?.mediaId;
-        if (!mediaIdOrUrl) {
-          this.logger.error(
-            'Invalid document message - missing media reference',
+      switch (message.type) {
+        case 'text': {
+          if (!message.content.text) {
+            this.logger.error('Invalid text message - missing text');
+            return false;
+          }
+          await this.whatsappService.sendTextMessage(
+            message.to,
+            message.content.text,
           );
-          return false;
+          break;
         }
 
-        await this.whatsappService.sendDocumentMessage(
-          message.to,
-          mediaIdOrUrl,
-          message.content.caption,
-          message.content.filename,
-        );
-
-        this.logger.log(`Document message sent to ${message.to}`);
-        return true;
-      }
-
-      if (['image', 'video', 'audio'].includes(message.type)) {
-        const mediaIdOrUrl =
-          message.content?.mediaUrl ?? message.content?.mediaId;
-        if (!mediaIdOrUrl) {
-          this.logger.error('Invalid media message - missing media reference');
-          return false;
+        case 'image':
+        case 'video':
+        case 'audio': {
+          const reference = this.mediaReference(message.content);
+          if (!reference) {
+            this.logger.error(
+              `Invalid ${message.type} message - missing media reference`,
+            );
+            return false;
+          }
+          const caption =
+            message.type === 'audio' ? undefined : message.content.caption;
+          await this.whatsappService.sendMediaMessage(
+            message.to,
+            message.type,
+            reference,
+            caption,
+          );
+          break;
         }
 
-        await this.whatsappService.sendMediaMessage(
-          message.to,
-          message.type as 'image' | 'video' | 'audio',
-          mediaIdOrUrl,
-          message.content.caption,
-        );
+        case 'document': {
+          const reference = this.mediaReference(message.content);
+          if (!reference) {
+            this.logger.error(
+              'Invalid document message - missing media reference',
+            );
+            return false;
+          }
+          await this.whatsappService.sendDocumentMessage(
+            message.to,
+            reference,
+            message.content.caption,
+            message.content.filename,
+          );
+          break;
+        }
 
-        this.logger.log(`${message.type} message sent to ${message.to}`);
-        return true;
+        case 'interactive': {
+          if (!message.content.interactive?.body?.text) {
+            this.logger.error(
+              'Invalid interactive message - missing body text',
+            );
+            return false;
+          }
+          await this.whatsappService.sendInteractiveMessage(
+            message.to,
+            message.content.interactive,
+          );
+          break;
+        }
+
+        case 'template': {
+          if (!message.content.template?.name) {
+            this.logger.error(
+              'Invalid template message - missing template name',
+            );
+            return false;
+          }
+          await this.whatsappService.sendTemplateMessage(
+            message.to,
+            message.content.template,
+          );
+          break;
+        }
       }
 
-      // Handle text messages
-      if (!message.content?.text) {
-        this.logger.error('Invalid message - missing text content');
-        return false;
-      }
-
-      await this.whatsappService.sendTextMessage(
-        message.to,
-        message.content.text,
-      );
-
-      this.logger.log(`Text message sent to ${message.to}`);
+      this.logger.log(`Outgoing ${message.type} message sent to ${message.to}`);
       return true;
     } catch (error) {
       this.logger.error(
@@ -237,32 +185,17 @@ export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log(`Starting to consume NATS subject: ${subject}`);
     await this.natsService.subscribe(subject, durableName, async (payload) => {
-      try {
-        const messageContent = JSON.stringify(payload);
-        this.logger.log('=== INCOMING NATS MESSAGE ===');
-        this.logger.log(`Raw message body: ${messageContent}`);
-        this.logger.log('==============================');
-
-        const parsedMessage = this.normalizeOutgoingMessage(
-          payload as LegacyOutgoingWhatsAppMessage,
-        );
-
-        if (!parsedMessage) {
-          this.logger.error('Invalid message: unsupported outgoing payload');
-          return;
-        }
-
-        this.logger.log(
-          `Processing outgoing ${parsedMessage.type} message to: ${parsedMessage.to}`,
-        );
-
-        await this.sendWhatsAppMessage(parsedMessage);
-      } catch (error) {
+      if (!this.isOutgoingMessage(payload)) {
         this.logger.error(
-          `Error processing message: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          error instanceof Error ? error.stack : '',
+          `Invalid outgoing payload on ${subject}: ${JSON.stringify(payload)}`,
         );
+        return;
       }
+
+      this.logger.log(
+        `Processing outgoing ${payload.type} message to: ${payload.to}`,
+      );
+      await this.sendWhatsAppMessage(payload);
     });
   }
 }

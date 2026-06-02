@@ -10,7 +10,7 @@ type Config struct {
 
 	// NATS subjects shared with the whatsapp-gateway.
 	IncomingTextSubject string
-	OutgoingTextSubject string
+	OutgoingSubject     string
 
 	// Shared secret used to verify HMAC-signed requests from the Next.js edge.
 	// Empty means the auth check fails closed and every internal endpoint 401s.
@@ -27,7 +27,7 @@ func Load() Config {
 		NATSURL:             getenv("NATS_URL", "nats://localhost:4222"),
 		DatabaseURL:         getenv("DATABASE_URL", "postgres://legalaid:legalaid@localhost:5433/legalaid"),
 		IncomingTextSubject: getenv("NATS_SUBJECT_INCOMING_TEXT", "whatsapp.incoming.text"),
-		OutgoingTextSubject: getenv("NATS_SUBJECT_OUTGOING_TEXT", "whatsapp.outgoing.text"),
+		OutgoingSubject:     getenv("NATS_SUBJECT_OUTGOING", "whatsapp.outgoing"),
 		InternalAuthSecret:  getenv("INTERNAL_AUTH_SECRET", ""),
 		RedisURL:            getenv("REDIS_URL", "redis://localhost:6379"),
 	}

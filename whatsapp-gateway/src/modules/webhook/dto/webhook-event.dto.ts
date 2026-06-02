@@ -1,7 +1,6 @@
 // WhatsApp Cloud API webhook types.
-// Aligned with the official "POST /whatsapp/webhooks" schema. The text message
-// path is modeled in full; other message types carry the fields the gateway
-// routes on. Group / system / order payloads are intentionally light for now.
+// Aligned with the official "POST /whatsapp/webhooks" schema. Every message
+// type WhatsApp can deliver is modeled in full so nothing is lost at parse time.
 
 export interface WebhookPayload {
   // Always 'whatsapp_business_account' for these webhooks.
@@ -35,9 +34,9 @@ export interface WhatsAppMetadata {
 
 /**
  * The `value` of a `messages` change. WhatsApp splits this into distinct
- * schemas (general incoming, system, status, group); we consume them through a
- * single shape with optional arrays since one handler dispatches on whichever
- * array is present.
+ * schemas (general incoming, system, status); we consume them through a single
+ * shape with optional arrays since one handler dispatches on whichever array is
+ * present.
  */
 export interface WhatsAppValue {
   // Always 'whatsapp'.
@@ -47,6 +46,7 @@ export interface WhatsAppValue {
   contacts?: Contact[];
   messages?: WhatsAppMessage[];
   statuses?: MessageStatus[];
+  errors?: MessageError[];
 }
 
 export interface Contact {
@@ -75,8 +75,8 @@ export type MessageType =
   | 'unsupported';
 
 /**
- * BaseMessageProperties plus every type-specific field. Exactly one of the
- * content fields is populated, matching `type`.
+ * BaseMessageProperties plus every type-specific field. Exactly one content
+ * field is populated, matching `type`.
  */
 export interface WhatsAppMessage {
   // WhatsApp user phone number (may not match wa_id).
@@ -91,48 +91,63 @@ export interface WhatsAppMessage {
   video?: MediaMessage;
   audio?: MediaMessage;
   document?: DocumentMessage;
-  sticker?: MediaMessage;
+  sticker?: StickerMessage;
   location?: LocationMessage;
-  contacts?: ContactMessage[];
+  contacts?: ContactObject[];
   interactive?: InteractiveMessage;
   button?: ButtonMessage;
   reaction?: ReactionMessage;
   order?: OrderMessage;
+  system?: SystemMessage;
   // Present when replying to a message or via a "Message business" button.
   context?: MessageContext;
   // Present when the message originated from a Click to WhatsApp ad.
   referral?: ReferralObject;
-  // Present for 'unsupported' messages.
+  // Present for 'unsupported' messages (e.g. type the API can't represent).
   errors?: MessageError[];
 }
 
+// type: 'text' — a plain text message the user typed.
 export interface TextMessage {
   body: string;
 }
 
-// MediaMessageProperties: id, mime_type and sha256 are always present.
+/**
+ * Shared media fields (MediaMessageProperties). The bytes are not in the
+ * webhook; `id` is fetched separately via the media endpoint.
+ */
 export interface MediaMessage {
-  // Media asset ID. A GET on this ID returns the asset URL.
+  // Media asset ID. A GET on this ID returns a short-lived asset URL.
   id: string;
   mime_type: string;
   sha256: string;
+  // Caption the user attached (image / video / document only).
   caption?: string;
-  // Set by WhatsApp on audio messages recorded as a voice note.
+  // Set on audio recorded as a voice note (vs an uploaded audio file).
   voice?: boolean;
 }
 
+// type: 'document' — a file with an original filename.
 export interface DocumentMessage extends MediaMessage {
   filename?: string;
 }
 
+// type: 'sticker' — image/webp; `animated` distinguishes animated stickers.
+export interface StickerMessage extends MediaMessage {
+  animated?: boolean;
+}
+
+// type: 'location' — a shared location pin.
 export interface LocationMessage {
   latitude: number;
   longitude: number;
+  // Optional place name and street address.
   name?: string;
   address?: string;
 }
 
-export interface ContactMessage {
+// type: 'contacts' — one or more shared contact cards (vCard-like).
+export interface ContactObject {
   name: {
     formatted_name: string;
     first_name?: string;
@@ -143,46 +158,68 @@ export interface ContactMessage {
   };
   phones?: Array<{
     phone?: string;
+    // Contact's WhatsApp ID, if they are a WhatsApp user.
     wa_id?: string;
     type?: string;
   }>;
   emails?: Array<{ email?: string; type?: string }>;
+  addresses?: Array<{
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+    country_code?: string;
+    type?: string;
+  }>;
+  urls?: Array<{ url?: string; type?: string }>;
   org?: { company?: string; department?: string; title?: string };
+  // Contact birthday in YYYY-MM-DD.
+  birthday?: string;
 }
 
 /**
- * Interactive reply: the user tapped a reply button or selected a list row.
- * `type` indicates which content field is populated.
+ * type: 'interactive' — the user replied to an interactive message you sent.
+ * `type` indicates which reply field is populated.
  */
 export interface InteractiveMessage {
-  type: 'button_reply' | 'list_reply';
+  type: 'button_reply' | 'list_reply' | 'nfm_reply';
+  // Reply button tapped.
   button_reply?: {
-    // Button ID.
     id: string;
-    // Button label text.
     title: string;
   };
+  // List row selected.
   list_reply?: {
-    // Row ID.
     id: string;
-    // Row title.
     title: string;
-    // Row description.
     description?: string;
+  };
+  // WhatsApp Flow submission. `response_json` holds the flow's answers.
+  nfm_reply?: {
+    name: string;
+    body?: string;
+    response_json: string;
   };
 }
 
-// Template quick-reply button tap.
+// type: 'button' — a tap on a legacy template quick-reply button.
 export interface ButtonMessage {
+  // Visible button label.
   text: string;
+  // Developer-defined payload behind the button.
   payload: string;
 }
 
+// type: 'reaction' — an emoji reaction on an earlier message.
 export interface ReactionMessage {
+  // The message being reacted to.
   message_id: string;
+  // The emoji; absent/empty when a reaction is removed.
   emoji?: string;
 }
 
+// type: 'order' — items the user submitted from a product catalog.
 export interface OrderMessage {
   catalog_id: string;
   text?: string;
@@ -192,6 +229,21 @@ export interface OrderMessage {
     item_price: string;
     currency: string;
   }>;
+}
+
+/**
+ * type: 'system' — an account event rather than user content, e.g. the user
+ * changed their phone number.
+ */
+export interface SystemMessage {
+  // Human-readable description of the event.
+  body: string;
+  type: 'customer_changed_number' | 'customer_identity_changed';
+  // The user's new WhatsApp ID (for a number change).
+  wa_id?: string;
+  new_wa_id?: string;
+  identity?: string;
+  customer?: string;
 }
 
 /**
@@ -207,6 +259,7 @@ export interface MessageContext {
     catalog_id: string;
     product_retailer_id: string;
   };
+  // Whether the inbound message was forwarded.
   forwarded?: boolean;
   frequently_forwarded?: boolean;
 }
@@ -222,6 +275,7 @@ export interface ReferralObject {
   image_url?: string;
   video_url?: string;
   thumbnail_url?: string;
+  // Click ID, useful for ad-conversion attribution.
   ctwa_clid?: string;
 }
 
@@ -233,6 +287,10 @@ export interface MessageError {
   href?: string;
 }
 
+/**
+ * A `statuses` entry: a delivery-status update for a message you previously
+ * sent (not an inbound user message).
+ */
 export interface MessageStatus {
   // WhatsApp message ID the status is associated with.
   id: string;

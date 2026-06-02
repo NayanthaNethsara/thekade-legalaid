@@ -2,6 +2,10 @@
 
 A NestJS-based gateway service that bridges WhatsApp Cloud API with AI workers through NATS JetStream message queues.
 
+## Documentation
+
+- [WhatsApp Webhook Reference](docs/whatsapp-webhook.md) — what Meta sends, the inbound DTO, and the normalized queue contract.
+
 ## Overview
 
 This service handles bidirectional message flow between WhatsApp and AI processing systems:

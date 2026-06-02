@@ -1,11 +1,12 @@
-// Package worker consumes inbound WhatsApp messages from NATS and resolves the
-// sender to a platform user (provisioning one on first contact) before the
-// message is processed further.
+// Package worker consumes inbound WhatsApp text messages from NATS, resolves
+// the sender to a platform user (provisioning one on first contact), and sends
+// a reply back through the outgoing queue.
 package worker
 
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 
 	"github.com/nats-io/nats.go"
@@ -13,31 +14,48 @@ import (
 	"github.com/NayanthaNethsara/thekade-legalaid/core-service/internal/identity"
 )
 
-// incomingMessage mirrors the whatsapp-gateway IncomingWhatsAppMessageDto. Only
-// the fields this worker needs are declared.
-type incomingMessage struct {
+// incomingText mirrors the whatsapp-gateway IncomingTextMessageDto. Only the
+// fields this worker needs are declared.
+type incomingText struct {
 	MessageID string `json:"messageId"`
 	From      string `json:"from"`
-	Content   string `json:"content"`
+	Text      string `json:"text"`
+}
+
+// outgoingText mirrors the whatsapp-gateway OutgoingTextMessageDto so the
+// gateway can relay the reply without translation.
+type outgoingText struct {
+	To      string `json:"to"`
+	Type    string `json:"type"`
+	Content struct {
+		Text string `json:"text"`
+	} `json:"content"`
 }
 
 type Worker struct {
-	matcher *identity.Matcher
-	logger  *slog.Logger
+	matcher         *identity.Matcher
+	nc              *nats.Conn
+	outgoingSubject string
+	logger          *slog.Logger
 }
 
-func New(matcher *identity.Matcher, logger *slog.Logger) *Worker {
-	return &Worker{matcher: matcher, logger: logger}
+func New(matcher *identity.Matcher, nc *nats.Conn, outgoingSubject string, logger *slog.Logger) *Worker {
+	return &Worker{
+		matcher:         matcher,
+		nc:              nc,
+		outgoingSubject: outgoingSubject,
+		logger:          logger,
+	}
 }
 
 // Subscribe binds the inbound-text handler to the given subject. The returned
 // subscription should be drained/unsubscribed on shutdown.
-func (w *Worker) Subscribe(nc *nats.Conn, subject string) (*nats.Subscription, error) {
-	return nc.Subscribe(subject, w.handle)
+func (w *Worker) Subscribe(subject string) (*nats.Subscription, error) {
+	return w.nc.Subscribe(subject, w.handle)
 }
 
 func (w *Worker) handle(msg *nats.Msg) {
-	var in incomingMessage
+	var in incomingText
 	if err := json.Unmarshal(msg.Data, &in); err != nil {
 		w.logger.Error("worker: malformed incoming message", "error", err)
 		return
@@ -57,5 +75,28 @@ func (w *Worker) handle(msg *nats.Msg) {
 	w.logger.Info("worker: resolved sender",
 		"user_id", user.ID, "role", user.Role, "message_id", in.MessageID)
 
-	// The resolved user now travels with the message into the agent pipeline.
+	// Placeholder reply until the agent pipeline is wired in: echo the message
+	// back so the incoming -> outgoing round trip is verifiable end to end.
+	if err := w.reply(in.From, fmt.Sprintf("Received: %s", in.Text)); err != nil {
+		w.logger.Error("worker: failed to send reply",
+			"error", err, "message_id", in.MessageID)
+	}
+}
+
+// reply publishes a text message to the outgoing subject for the gateway to
+// deliver to the user.
+func (w *Worker) reply(to, text string) error {
+	var out outgoingText
+	out.To = to
+	out.Type = "text"
+	out.Content.Text = text
+
+	payload, err := json.Marshal(out)
+	if err != nil {
+		return fmt.Errorf("worker: marshal reply: %w", err)
+	}
+	if err := w.nc.Publish(w.outgoingSubject, payload); err != nil {
+		return fmt.Errorf("worker: publish reply: %w", err)
+	}
+	return nil
 }

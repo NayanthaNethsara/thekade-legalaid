@@ -20,7 +20,7 @@ interface FastifyRequestWithRawBody {
   headers: Record<string, string | string[] | undefined>;
 }
 
-@Controller('webhook')
+@Controller('whatsapp/webhooks')
 export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);
 
@@ -30,7 +30,7 @@ export class WebhookController {
   ) {}
 
   /**
-   * GET /webhook - Verification endpoint
+   * GET /whatsapp/webhooks - Verification endpoint
    * Meta calls this once during webhook setup
    */
   @Get()
@@ -57,7 +57,7 @@ export class WebhookController {
   }
 
   /**
-   * POST /webhook - Receives messages & status updates from Meta
+   * POST /whatsapp/webhooks - Receives messages & status updates from Meta
    */
   @Post()
   @HttpCode(HttpStatus.OK)

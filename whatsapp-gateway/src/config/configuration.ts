@@ -18,14 +18,17 @@ export default () => ({
         process.env.NATS_SUBJECT_INCOMING ||
         'whatsapp.incoming.text',
       incomingImage:
-        process.env.NATS_SUBJECT_INCOMING_IMAGE || 'whatsapp.incoming.image',
+        process.env.NATS_SUBJECT_INCOMING_IMAGE ||
+        'whatsapp.incoming.media.image',
       incomingVideo:
-        process.env.NATS_SUBJECT_INCOMING_VIDEO || 'whatsapp.incoming.video',
+        process.env.NATS_SUBJECT_INCOMING_VIDEO ||
+        'whatsapp.incoming.media.video',
       incomingAudio:
-        process.env.NATS_SUBJECT_INCOMING_AUDIO || 'whatsapp.incoming.audio',
+        process.env.NATS_SUBJECT_INCOMING_AUDIO ||
+        'whatsapp.incoming.media.audio',
       incomingDocument:
         process.env.NATS_SUBJECT_INCOMING_DOCUMENT ||
-        'whatsapp.incoming.document',
+        'whatsapp.incoming.media.document',
       outgoingText:
         process.env.NATS_SUBJECT_OUTGOING_TEXT ||
         process.env.NATS_SUBJECT_OUTGOING ||

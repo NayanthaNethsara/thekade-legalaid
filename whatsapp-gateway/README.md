@@ -104,7 +104,7 @@ pnpm start:debug
 
 ## API Endpoints
 
-### Webhook Verification (GET /webhook)
+### Webhook Verification (GET /whatsapp/webhooks)
 
 Meta webhook verification endpoint.
 
@@ -114,7 +114,7 @@ Meta webhook verification endpoint.
 - `hub.verify_token`: Must match META_VERIFY_TOKEN
 - `hub.challenge`: Challenge string to echo back
 
-### Webhook Events (POST /webhook)
+### Webhook Events (POST /whatsapp/webhooks)
 
 Receives WhatsApp webhook events.
 
@@ -309,7 +309,7 @@ The topics specified in `.env` should exist or be auto-created by the broker (de
 
 1. Go to Meta Developer Console
 2. Navigate to WhatsApp > Configuration
-3. Set Callback URL: `https://your-domain.com/webhook`
+3. Set Callback URL: `https://your-domain.com/whatsapp/webhooks`
 4. Set Verify Token: Same as META_VERIFY_TOKEN
 5. Subscribe to webhook fields: `messages`
 

@@ -50,10 +50,7 @@ export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    await this.subscribeToSubject(
-      this.outgoingSubject,
-      'whatsapp_gateway_outgoing',
-    );
+    await this.subscribeToSubject(this.outgoingSubject);
   }
 
   onModuleDestroy() {
@@ -175,16 +172,13 @@ export class OutgoingMessageConsumer implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async subscribeToSubject(
-    subject: string,
-    durableName: string,
-  ): Promise<void> {
+  private async subscribeToSubject(subject: string): Promise<void> {
     if (!subject) {
       return;
     }
 
     this.logger.log(`Starting to consume NATS subject: ${subject}`);
-    await this.natsService.subscribe(subject, durableName, async (payload) => {
+    await this.natsService.subscribe(subject, async (payload) => {
       if (!this.isOutgoingMessage(payload)) {
         this.logger.error(
           `Invalid outgoing payload on ${subject}: ${JSON.stringify(payload)}`,

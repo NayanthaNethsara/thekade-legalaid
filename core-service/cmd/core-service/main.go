@@ -61,8 +61,8 @@ func main() {
 	otpService := otp.NewService(pool, nc, cfg.OutgoingSubject)
 
 	matcher := identity.NewMatcher(pool)
-	inboundWorker := worker.New(matcher, logger)
-	sub, err := inboundWorker.Subscribe(nc, cfg.IncomingTextSubject)
+	inboundWorker := worker.New(matcher, nc, cfg.OutgoingSubject, logger)
+	sub, err := inboundWorker.Subscribe(cfg.IncomingTextSubject)
 	if err != nil {
 		logger.Error("failed to subscribe to incoming messages", "error", err)
 		os.Exit(1)

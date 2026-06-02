@@ -54,6 +54,7 @@ services:
       - ./whatsapp-gateway/.env
     environment:
       NATS_URL: nats://nats:4222
+      NODE_ENV: production
     depends_on:
       - nats
     ports:

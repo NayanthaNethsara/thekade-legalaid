@@ -1,0 +1,46 @@
+name: CI Gateway
+
+# Quality gate for whatsapp-gateway on every PR into dev.
+# Lint, typecheck, and build. No deployment happens here.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "whatsapp-gateway/**"
+      - ".github/workflows/ci-gateway.yml"
+
+# Cancel superseded runs on the same PR to save minutes.
+concurrency:
+  group: ci-gateway-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gateway:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: whatsapp-gateway
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+          cache-dependency-path: whatsapp-gateway/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint:check
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Build
+        run: pnpm run build

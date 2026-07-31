@@ -1,24 +1,32 @@
-# Use the official Node.js image as the base image
-FROM node:22.18.0-alpine
+FROM node:22.18.0-alpine AS base
 
-# Set the working directory inside the container
 WORKDIR /usr/src/app
 
-# Use pnpm with the lockfile for reproducible installs
-# Copy package.json and pnpm-lock.yaml first to leverage Docker layer caching
+RUN corepack enable
+
+FROM base AS deps
+
 COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
-# Enable Corepack and install dependencies using pnpm respecting the lockfile
-RUN corepack enable && pnpm install --frozen-lockfile
+FROM deps AS build
 
-# Copy the rest of the application files
 COPY . .
-
-# Build the NestJS application
 RUN pnpm run build
 
-# Expose the application port
-EXPOSE 3000
+FROM base AS runtime
 
-# Command to run the application
+ENV NODE_ENV=production
+
+RUN addgroup -S app && adduser -S -G app app
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod && pnpm store prune
+
+COPY --from=build /usr/src/app/dist ./dist
+
+USER app
+
+EXPOSE 8080
+
 CMD ["node", "dist/main"]

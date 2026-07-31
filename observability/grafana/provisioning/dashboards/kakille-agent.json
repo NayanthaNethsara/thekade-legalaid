@@ -1,0 +1,35 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "title": "Kakille AI",
+  "uid": "kakille-agent",
+  "tags": ["kakille"],
+  "schemaVersion": 39,
+  "version": 1,
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Guardrail",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 10,
+      "panels": []
+    },
+    {
+      "type": "logs",
+      "title": "Guardrail block events",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 1 },
+      "id": 2,
+      "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{container=~\".+\"} | json | event=`guardrail.blocked`"
+        }
+      ]
+    }
+  ]
+}

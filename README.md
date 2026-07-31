@@ -1,28 +1,34 @@
-# LegalAid AI Services
+# Kakille AI
 
-**Status:** Under Construction
+**Status:** Under construction
 
-LegalAid AI Services is a project aimed at providing AI-powered legal assistance. Detailed project description will be added soon.
+Kakille AI is a conversational AI assistant reachable over WhatsApp and the web.
 
-## Repository Structure
+## Components
 
+| Path                                     | What it is                                                                                 |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [backend-service/](backend-service/)     | FastAPI + LangGraph orchestrator. Owns Postgres, Redis, the auth API, and the NATS worker. |
+| [kakille-web/](kakille-web/)             | Next.js (App Router) web chat client, NextAuth sessions plus guest mode.                   |
+| [whatsapp-gateway/](whatsapp-gateway/)   | NestJS gateway. Normalizes WhatsApp Cloud API traffic onto the NATS contract.              |
+| [observability/](observability/)         | Prometheus, Loki, Promtail, Grafana provisioning.                                          |
+| [docker-compose.yml](docker-compose.yml) | Local stack: Postgres, Redis, NATS, pgweb.                                                 |
+
+## Local development
+
+```bash
+docker compose up -d --build     # Postgres, Redis, NATS, backend, gateway
+cd kakille-web && pnpm install && pnpm dev
 ```
-.
-├── backend/   # FastAPI backend with JWT auth and PostgreSQL/MongoDB
-├── frontend/  # Next.js frontend using App Router and TypeScript
-└── README.md  # This file
-```
 
-## Setup Guides
+Backend tooling runs through the project virtualenv (`backend-service/.venv/bin`),
+not a global `uv`.
 
-- **Backend Setup:** See [`backend/README.md`](backend/README.md)  
-   Includes instructions for virtual environment, dependencies, database, environment variables, and running the API.
+Copy `backend-service/.env.example` and `whatsapp-gateway/.env.example` to
+`.env` before starting. `MCP_URL` points at a placeholder host — leave it blank
+to run text-only without external tools.
 
-- **Frontend Setup:** See [`frontend/README.md`](frontend/README.md)  
-   Includes instructions for Node.js setup, dependencies, environment variables, and running the development server.
+## Where to start
 
-## Notes
-
-- Use the backend API URL in the frontend `.env.local` file.
-- Make sure to follow each folder’s README for proper environment setup.
-- Database migrations for the backend should be done using Alembic (see backend guide).
+- [docs/README.md](docs/README.md) — documentation index.
+- [AGENTS.md](AGENTS.md) — engineering conventions for this repository.

@@ -1,0 +1,140 @@
+services:
+  nats:
+    image: nats:2.11-alpine
+    command: ["-js", "-m", "8222", "-sd", "/data"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: kakille_agent
+      POSTGRES_USER: kakille_agent
+      POSTGRES_PASSWORD: kakille_agent
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kakille_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Lightweight web viewer for Postgres (auto-connects, no login). http://localhost:8081
+  pgweb:
+    image: sosedoff/pgweb:latest
+    environment:
+      PGWEB_DATABASE_URL: postgres://kakille_agent:kakille_agent@postgres:5432/kakille_agent?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+
+  redis:
+    image: redis/redis-stack-server:7.4.0-v6
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  whatsapp-gateway:
+    build:
+      context: ./whatsapp-gateway
+    env_file:
+      - ./whatsapp-gateway/.env
+    environment:
+      NATS_URL: nats://nats:4222
+      NODE_ENV: production
+      PORT: 8080
+    depends_on:
+      - nats
+    ports:
+      - "8080:8080"
+
+  backend-service:
+    build:
+      context: ./backend-service
+    env_file:
+      - ./backend-service/.env
+    environment:
+      NATS_URL: nats://nats:4222
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://kakille_agent:kakille_agent@postgres:5432/kakille_agent
+      REDIS_URL: redis://redis:6379/0
+      # Lets Vertex AI (LLM_PROVIDER=vertexai) authenticate with the mounted ADC.
+      GOOGLE_APPLICATION_CREDENTIALS: /gcp/adc.json
+    volumes:
+      # Read-only host Application Default Credentials
+      # (from `gcloud auth application-default login`).
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/gcp/adc.json:ro
+    depends_on:
+      nats:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend-service
+
+  loki:
+    image: grafana/loki:3.3.2
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./observability/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+
+  promtail:
+    image: grafana/promtail:3.3.2
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./observability/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail_data:/tmp
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+      - loki
+
+volumes:
+  nats_data:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  loki_data:
+  promtail_data:
+  grafana_data:

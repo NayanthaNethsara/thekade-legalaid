@@ -20,7 +20,7 @@ interface FastifyRequestWithRawBody {
   headers: Record<string, string | string[] | undefined>;
 }
 
-@Controller('webhook')
+@Controller('whatsapp/webhooks')
 export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);
 
@@ -30,7 +30,7 @@ export class WebhookController {
   ) {}
 
   /**
-   * GET /webhook - Verification endpoint
+   * GET /whatsapp/webhooks - Verification endpoint
    * Meta calls this once during webhook setup
    */
   @Get()
@@ -57,7 +57,7 @@ export class WebhookController {
   }
 
   /**
-   * POST /webhook - Receives messages & status updates from Meta
+   * POST /whatsapp/webhooks - Receives messages & status updates from Meta
    */
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -68,23 +68,19 @@ export class WebhookController {
   ) {
     this.logger.log('Webhook event received');
 
-    // Get raw body for signature verification
+    // The raw body (not the re-serialized parse) is what Meta signed.
     const rawBody: string = req.rawBody || JSON.stringify(body);
-
-    // Verify the signature for security
     if (!this.webhookService.verifySignature(rawBody, signature || '')) {
       this.logger.error('Invalid signature');
       throw new UnauthorizedException('Invalid signature');
     }
-    try {
-      // Process the webhook event
-      await this.webhookService.processWebhookEvent(body);
 
-      // Always return 200 OK to acknowledge receipt
+    try {
+      await this.webhookService.processWebhookEvent(body);
       return { status: 'ok' };
     } catch (error) {
       this.logger.error('Error processing webhook:', error);
-      // Still return 200 to prevent Meta from retrying
+      // Still return 200 to prevent Meta from retrying.
       return { status: 'error' };
     }
   }

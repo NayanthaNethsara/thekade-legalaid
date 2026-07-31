@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { sanitizePayload } from '../../common/utils/logger.utils';
 import {
   Template,
   Interactive,
+  LocationObject,
+  ContactObject,
   WhatsAppApiResponse,
-  WhatsAppApiError,
 } from '../../types/whatsapp.types';
 
 @Injectable()
@@ -12,56 +14,91 @@ export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
   private readonly phoneNumberId: string;
   private readonly accessToken: string;
-  private readonly baseUrl = 'https://graph.facebook.com/v21.0';
+  // v23.0+ is required for interactive media carousel messages.
+  private readonly baseUrl = 'https://graph.facebook.com/v23.0';
 
   constructor(private readonly configService: ConfigService) {
     this.phoneNumberId =
       this.configService.get<string>('whatsapp.phoneNumberId') || '';
     this.accessToken =
       this.configService.get<string>('whatsapp.accessToken') || '';
-
-    if (!this.phoneNumberId || !this.accessToken) {
-      this.logger.warn(
-        'WhatsApp credentials not configured. Set WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN',
-      );
-    } else {
-      this.logger.log('WhatsApp service initialized successfully');
-    }
   }
 
   private async sendRequest(
     endpoint: string,
     data: Record<string, unknown>,
   ): Promise<WhatsAppApiResponse | null> {
-    if (!this.phoneNumberId || !this.accessToken) {
-      this.logger.error('WhatsApp client not initialized');
-      return null;
-    }
+    const url = `${this.baseUrl}/${this.phoneNumberId}/${endpoint}`;
+    const maxRetries = 3;
+    let attempt = 0;
 
-    try {
-      const url = `${this.baseUrl}/${this.phoneNumberId}/${endpoint}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
+    this.logger.log(
+      `Sending request to WhatsApp API: endpoint=${endpoint}, payload=${JSON.stringify(sanitizePayload(data))}`,
+    );
 
-      if (!response.ok) {
-        const error = (await response.json()) as WhatsAppApiError;
-        this.logger.error(`WhatsApp API error: ${JSON.stringify(error)}`);
-        return null;
+    while (attempt < maxRetries) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+
+        const responseText = await response.text();
+        let responseBody: unknown;
+        try {
+          responseBody = JSON.parse(responseText);
+        } catch {
+          responseBody = responseText;
+        }
+
+        if (!response.ok) {
+          this.logger.error(
+            `WhatsApp API error: status=${response.status} | response=${JSON.stringify(sanitizePayload(responseBody))} | request=${JSON.stringify(sanitizePayload(data)).slice(0, 2000)}`,
+          );
+          return null;
+        }
+
+        this.logger.log(
+          `WhatsApp API response: status=${response.status} | response=${JSON.stringify(sanitizePayload(responseBody))}`,
+        );
+        return responseBody as WhatsAppApiResponse;
+      } catch (error) {
+        attempt++;
+        this.logger.warn(
+          `Failed to send WhatsApp message (attempt ${attempt}/${maxRetries}): ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+        if (attempt >= maxRetries) {
+          this.logger.error(
+            `Failed to send WhatsApp message after ${maxRetries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+          return null;
+        }
+        await new Promise((resolve) =>
+          setTimeout(resolve, 500 * Math.pow(2, attempt - 1)),
+        );
       }
-
-      return (await response.json()) as WhatsAppApiResponse;
-    } catch (error) {
-      this.logger.error(
-        `Failed to send WhatsApp message: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-      return null;
     }
+    return null;
+  }
+
+  /**
+   * Build the shared envelope for a /messages request. `replyToMessageId`
+   * quotes an earlier message via the WhatsApp `context` field.
+   */
+  private messageEnvelope(
+    to: string,
+    replyToMessageId?: string,
+  ): Record<string, unknown> {
+    return {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to,
+      ...(replyToMessageId && { context: { message_id: replyToMessageId } }),
+    };
   }
 
   /**
@@ -70,23 +107,25 @@ export class WhatsAppService {
   async sendTextMessage(
     to: string,
     text: string,
+    previewUrl?: boolean,
+    replyToMessageId?: string,
   ): Promise<WhatsAppApiResponse | null> {
     return this.sendRequest('messages', {
-      messaging_product: 'whatsapp',
-      to,
+      ...this.messageEnvelope(to, replyToMessageId),
       type: 'text',
-      text: { body: text },
+      text: { body: text, ...(previewUrl && { preview_url: true }) },
     });
   }
 
   /**
-   * Send media message (image, video, audio)
+   * Send media message (image, video, audio, sticker)
    */
   async sendMediaMessage(
     to: string,
-    mediaType: 'image' | 'video' | 'audio',
+    mediaType: 'image' | 'video' | 'audio' | 'sticker',
     mediaIdOrUrl: string,
     caption?: string,
+    replyToMessageId?: string,
   ): Promise<WhatsAppApiResponse | null> {
     const isUrl = mediaIdOrUrl.startsWith('http');
     const mediaPayload: Record<string, string> = isUrl
@@ -98,8 +137,7 @@ export class WhatsAppService {
     }
 
     return this.sendRequest('messages', {
-      messaging_product: 'whatsapp',
-      to,
+      ...this.messageEnvelope(to, replyToMessageId),
       type: mediaType,
       [mediaType]: mediaPayload,
     });
@@ -113,6 +151,7 @@ export class WhatsAppService {
     documentIdOrUrl: string,
     caption?: string,
     filename?: string,
+    replyToMessageId?: string,
   ): Promise<WhatsAppApiResponse | null> {
     const isUrl = documentIdOrUrl.startsWith('http');
     const documentPayload: Record<string, string> = isUrl
@@ -128,10 +167,54 @@ export class WhatsAppService {
     }
 
     return this.sendRequest('messages', {
-      messaging_product: 'whatsapp',
-      to,
+      ...this.messageEnvelope(to, replyToMessageId),
       type: 'document',
       document: documentPayload,
+    });
+  }
+
+  /**
+   * Send location message
+   */
+  async sendLocationMessage(
+    to: string,
+    location: LocationObject,
+    replyToMessageId?: string,
+  ): Promise<WhatsAppApiResponse | null> {
+    return this.sendRequest('messages', {
+      ...this.messageEnvelope(to, replyToMessageId),
+      type: 'location',
+      location,
+    });
+  }
+
+  /**
+   * Send contact cards
+   */
+  async sendContactsMessage(
+    to: string,
+    contacts: ContactObject[],
+    replyToMessageId?: string,
+  ): Promise<WhatsAppApiResponse | null> {
+    return this.sendRequest('messages', {
+      ...this.messageEnvelope(to, replyToMessageId),
+      type: 'contacts',
+      contacts,
+    });
+  }
+
+  /**
+   * React to a message with an emoji; an empty emoji removes the reaction.
+   */
+  async sendReactionMessage(
+    to: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<WhatsAppApiResponse | null> {
+    return this.sendRequest('messages', {
+      ...this.messageEnvelope(to),
+      type: 'reaction',
+      reaction: { message_id: messageId, emoji },
     });
   }
 
@@ -141,10 +224,10 @@ export class WhatsAppService {
   async sendTemplateMessage(
     to: string,
     template: Template,
+    replyToMessageId?: string,
   ): Promise<WhatsAppApiResponse | null> {
     return this.sendRequest('messages', {
-      messaging_product: 'whatsapp',
-      to,
+      ...this.messageEnvelope(to, replyToMessageId),
       type: 'template',
       template: {
         name: template.name,
@@ -157,16 +240,16 @@ export class WhatsAppService {
   }
 
   /**
-   * Send interactive message (buttons or list)
+   * Send interactive message (buttons, list, cta_url, location request,
+   * media carousel)
    */
   async sendInteractiveMessage(
     to: string,
     interactive: Interactive,
+    replyToMessageId?: string,
   ): Promise<WhatsAppApiResponse | null> {
     return this.sendRequest('messages', {
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to,
+      ...this.messageEnvelope(to, replyToMessageId),
       type: 'interactive',
       interactive,
     });
@@ -193,79 +276,5 @@ export class WhatsAppService {
     }
 
     return this.sendRequest('messages', payload);
-  }
-
-  /**
-   * Send typing indicator by marking message as read with typing indicator
-   * This shows the typing animation in WhatsApp
-   */
-  async sendTypingIndicator(
-    messageId: string,
-  ): Promise<WhatsAppApiResponse | null> {
-    this.logger.log(`Sending typing indicator for message ${messageId}`);
-
-    return this.sendRequest('messages', {
-      messaging_product: 'whatsapp',
-      status: 'read',
-      message_id: messageId,
-      typing_indicator: {
-        type: 'text',
-      },
-    });
-  }
-
-  /**
-   * Download media file from WhatsApp
-   */
-  async downloadMedia(mediaId: string): Promise<Buffer> {
-    if (!this.accessToken) {
-      throw new Error('WhatsApp access token not configured');
-    }
-
-    try {
-      // Step 1: Get media URL from WhatsApp
-      const mediaInfoUrl = `${this.baseUrl}/${mediaId}`;
-      const mediaInfoResponse = await fetch(mediaInfoUrl, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-        },
-      });
-
-      if (!mediaInfoResponse.ok) {
-        throw new Error(
-          `Failed to get media info: ${mediaInfoResponse.statusText}`,
-        );
-      }
-
-      const mediaInfo = (await mediaInfoResponse.json()) as {
-        url: string;
-        mime_type: string;
-        sha256: string;
-        file_size: number;
-      };
-
-      this.logger.log(`Downloading media from: ${mediaInfo.url}`);
-
-      // Step 2: Download the actual file
-      const fileResponse = await fetch(mediaInfo.url, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-        },
-      });
-
-      if (!fileResponse.ok) {
-        throw new Error(`Failed to download media: ${fileResponse.statusText}`);
-      }
-
-      const arrayBuffer = await fileResponse.arrayBuffer();
-      return Buffer.from(arrayBuffer);
-    } catch (error) {
-      this.logger.error(
-        `Failed to download media: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-      throw error;
-    }
   }
 }

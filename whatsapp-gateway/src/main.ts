@@ -56,13 +56,7 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
 
-  // Enable CORS if needed
-  app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
-    credentials: true,
-  });
-
-  const port = configService.get<number>('PORT', 3000);
+  const port = configService.get<number>('PORT', 8080);
   await app.listen(port, '0.0.0.0');
 }
 

@@ -1,18 +1,52 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import {
+  maskPhoneNumber,
+  sanitizePayload,
+} from '../../common/utils/logger.utils';
 import type {
   WebhookPayload,
   WebhookChange,
-  WhatsAppValue,
   WhatsAppMessage,
   WhatsAppMetadata,
+  MessageContext,
+  Contact,
 } from './dto/webhook-event.dto';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
-import { IncomingMessageProducer } from '../kafka/incoming-message-producer';
-import { IncomingFileProducer } from '../kafka/incoming-file-producer';
-import { BlobStorageService } from '../azure/blob-storage.service';
-import { IncomingWhatsAppMessageDto } from '../kafka/dto/kafka-message.dto';
+import { TypingIndicatorService } from '../whatsapp/typing-indicator.service';
+import { IncomingProducer } from '../nats/incoming-producer';
+import { InjectMetric } from '@willsoto/nestjs-prometheus';
+import { Counter } from 'prom-client';
+import { INCOMING_MESSAGES } from '../metrics/metrics.module';
+import {
+  IncomingMessageContext,
+  IncomingMessageDto,
+  IncomingMessageMetadata,
+  IncomingTextSource,
+} from '../nats/dto/nats-message.dto';
+
+type MediaMessageType = 'image' | 'video' | 'audio' | 'document';
+
+/** Common envelope shared by every standardized incoming format. */
+type IncomingEnvelope = {
+  messageId: string;
+  from: string;
+  to: string;
+  timestamp: string;
+  contactName: string | null;
+  context: IncomingMessageContext | null;
+  metadata: IncomingMessageMetadata;
+};
+
+type MediaDetails = {
+  mediaId: string;
+  mimeType: string | null;
+  caption: string | null;
+  filename: string | null;
+  sha256: string | null;
+  isVoice: boolean;
+};
 
 @Injectable()
 export class WebhookService {
@@ -20,15 +54,138 @@ export class WebhookService {
 
   constructor(
     private readonly whatsappService: WhatsAppService,
+    private readonly typingIndicator: TypingIndicatorService,
     private readonly configService: ConfigService,
-    private readonly incomingMessageProducer: IncomingMessageProducer,
-    private readonly incomingFileProducer: IncomingFileProducer,
-    private readonly blobStorageService: BlobStorageService,
+    private readonly incomingProducer: IncomingProducer,
+    @InjectMetric(INCOMING_MESSAGES)
+    private readonly incomingMessages: Counter<string>,
   ) {}
 
+  private buildContext(
+    context: MessageContext | undefined,
+  ): IncomingMessageContext | null {
+    if (!context) {
+      return null;
+    }
+
+    return {
+      messageId: context.id,
+      from: context.from,
+    };
+  }
+
+  private resolveContactName(
+    contacts: Contact[] | undefined,
+    waId: string,
+  ): string | null {
+    if (!contacts || contacts.length === 0) {
+      return null;
+    }
+
+    const match = contacts.find((contact) => contact.wa_id === waId);
+    return (match ?? contacts[0]).profile?.name ?? null;
+  }
+
+  private buildEnvelope(
+    message: WhatsAppMessage,
+    metadata: WhatsAppMetadata,
+    contactName: string | null,
+  ): IncomingEnvelope {
+    return {
+      messageId: message.id,
+      from: message.from,
+      to: metadata.phone_number_id,
+      timestamp: message.timestamp,
+      contactName,
+      context: this.buildContext(message.context),
+      metadata: {
+        phoneNumberId: metadata.phone_number_id,
+        displayPhoneNumber: metadata.display_phone_number,
+      },
+    };
+  }
+
   /**
-   * Type guard to validate webhook payload structure
+   * Collapse the several text-bearing message shapes (plain text, interactive
+   * button/list reply, template quick reply) into a single normalized payload.
    */
+  private normalizeTextPayload(message: WhatsAppMessage): {
+    text: string;
+    source: IncomingTextSource;
+    replyId: string | null;
+  } | null {
+    switch (message.type) {
+      case 'text': {
+        const body = message.text?.body;
+        return body ? { text: body, source: 'text', replyId: null } : null;
+      }
+      case 'interactive': {
+        const buttonReply = message.interactive?.button_reply;
+        if (buttonReply) {
+          return {
+            text: buttonReply.title,
+            source: 'button_reply',
+            replyId: buttonReply.id,
+          };
+        }
+
+        const listReply = message.interactive?.list_reply;
+        if (listReply) {
+          return {
+            text: listReply.title,
+            source: 'list_reply',
+            replyId: listReply.id,
+          };
+        }
+
+        return null;
+      }
+      case 'button': {
+        const button = message.button;
+        return button?.text
+          ? {
+              text: button.text,
+              source: 'quick_reply',
+              replyId: button.payload ?? null,
+            }
+          : null;
+      }
+      default:
+        return null;
+    }
+  }
+
+  private extractMediaDetails(
+    message: WhatsAppMessage,
+    expectedType: MediaMessageType,
+  ): MediaDetails | null {
+    const media =
+      expectedType === 'image'
+        ? message.image
+        : expectedType === 'video'
+          ? message.video
+          : expectedType === 'audio'
+            ? message.audio
+            : message.document;
+
+    if (!media?.id) {
+      return null;
+    }
+
+    return {
+      mediaId: media.id,
+      mimeType: media.mime_type ?? null,
+      caption: expectedType === 'audio' ? null : (media.caption ?? null),
+      filename:
+        expectedType === 'document'
+          ? (message.document?.filename ?? null)
+          : null,
+      sha256: media.sha256 ?? null,
+      isVoice:
+        expectedType === 'audio' ? (message.audio?.voice ?? false) : false,
+    };
+  }
+
   private isWebhookPayload(payload: unknown): payload is WebhookPayload {
     return (
       typeof payload === 'object' &&
@@ -41,12 +198,9 @@ export class WebhookService {
   }
 
   /**
-   * Verify the signature of the webhook request
-   * This ensures the request is actually from Meta
+   * Verify the X-Hub-Signature-256 header to ensure the request is from Meta.
    */
   verifySignature(rawBody: string, signature: string): boolean {
-    this.logger.debug('=== SIGNATURE VERIFICATION START ===');
-
     if (!signature) {
       this.logger.warn('No signature provided in request');
       return false;
@@ -59,30 +213,29 @@ export class WebhookService {
     }
 
     try {
-      // Create expected signature from raw body
       const expectedSignature = crypto
         .createHmac('sha256', appSecret)
         .update(rawBody)
         .digest('hex');
 
-      // Extract the signature hash (remove 'sha256=' prefix if present)
       const signatureHash = signature.startsWith('sha256=')
         ? signature.substring(7)
         : signature;
 
-      // Use timing-safe comparison to prevent timing attacks
-      const isValid = crypto.timingSafeEqual(
-        Buffer.from(signatureHash, 'hex'),
-        Buffer.from(expectedSignature, 'hex'),
-      );
+      const signatureBuffer = Buffer.from(signatureHash, 'hex');
+      const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+
+      if (signatureBuffer.length !== expectedBuffer.length) {
+        this.logger.warn('Signature verification failed (length mismatch)');
+        return false;
+      }
+
+      // Timing-safe comparison prevents timing attacks.
+      const isValid = crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
 
       if (!isValid) {
         this.logger.warn('Signature verification failed');
-      } else {
-        this.logger.log('Signature verification successful');
       }
-
-      this.logger.debug('=== SIGNATURE VERIFICATION END ===');
 
       return isValid;
     } catch (error) {
@@ -91,11 +244,7 @@ export class WebhookService {
     }
   }
 
-  /**
-   * Process the webhook event
-   */
   async processWebhookEvent(payload: Record<string, unknown>): Promise<void> {
-    // Type guard: validate payload structure
     if (!this.isWebhookPayload(payload)) {
       this.logger.error('Invalid webhook payload structure');
       return;
@@ -103,295 +252,213 @@ export class WebhookService {
 
     this.logger.log(`Processing webhook for object: ${payload.object}`);
 
-    if (!payload.entry || payload.entry.length === 0) {
-      this.logger.warn('No entries in webhook payload');
-      return;
-    }
-
     for (const entry of payload.entry) {
-      if (entry.changes) {
-        for (const change of entry.changes) {
-          await this.handleWhatsAppChange(change);
-        }
+      for (const change of entry.changes ?? []) {
+        await this.handleWhatsAppChange(change);
       }
     }
   }
 
-  /**
-   * Handle WhatsApp webhook changes
-   */
   private async handleWhatsAppChange(change: WebhookChange): Promise<void> {
     if (change.field !== 'messages') {
       return;
     }
 
-    const value: WhatsAppValue = change.value;
+    this.logStatusUpdates(change);
 
-    if (value.messages) {
-      for (const message of value.messages) {
-        await this.handleIncomingWhatsAppMessage(message, value.metadata);
+    if (!change.value.messages) {
+      return;
+    }
+
+    for (const message of change.value.messages) {
+      const contactName = this.resolveContactName(
+        change.value.contacts,
+        message.from,
+      );
+      await this.handleIncomingWhatsAppMessage(
+        message,
+        change.value.metadata,
+        contactName,
+      );
+    }
+  }
+
+  /**
+   * Log delivery-status updates for messages we sent. A message the API
+   * accepted can still fail afterwards (e.g. an unreachable media link or a
+   * closed customer service window); the reason only surfaces here.
+   */
+  private logStatusUpdates(change: WebhookChange): void {
+    for (const status of change.value.statuses ?? []) {
+      if (status.status === 'failed' || status.errors?.length) {
+        this.logger.error(
+          `Message ${status.id} to ${maskPhoneNumber(status.recipient_id)} ${status.status}: ${JSON.stringify(sanitizePayload(status.errors ?? []))}`,
+        );
+      } else {
+        this.logger.log(
+          `Message ${status.id} to ${maskPhoneNumber(status.recipient_id)}: ${status.status}`,
+        );
       }
     }
   }
 
   /**
-   * Handle incoming WhatsApp messages - route by type
+   * Route an incoming message to the handler for its standardized format.
    */
   private async handleIncomingWhatsAppMessage(
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
+    contactName: string | null,
   ): Promise<void> {
-    const { type } = message;
+    this.incomingMessages.inc({ type: message.type });
 
-    switch (type) {
+    switch (message.type) {
       case 'text':
-        await this.handleTextMessage(message, metadata);
-        break;
       case 'interactive':
       case 'button':
-        await this.handleInteractiveMessage(message, metadata);
+        await this.handleTextMessage(message, metadata, contactName);
         break;
       case 'image':
       case 'video':
       case 'audio':
       case 'document':
-      case 'location':
-        await this.handleNonTextMessage(message, metadata);
+        if (this.configService.get<boolean>('whatsapp.mediaSupported')) {
+          await this.handleMediaMessage(
+            message,
+            metadata,
+            contactName,
+            message.type,
+          );
+        } else {
+          this.logger.log(
+            `Media support is disabled. Replying fallback for: ${message.type}`,
+          );
+          const reply = this.getMediaFallbackReply(message.type);
+          await this.whatsappService.sendTextMessage(
+            message.from,
+            reply,
+            false,
+            message.id,
+          );
+        }
         break;
-      default:
-        this.logger.log(`Unsupported message type: ${type}`);
+      default: {
+        this.logger.log(`Unsupported message type: ${message.type}`);
+        const reply = this.getMediaFallbackReply(message.type);
+        await this.whatsappService.sendTextMessage(
+          message.from,
+          reply,
+          false,
+          message.id,
+        );
+        break;
+      }
     }
   }
 
-  /**
-   * Handle text messages - send to SQS queue
-   */
+  private getMediaFallbackReply(type: string): string {
+    switch (type) {
+      case 'image':
+        return (
+          'I wish I could look at that image, but I can only read text messages for now. ' +
+          'I hope to support image searches on WhatsApp soon!'
+        );
+      case 'video':
+        return (
+          "I can't play videos yet, but I can read your text messages. " +
+          "Please type what you're looking for!"
+        );
+      case 'audio':
+        return (
+          "I'd love to listen to your voice message, but I can only read text for now. " +
+          'Could you type it out for me instead?'
+        );
+      case 'document':
+        return (
+          "I can't open documents or files yet. If you have questions or want to search " +
+          'for something, just type it out!'
+        );
+      case 'sticker':
+        return (
+          'I wish I could see that sticker! I can only understand text messages for now, ' +
+          'so please write down what you need.'
+        );
+      case 'location':
+        return (
+          "I can't read map locations yet. If you are searching for a specific store or " +
+          'delivery area, please type the address in text!'
+        );
+      default:
+        return (
+          'I wish I could understand that type of message! I can only read text messages ' +
+          'right now, but I hope to support other formats soon.'
+        );
+    }
+  }
+
   private async handleTextMessage(
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
+    contactName: string | null,
   ): Promise<void> {
-    const { id: messageId, from } = message;
-
-    if (!message.text?.body) {
-      this.logger.warn(`Text message ${messageId} has no body content`);
+    const payload = this.normalizeTextPayload(message);
+    if (!payload) {
+      this.logger.warn(`Text message ${message.id} has no readable content`);
       return;
     }
 
-    const textContent = message.text.body;
-
-    // Mark as read and show typing indicator for 5 seconds (for testing/debugging)
-    await this.whatsappService.markMessageAsRead(messageId, true);
-
-    this.logger.log(
-      `Typing indicator started for ${from} - waiting 5 seconds before queuing`,
-    );
-
-    // Wait 5 seconds so typing indicator is visible (for testing)
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    this.logger.log(`5 seconds passed, now sending to queue for AI processing`);
-
-    // Convert to DTO and push to SQS
-    const incomingMessageDto: IncomingWhatsAppMessageDto = {
-      messageId,
-      from,
-      to: metadata.phone_number_id,
-      timestamp: message.timestamp,
+    void this.typingIndicator.start(message.id, message.from);
+    await this.incomingProducer.publish({
+      ...this.buildEnvelope(message, metadata, contactName),
       type: 'text',
-      content: {
-        text: textContent,
-      },
-      context: message.context
-        ? {
-            messageId: message.context.id,
-            from: message.context.from,
-          }
-        : undefined,
-      metadata: {
-        phoneNumberId: metadata.phone_number_id,
-        displayPhoneNumber: metadata.display_phone_number,
-      },
-    };
-
-    await this.incomingMessageProducer.sendMessage(incomingMessageDto);
+      text: payload.text,
+      source: payload.source,
+      replyId: payload.replyId,
+    });
   }
 
   /**
-   * Handle interactive messages (button/list replies) - send to SQS queue
+   * Publish a standardized media message. The bytes are not fetched here; the
+   * WhatsApp `mediaId` is forwarded so a downstream consumer can download and
+   * store the file.
    */
-  private async handleInteractiveMessage(
+  private async handleMediaMessage(
     message: WhatsAppMessage,
     metadata: WhatsAppMetadata,
+    contactName: string | null,
+    type: MediaMessageType,
   ): Promise<void> {
-    const { id: messageId, from } = message;
+    this.logger.log(
+      `Received ${type} message from ${maskPhoneNumber(message.from)}: ${message.id}`,
+    );
 
-    if (!message.interactive) {
-      this.logger.warn(
-        `Interactive message ${messageId} has no interactive content`,
-      );
+    const details = this.extractMediaDetails(message, type);
+    if (!details) {
+      this.logger.error(`No media ID found for ${type} message`);
       return;
     }
 
-    const interactiveContent = message.interactive;
+    void this.typingIndicator.start(message.id, message.from);
 
-    this.logger.log(
-      `Received interactive ${interactiveContent.type} from ${from}`,
-    );
-
-    // Mark as read WITH typing indicator - shows typing while processing button click
-    await this.whatsappService.markMessageAsRead(messageId, true);
-
-    // Convert to DTO and push to SQS
-    const incomingMessageDto: IncomingWhatsAppMessageDto = {
-      messageId,
-      from,
-      to: metadata.phone_number_id,
-      timestamp: message.timestamp,
-      type: 'interactive',
-      content: {
-        interactive: {
-          type:
-            interactiveContent.type === 'button_reply'
-              ? 'button_reply'
-              : 'list_reply',
-          buttonReply: interactiveContent.button_reply,
-          listReply: interactiveContent.list_reply,
-        },
-      },
-      context: message.context
-        ? {
-            messageId: message.context.id,
-            from: message.context.from,
-          }
-        : undefined,
-      metadata: {
-        phoneNumberId: metadata.phone_number_id,
-        displayPhoneNumber: metadata.display_phone_number,
-      },
+    const base = {
+      ...this.buildEnvelope(message, metadata, contactName),
+      mediaId: details.mediaId,
+      mimeType: details.mimeType,
+      sha256: details.sha256,
     };
 
-    await this.incomingMessageProducer.sendMessage(incomingMessageDto);
-  }
+    const dto: IncomingMessageDto =
+      type === 'audio'
+        ? { ...base, type, voice: details.isVoice }
+        : type === 'document'
+          ? {
+              ...base,
+              type,
+              caption: details.caption,
+              filename: details.filename,
+            }
+          : { ...base, type, caption: details.caption };
 
-  /**
-   * Handle media messages (image, video, audio, document) - download, upload to S3, and send to file queue
-   */
-  private async handleNonTextMessage(
-    message: WhatsAppMessage,
-    metadata: WhatsAppMetadata,
-  ): Promise<void> {
-    const { id: messageId, from, type } = message;
-    this.logger.log(`Received ${type} message from ${from}: ${messageId}`);
-
-    try {
-      // Get media details based on type
-      let mediaId: string | undefined;
-      let mimeType: string | undefined;
-      let caption: string | undefined;
-      let filename: string | undefined;
-
-      switch (type) {
-        case 'image':
-          mediaId = message.image?.id;
-          mimeType = message.image?.mime_type;
-          caption = message.image?.caption;
-          break;
-        case 'video':
-          mediaId = message.video?.id;
-          mimeType = message.video?.mime_type;
-          caption = message.video?.caption;
-          break;
-        case 'audio':
-          mediaId = message.audio?.id;
-          mimeType = message.audio?.mime_type;
-          break;
-        case 'document':
-          mediaId = message.document?.id;
-          mimeType = message.document?.mime_type;
-          caption = message.document?.caption;
-          filename = message.document?.filename;
-          break;
-        default:
-          this.logger.warn(`Unsupported media type: ${type}`);
-          await this.whatsappService.sendTextMessage(
-            from,
-            `Sorry, ${type} messages are not supported yet.`,
-          );
-          return;
-      }
-
-      if (!mediaId) {
-        this.logger.error(`No media ID found for ${type} message`);
-        return;
-      }
-
-      // Mark as read and show typing indicator while processing
-      await this.whatsappService.markMessageAsRead(messageId, true);
-
-      this.logger.log(`Downloading ${type} from WhatsApp (ID: ${mediaId})`);
-
-      // Download media from WhatsApp
-      const fileBuffer = await this.whatsappService.downloadMedia(mediaId);
-
-      // Check file size (10MB limit)
-      const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
-      if (fileBuffer.length > maxFileSize) {
-        this.logger.warn(
-          `File size ${fileBuffer.length} bytes exceeds 10MB limit`,
-        );
-        await this.whatsappService.sendTextMessage(
-          from,
-          `Sorry, your ${type} file is too large. Maximum file size is 10MB. Please send a smaller file.`,
-        );
-        return;
-      }
-
-      this.logger.log(
-        `Downloaded ${fileBuffer.length} bytes, uploading to Azure Blob Storage`,
-      );
-
-      // Upload to Azure Blob Storage
-      const fileExtension = mimeType?.split('/')[1] || type;
-      const fileName =
-        filename || `${type}-${messageId}.${fileExtension}`.substring(0, 100);
-      const blobUrl = await this.blobStorageService.uploadFile(
-        fileBuffer,
-        fileName,
-        mimeType || 'application/octet-stream',
-        'temp',
-      );
-
-      this.logger.log(`File uploaded to Azure Blob Storage: ${blobUrl}`);
-
-      // Send to incoming file queue
-      await this.incomingFileProducer.sendFileMessage({
-        messageId,
-        from,
-        to: metadata.phone_number_id,
-        timestamp: message.timestamp,
-        type,
-        fileUrl: blobUrl,
-        mimeType,
-        caption,
-        filename,
-        metadata: {
-          phoneNumberId: metadata.phone_number_id,
-          displayPhoneNumber: metadata.display_phone_number,
-        },
-      });
-
-      this.logger.log(`${type} message processed and sent to file queue`);
-    } catch (error) {
-      this.logger.error(
-        `Failed to process ${type} message: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        error instanceof Error ? error.stack : '',
-      );
-
-      // Send error message to user
-      await this.whatsappService.sendTextMessage(
-        from,
-        `Sorry, there was an error processing your ${type} file. Please try again.`,
-      );
-    }
+    await this.incomingProducer.publish(dto);
   }
 }

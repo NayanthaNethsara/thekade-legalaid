@@ -3,17 +3,15 @@ import { ConfigModule } from '@nestjs/config';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { HealthModule } from './modules/health/health.module';
-import { KafkaModule } from './modules/kafka/kafka.module';
+import { NatsModule } from './modules/nats/nats.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
 import configuration from './config/configuration';
 import { validationSchema } from './config/validation';
 import { PinoAppLogger } from './common/logger';
-import { AzureModule } from './modules/azure/azure.module';
 
 @Module({
   imports: [
-    PinoAppLogger.registerAsync({
-      logDestination: 'logs/app.log',
-    }),
+    PinoAppLogger.register(),
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
@@ -24,11 +22,11 @@ import { AzureModule } from './modules/azure/azure.module';
       },
       envFilePath: '.env',
     }),
+    MetricsModule,
     WhatsAppModule,
     WebhookModule,
     HealthModule,
-    AzureModule,
-    KafkaModule,
+    NatsModule,
   ],
 })
 export class AppModule {}

@@ -6,9 +6,8 @@ import {
   useRouter,
   useSelectedLayoutSegment,
 } from "next/navigation";
-import { PanelLeft } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { ChatSidebar } from "./chat-sidebar";
+import { TopBar } from "./top-bar";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { ProfilePanel } from "@/components/profile/profile-panel";
 import {
@@ -109,65 +108,41 @@ export function ChatShell({
   );
 
   return (
-    <div className="text-foreground relative flex h-full min-h-0 w-full flex-1 overflow-hidden bg-transparent">
-      <ChatSidebar
-        mobileOpen={mobileSidebarOpen}
-        onCloseMobile={() => setMobileSidebarOpen(false)}
-        conversations={conversations}
-        activeId={activeId}
-        onSelect={handleSelect}
-        onNew={handleNew}
-        onDelete={handleDelete}
-        onOpenProfile={() => {
-          setProfileOpen(true);
-          setMobileSidebarOpen(false);
-        }}
-        onSignIn={() => {
-          setLoginOpen(true);
-          setMobileSidebarOpen(false);
-        }}
+    <div className="text-foreground relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
+      <TopBar
         user={user}
-        guest={guest}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+        onToggleSources={() => setMobileSidebarOpen((prev) => !prev)}
+        onSignIn={() => setLoginOpen(true)}
+        onOpenProfile={() => setProfileOpen(true)}
       />
 
-      {/* Top bar spanning the top of the chat area, fading/masking scrolling content behind it */}
-      <div
-        className={cn(
-          "from-background/95 via-background/65 header-mask pointer-events-none absolute top-0 right-0 left-0 z-10 flex h-24 items-center bg-linear-to-b to-transparent px-4 backdrop-blur-md transition-all duration-300 ease-in-out md:h-16 md:bg-none md:from-transparent md:to-transparent md:px-6 md:backdrop-blur-none",
-          sidebarCollapsed ? "md:left-[72px]" : "md:left-72"
-        )}
-      >
-        <div className="pointer-events-auto flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => {
-              if (window.innerWidth < 768) {
-                setMobileSidebarOpen(true);
-              } else {
-                setSidebarCollapsed((prev) => !prev);
-              }
-            }}
-            aria-label="Toggle sidebar"
-            className="border-foreground/6 bg-background/25 supports-backdrop-filter:bg-background/15 text-foreground/70 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border backdrop-blur-lg md:hidden"
-          >
-            <PanelLeft className="h-4.5 w-4.5" />
-          </button>
-          <div
-            className={cn("flex items-baseline gap-2 leading-none md:hidden")}
-          >
-            <span className="text-foreground/85 text-[17px] font-semibold tracking-tight">
-              Kakille
-            </span>
-            <span className="text-foreground/35 text-[10px] font-medium tracking-[0.18em] uppercase">
-              AI Assistant
-            </span>
-          </div>
+      <div className="flex min-h-0 flex-1 gap-3 p-3">
+        <ChatSidebar
+          mobileOpen={mobileSidebarOpen}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
+          conversations={conversations}
+          activeId={activeId}
+          onSelect={handleSelect}
+          onNew={handleNew}
+          onDelete={handleDelete}
+          onOpenProfile={() => {
+            setProfileOpen(true);
+            setMobileSidebarOpen(false);
+          }}
+          onSignIn={() => {
+            setLoginOpen(true);
+            setMobileSidebarOpen(false);
+          }}
+          user={user}
+          guest={guest}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+        />
+
+        <div className="border-border bg-background relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
+          {children}
         </div>
       </div>
-
-      {children}
 
       {/* Overlays live at the shell root, outside the sidebar's overflow and
           backdrop-filter containing block. */}

@@ -174,7 +174,7 @@ export function ConversationClient({
     <div className="relative flex h-full min-h-0 flex-1">
       <div className="relative flex h-full min-h-0 flex-1 flex-col">
         <div ref={scrollRef} className="flex-1 scrollbar-thin overflow-y-auto">
-          <div className="mx-auto w-full px-4 py-6 pt-28 sm:px-6 md:px-8">
+          <div className="mx-auto w-full px-4 py-6 sm:px-6 md:px-8">
             <MessageList messages={messages} isTyping={isTyping} />
           </div>
         </div>

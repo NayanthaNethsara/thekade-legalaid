@@ -142,28 +142,6 @@
   }
 }
 
-.header-mask {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    black 65%,
-    rgba(0, 0, 0, 0.9) 80%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    black 65%,
-    rgba(0, 0, 0, 0.9) 80%,
-    transparent 100%
-  );
-}
-
-@media (min-width: 768px) {
-  .header-mask {
-    -webkit-mask-image: none !important;
-    mask-image: none !important;
-  }
-}
-
 /* Frosted panel chrome: hairline border over a blurred translucent surface.
    Elevation comes from surface change and blur, never from drop shadows. */
 @utility glass-panel {

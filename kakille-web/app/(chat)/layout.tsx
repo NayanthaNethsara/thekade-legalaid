@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ChatShell } from "@/components/animated-ai-chat/chat-shell";
+import { WorkspaceProvider } from "@/components/studio/workspace-store";
 import { getCurrentGuest } from "@/lib/guest/session";
 
 /**
@@ -28,9 +29,11 @@ export default async function ChatLayout({
 
   return (
     <main className="bg-muted relative flex h-screen min-h-0 w-full flex-col">
-      <ChatShell user={user} guest={guest}>
-        {children}
-      </ChatShell>
+      <WorkspaceProvider>
+        <ChatShell user={user} guest={guest}>
+          {children}
+        </ChatShell>
+      </WorkspaceProvider>
     </main>
   );
 }

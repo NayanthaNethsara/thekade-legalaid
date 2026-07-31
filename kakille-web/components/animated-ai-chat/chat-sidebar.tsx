@@ -1,13 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
-import { Trash2, Plus, PanelLeft, Sun, Moon, User, LogOut } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  PanelLeft,
+  Sun,
+  Moon,
+  User,
+  LogOut,
+  FileText,
+  X,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ConversationSummary } from "@/types/chat";
 import { logout } from "@/lib/auth/actions";
 import { generateGuestSessionInfo } from "@/lib/chat/actions";
+import {
+  newWorkspaceItemId,
+  useWorkspace,
+} from "@/components/studio/workspace-store";
 import type { ChatUser } from "./chat-shell";
 
 interface ChatSidebarProps {
@@ -42,12 +56,28 @@ export function ChatSidebar({
   onToggleCollapse,
 }: ChatSidebarProps) {
   const { resolvedTheme, setTheme } = useTheme();
+  const { sources } = useWorkspace();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [guestInfo, setGuestInfo] = useState<{
     name: string;
     color: string;
   } | null>(null);
+
+  const handleFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    files.forEach((file) => {
+      sources.add({
+        id: newWorkspaceItemId(),
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        addedAt: new Date().toISOString(),
+      });
+    });
+    event.target.value = "";
+  };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -97,17 +127,17 @@ export function ChatSidebar({
       />{" "}
       <div
         className={cn(
-          "z-40 h-full shrink-0 p-3 transition-all duration-300 ease-in-out max-md:fixed max-md:top-0 max-md:left-0 max-md:h-[100dvh] max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:transition-transform max-md:duration-300 max-md:ease-out md:relative md:z-20",
+          "z-40 h-full shrink-0 transition-all duration-300 ease-in-out max-md:fixed max-md:top-0 max-md:left-0 max-md:h-[100dvh] max-md:p-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:transition-transform max-md:duration-300 max-md:ease-out md:relative md:z-20",
           mobileOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full",
-          collapsed ? "md:w-[72px]" : "md:w-72"
+          collapsed ? "md:w-12" : "md:w-72"
         )}
       >
         <aside
           className={cn(
             "flex h-full flex-col transition-all duration-300 ease-in-out",
             collapsed
-              ? "overflow-visible border-none bg-transparent shadow-none backdrop-blur-none md:w-12"
-              : "border-foreground/6 bg-background/30 supports-[backdrop-filter]:bg-background/20 overflow-hidden rounded-[1.75rem] border backdrop-blur-xl md:w-72"
+              ? "overflow-visible border-none bg-transparent shadow-none md:w-12"
+              : "border-border bg-background overflow-hidden rounded-lg border md:w-72"
           )}
         >
           <div className="pt-4 pb-3">
@@ -128,14 +158,11 @@ export function ChatSidebar({
                   <PanelLeft className="h-4.5 w-4.5" />
                 </button>
               </div>
-              <div className="flex shrink-0 items-baseline gap-2 pl-3">
-                <span className="text-foreground/90 text-lg font-semibold tracking-tight">
-                  Kakille
+              {!collapsed && (
+                <span className="text-foreground/90 pl-1 text-sm font-semibold tracking-tight">
+                  Sources
                 </span>
-                <span className="text-foreground/35 text-[10px] font-medium tracking-[0.18em] uppercase">
-                  AI Assistant
-                </span>
-              </div>
+              )}
             </div>
           </div>
 
@@ -176,6 +203,62 @@ export function ChatSidebar({
                 </li>
               </ul>
             </div>
+
+            {!collapsed && (
+              <div>
+                <span className="text-foreground/35 mb-1.5 block px-2 text-[10px] font-semibold tracking-wider uppercase">
+                  Sources
+                </span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.txt,image/*"
+                  onChange={handleFilesSelected}
+                  className="hidden"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-border text-foreground/75 hover:bg-pearl hover:text-foreground/95 press-scale mx-2 flex w-[calc(100%-1rem)] items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add source
+                </button>
+                {sources.items.length === 0 ? (
+                  <p className="text-foreground/30 px-2 py-3 text-center text-xs leading-relaxed">
+                    Upload case files and legal documents
+                  </p>
+                ) : (
+                  <ul className="mt-2 space-y-0.5">
+                    {sources.items.map((source) => (
+                      <li
+                        key={source.id}
+                        className="group hover:bg-foreground/4 flex w-full items-center gap-2 rounded-lg px-2 py-1.5"
+                      >
+                        <FileText className="text-primary h-3.5 w-3.5 shrink-0" />
+                        <span
+                          title={source.name}
+                          className="text-foreground/70 min-w-0 flex-1 truncate text-xs"
+                        >
+                          {source.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => sources.remove(source.id)}
+                          aria-label={`Remove ${source.name}`}
+                          className="text-foreground/20 hover:text-foreground/55 shrink-0 rounded-md p-1 opacity-100 transition-colors md:opacity-0 md:group-hover:opacity-100"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
             {!collapsed && (
               <div>

@@ -58,8 +58,8 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.4 }}
             >
-              <span className="text-foreground/35 text-xs font-medium tracking-[0.18em] uppercase">
-                AI Assistant
+              <span className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
+                Legal Aid Assistant
               </span>
             </motion.div>
             <motion.div
@@ -68,15 +68,9 @@ export default function Home() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="inline-block"
             >
-              <h1 className="from-foreground/90 to-foreground/40 bg-linear-to-r bg-clip-text pb-1 text-4xl font-semibold tracking-tighter text-balance text-transparent">
+              <h1 className="text-foreground pb-1 text-4xl font-semibold tracking-tight text-balance">
                 Hi, I am Kakille
               </h1>
-              <motion.div
-                className="dark:via-foreground/20 h-px bg-linear-to-r from-transparent via-violet-500/40 to-transparent"
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: "100%", opacity: 1 }}
-                transition={{ delay: 0.5, duration: 0.8 }}
-              />
             </motion.div>
             <motion.p
               className="text-foreground/40 text-sm"
@@ -99,13 +93,13 @@ export default function Home() {
                 key={quick.label}
                 type="button"
                 onClick={() => start(quick.message)}
-                className="border-foreground/8 bg-background/30 text-foreground/65 hover:bg-background/50 hover:text-foreground/85 dark:border-foreground/10 flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs backdrop-blur-xl transition-all duration-200"
+                className="border-border bg-background text-foreground/65 hover:text-foreground/85 hover:bg-pearl flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-all duration-200"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.08 }}
                 whileTap={{ scale: 0.96 }}
               >
-                <span className="text-violet-500/70 dark:text-violet-400/70">
+                <span className="text-primary dark:text-primary-soft">
                   {getIconElement(quick.iconName)}
                 </span>
                 <span>{quick.label}</span>

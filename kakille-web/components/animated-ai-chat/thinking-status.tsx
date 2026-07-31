@@ -45,7 +45,7 @@ export function TypingDots() {
       {[1, 2, 3].map((dot) => (
         <motion.div
           key={dot}
-          className="mx-0.5 h-1.5 w-1.5 rounded-full bg-violet-600 dark:bg-violet-500"
+          className="bg-primary dark:bg-primary-soft mx-0.5 h-1.5 w-1.5 rounded-full"
           initial={{ opacity: 0.3 }}
           animate={{
             opacity: [0.3, 0.9, 0.3],

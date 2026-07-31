@@ -39,7 +39,7 @@ export function SlideOver({
             aria-modal="true"
             aria-label={title}
             onClick={(e) => e.stopPropagation()}
-            className="border-foreground/6 bg-background/95 supports-[backdrop-filter]:bg-background/85 fixed inset-3 z-50 mx-auto flex max-w-md flex-col overflow-hidden rounded-[1.75rem] border shadow-2xl backdrop-blur-2xl"
+            className="glass-panel fixed inset-3 z-50 mx-auto flex max-w-md flex-col overflow-hidden rounded-lg"
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}

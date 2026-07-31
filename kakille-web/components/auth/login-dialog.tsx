@@ -52,7 +52,7 @@ export function LoginDialog({ open, onClose }: LoginDialogProps) {
               aria-modal="true"
               aria-label="Kakille AI Login"
               onClick={(e) => e.stopPropagation()}
-              className="border-foreground/6 bg-background/98 relative flex w-full max-w-md flex-col overflow-hidden rounded-[1.75rem] border shadow-2xl backdrop-blur-md md:max-w-4xl md:flex-row dark:bg-zinc-950/98"
+              className="border-border bg-background relative flex w-full max-w-md flex-col overflow-hidden rounded-lg border md:max-w-4xl md:flex-row"
               initial={{ opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -68,7 +68,7 @@ export function LoginDialog({ open, onClose }: LoginDialogProps) {
               </button>
 
               {/* Left Panel: Kakille Intro */}
-              <div className="flex flex-col items-center justify-center bg-violet-600/[0.03] p-6 pb-2 text-center md:w-[42%] md:p-12 dark:bg-violet-500/[0.03]">
+              <div className="bg-muted flex flex-col items-center justify-center p-6 pb-2 text-center md:w-[42%] md:p-12">
                 <div className="relative flex items-center justify-center md:mb-4">
                   <motion.img
                     src="/kakille-mascot.png"
@@ -93,12 +93,12 @@ export function LoginDialog({ open, onClose }: LoginDialogProps) {
               </div>
 
               {/* Right Panel: Login Buttons & Privacy Info */}
-              <div className="flex flex-col justify-center bg-violet-600/[0.03] px-6 py-6 pt-2 md:w-[58%] md:p-12 dark:bg-violet-500/[0.03]">
-                <h2 className="text-foreground/90 text-center text-base font-bold tracking-tight md:text-left md:text-2xl">
+              <div className="flex flex-col justify-center px-6 py-6 pt-2 md:w-[58%] md:p-12">
+                <h2 className="text-foreground/90 text-center text-base font-semibold tracking-tight md:text-left md:text-2xl">
                   Kakille AI Login
                 </h2>
                 <p className="text-foreground/50 mt-1 text-center text-xs md:text-left md:text-sm">
-                  Your personal AI shopping assistant
+                  Your personal legal aid assistant
                 </p>
 
                 <div className="mt-5 flex flex-col gap-3 md:mt-8 md:gap-4">
@@ -162,8 +162,9 @@ export function LoginDialog({ open, onClose }: LoginDialogProps) {
                     <li className="flex items-start gap-1">
                       <span className="mt-0.5 text-emerald-500">•</span>
                       <span>
-                        <strong>What we store:</strong> Saved addresses, contact
-                        details, and active orders for checkout convenience.
+                        <strong>What we store:</strong> Your contact details
+                        and saved conversations so you can pick up where you
+                        left off.
                       </span>
                     </li>
                     <li className="flex items-start gap-1">

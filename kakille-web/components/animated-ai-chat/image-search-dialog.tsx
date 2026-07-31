@@ -112,7 +112,7 @@ export function ImageSearchDialog({
               role="dialog"
               aria-modal="true"
               aria-label="Search with an image"
-              className="border-foreground/6 bg-background/90 pointer-events-auto flex w-full max-w-md flex-col gap-5 rounded-[1.75rem] border p-6 shadow-2xl backdrop-blur-md dark:bg-zinc-950/90"
+              className="glass-panel pointer-events-auto flex w-full max-w-md flex-col gap-5 rounded-lg p-6"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -146,12 +146,12 @@ export function ImageSearchDialog({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-foreground/15 text-foreground/55 hover:text-foreground/80 flex h-44 w-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed transition-colors hover:border-violet-400/50"
+                  className="border-foreground/15 text-foreground/55 hover:text-foreground/80 hover:border-primary/50 flex h-44 w-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed transition-colors"
                 >
                   <ImagePlus className="h-7 w-7" />
-                  <span className="text-sm">Upload a photo of an item</span>
+                  <span className="text-sm">Upload a photo of a document</span>
                   <span className="text-foreground/35 text-xs">
-                    We&apos;ll find similar items with Kakille
+                    Kakille will read it and help you with it
                   </span>
                 </button>
               ) : (
@@ -183,7 +183,7 @@ export function ImageSearchDialog({
                       type="button"
                       onClick={handleSearch}
                       disabled={isScanning || !dataUrl}
-                      className="ml-auto flex items-center gap-2 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-500 disabled:opacity-50"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 press-scale ml-auto flex items-center gap-2 rounded-full px-4 py-2 text-sm font-normal transition-colors disabled:opacity-50"
                     >
                       {isScanning ? (
                         <LoaderIcon className="h-4 w-4 animate-[spin_2s_linear_infinite]" />

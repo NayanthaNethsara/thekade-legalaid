@@ -145,7 +145,7 @@ function parseInline(text: string): React.ReactNode[] {
       render: (match: string[], key: string) => (
         <code
           key={key}
-          className="border-foreground/5 bg-foreground/10 rounded border px-1.5 py-0.5 font-mono text-xs text-violet-500 dark:text-violet-400"
+          className="border-foreground/5 bg-foreground/10 text-primary dark:text-primary-soft rounded border px-1.5 py-0.5 font-mono text-xs"
         >
           {match[1]}
         </code>
@@ -161,7 +161,7 @@ function parseInline(text: string): React.ReactNode[] {
           href={match[2]}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-0.5 font-semibold text-violet-600 underline hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300"
+          className="text-primary dark:text-primary-soft inline-flex items-center gap-0.5 font-semibold underline hover:opacity-80"
         >
           {parseInline(match[1])}
           <ExternalLink className="inline h-3 w-3 opacity-70" />
@@ -219,7 +219,7 @@ export function MessageMarkdown({ content }: { content: string }) {
             return (
               <pre
                 key={key}
-                className="border-foreground/10 bg-foreground/5 my-1.5 overflow-x-auto rounded-xl border p-3.5 font-mono text-[11.5px] leading-relaxed text-violet-400 dark:text-violet-300"
+                className="border-foreground/10 bg-foreground/5 text-primary dark:text-primary-soft my-1.5 overflow-x-auto rounded-xl border p-3.5 font-mono text-[11.5px] leading-relaxed"
               >
                 <code className="block whitespace-pre">
                   {block.lines.join("\n")}

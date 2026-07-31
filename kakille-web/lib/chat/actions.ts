@@ -159,7 +159,7 @@ export async function generateGuestSessionInfo(): Promise<GuestSessionInfo> {
     "bg-blue-500/10 text-blue-500 border border-blue-500/20",
     "bg-green-500/10 text-green-500 border border-green-500/20",
     "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20",
-    "bg-violet-500/10 text-violet-500 border border-violet-500/20",
+    "bg-primary/10 text-primary border border-primary/20",
     "bg-pink-500/10 text-pink-500 border border-pink-500/20",
   ];
   const randomName = `${guestNames[Math.floor(Math.random() * guestNames.length)]} #${Math.floor(1000 + Math.random() * 9000)}`;

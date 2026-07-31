@@ -68,7 +68,7 @@ export function ChatComposer({
   return (
     <>
       <motion.div
-        className="bg-foreground/2 dark:border-foreground/5 relative rounded-[28px] border border-violet-400/20 shadow-2xl backdrop-blur-2xl"
+        className="border-border bg-background relative rounded-[28px] border"
         initial={{ scale: 0.98 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.1 }}
@@ -126,7 +126,7 @@ export function ChatComposer({
               className={cn(
                 "flex shrink-0 items-center justify-center rounded-full p-2.5 transition-all duration-200",
                 canSend
-                  ? "bg-violet-600 text-white hover:bg-violet-500 dark:bg-violet-600 dark:text-white dark:hover:bg-violet-500"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "bg-foreground/5 text-foreground/45"
               )}
             >

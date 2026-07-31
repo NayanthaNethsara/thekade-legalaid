@@ -9,7 +9,6 @@ import { MessageList } from "@/components/animated-ai-chat/message-list";
 import { VoiceAgent } from "@/components/animated-ai-chat/voice-agent";
 import { streamChatMessage, type ChatStreamEvent } from "@/lib/chat/stream";
 import { takeFirstMessage } from "@/lib/chat/handoff";
-import { useCommerce } from "@/components/commerce/commerce-store";
 import type { ChatMessage } from "@/types/chat";
 
 export function ConversationClient({
@@ -26,7 +25,6 @@ export function ConversationClient({
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
-  const { refreshCart } = useCommerce();
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentHandoff = useRef(false);
 
@@ -77,11 +75,8 @@ export function ConversationClient({
             setIsTyping(false);
             writeAssistant({
               content: event.reply,
-              cards: event.cards ?? [],
               actions: event.actions ?? [],
-              tracking: event.tracking ?? [],
             });
-            refreshCart();
             window.dispatchEvent(
               new CustomEvent("refresh-conversations", {
                 detail: { conversationId, title: event.title },
@@ -112,7 +107,7 @@ export function ConversationClient({
         }
       })();
     },
-    [conversationId, refreshCart]
+    [conversationId]
   );
 
   // Send a plain text turn: show the user bubble, then stream the reply.

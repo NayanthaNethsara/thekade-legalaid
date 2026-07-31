@@ -7,7 +7,7 @@ import { Check, Loader2, MapPin, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearMemory, getProfile, updateProfile } from "@/lib/profile/actions";
 import type { Address, Profile } from "@/types/profile";
-import { validateProfile } from "@/lib/commerce/validation";
+import { validateProfile } from "@/lib/profile/validation";
 
 interface ProfilePanelProps {
   open: boolean;

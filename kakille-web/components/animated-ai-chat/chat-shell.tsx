@@ -9,11 +9,8 @@ import {
 import { PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChatSidebar } from "./chat-sidebar";
-import { CommerceHeader } from "@/components/commerce/commerce-header";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { ProfilePanel } from "@/components/profile/profile-panel";
-import { CheckoutDialog } from "@/components/commerce/checkout-dialog";
-import { useCommerce } from "@/components/commerce/commerce-store";
 import {
   deleteConversation as deleteConversationRemote,
   fetchConversationList,
@@ -44,7 +41,6 @@ export function ChatShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
-  const { isCheckoutOpen, setCheckoutOpen } = useCommerce();
 
   const refreshList = useCallback(() => {
     fetchConversationList().then(setConversations);
@@ -173,8 +169,6 @@ export function ChatShell({
 
       {children}
 
-      <CommerceHeader isGuest={!user} onSignIn={() => setLoginOpen(true)} />
-
       {/* Overlays live at the shell root, outside the sidebar's overflow and
           backdrop-filter containing block. */}
       {user ? (
@@ -185,11 +179,6 @@ export function ChatShell({
       ) : (
         <LoginDialog open={loginOpen} onClose={() => setLoginOpen(false)} />
       )}
-
-      <CheckoutDialog
-        open={isCheckoutOpen}
-        onClose={() => setCheckoutOpen(false)}
-      />
     </div>
   );
 }

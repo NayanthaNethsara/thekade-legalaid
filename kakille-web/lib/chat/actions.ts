@@ -43,9 +43,7 @@ export async function sendChatMessage(
   return {
     ok: true,
     reply: result.data.reply,
-    cards: result.data.cards ?? [],
     actions: result.data.actions ?? [],
-    tracking: result.data.tracking ?? [],
   };
 }
 

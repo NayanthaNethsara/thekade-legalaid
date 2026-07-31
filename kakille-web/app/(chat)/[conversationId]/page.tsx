@@ -20,9 +20,7 @@ export default async function ConversationPage(
     id: m.id,
     role: m.role,
     content: m.content,
-    cards: m.cards,
     actions: m.actions,
-    tracking: m.tracking,
   }));
 
   return (

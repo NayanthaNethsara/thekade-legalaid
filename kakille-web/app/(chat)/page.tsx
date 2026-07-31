@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Search, HelpCircle, ListChecks, Truck } from "lucide-react";
+import { Search, HelpCircle, ListChecks, Clock } from "lucide-react";
 import { ChatComposer } from "@/components/animated-ai-chat/chat-composer";
 import { VoiceAgent } from "@/components/animated-ai-chat/voice-agent";
 import { stashFirstMessage } from "@/lib/chat/handoff";
@@ -29,7 +29,7 @@ export default function Home() {
       case "checklist":
         return <ListChecks className="h-3.5 w-3.5" />;
       case "status":
-        return <Truck className="h-3.5 w-3.5" />;
+        return <Clock className="h-3.5 w-3.5" />;
       default:
         return null;
     }

@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kakille AI — Assistant",
+  title: "Kakille — Legal Aid Assistant",
   description:
-    "Kakille AI, your AI assistant. Ask by text, image, or voice.",
+    "Kakille, your legal aid assistant. Ask by text, image, or voice.",
 };
 
 export default function RootLayout({

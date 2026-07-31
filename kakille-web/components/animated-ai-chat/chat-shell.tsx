@@ -8,6 +8,9 @@ import {
 } from "next/navigation";
 import { ChatSidebar } from "./chat-sidebar";
 import { TopBar } from "./top-bar";
+import { StudioContent, StudioPanel } from "@/components/studio/studio-panel";
+import { SlideOver } from "@/components/ui/slide-over";
+import { NotebookPen } from "lucide-react";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { ProfilePanel } from "@/components/profile/profile-panel";
 import {
@@ -38,6 +41,8 @@ export function ChatShell({
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [studioCollapsed, setStudioCollapsed] = useState(false);
+  const [mobileStudioOpen, setMobileStudioOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
 
@@ -52,6 +57,8 @@ export function ChatShell({
     refreshList();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileSidebarOpen(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMobileStudioOpen(false);
   }, [pathname, user?.id, refreshList]);
 
   // Listen for the custom "refresh-conversations" event to update conversation titles locally in real-time
@@ -112,6 +119,13 @@ export function ChatShell({
       <TopBar
         user={user}
         onToggleSources={() => setMobileSidebarOpen((prev) => !prev)}
+        onToggleStudio={() => {
+          if (window.innerWidth >= 1024) {
+            setStudioCollapsed((prev) => !prev);
+          } else {
+            setMobileStudioOpen(true);
+          }
+        }}
         onSignIn={() => setLoginOpen(true)}
         onOpenProfile={() => setProfileOpen(true)}
       />
@@ -142,6 +156,23 @@ export function ChatShell({
         <div className="border-border bg-background relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
           {children}
         </div>
+
+        <StudioPanel
+          activeId={activeId}
+          collapsed={studioCollapsed}
+          onToggleCollapse={() => setStudioCollapsed((prev) => !prev)}
+        />
+      </div>
+
+      <div className="lg:hidden">
+        <SlideOver
+          open={mobileStudioOpen}
+          onClose={() => setMobileStudioOpen(false)}
+          title="Case Studio"
+          icon={<NotebookPen className="h-4 w-4" />}
+        >
+          <StudioContent activeId={activeId} />
+        </SlideOver>
       </div>
 
       {/* Overlays live at the shell root, outside the sidebar's overflow and

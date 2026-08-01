@@ -115,24 +115,22 @@ export async function fetchQuickMessages(): Promise<QuickMessageItem[]> {
   // they are the first thing a new user sees, so they set expectations.
   return [
     {
-      iconName: "search",
-      label: "Look something up",
-      message: "Can you help me find information on a topic I am researching?",
-    },
-    {
       iconName: "question",
-      label: "Ask a question",
-      message: "I have a question I am not sure how to phrase. Can you help me work through it?",
+      label: "Understand a legal problem",
+      message:
+        "I have a legal problem I would like to understand better. Can you help me work through it?",
     },
     {
       iconName: "checklist",
-      label: "What can you do",
-      message: "What can you help me with? Give me a short list of what you handle.",
+      label: "Know your rights",
+      message:
+        "Can you explain my rights in a situation I am dealing with? I will describe it.",
     },
     {
-      iconName: "status",
-      label: "Check a status",
-      message: "Can you check the status of my most recent request?",
+      iconName: "search",
+      label: "Get help with a document",
+      message:
+        "I have a legal document I need help understanding or drafting. Can you guide me?",
     },
   ];
 }

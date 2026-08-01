@@ -1,6 +1,6 @@
 "use client";
 
-import { PanelLeft, PanelRight } from "lucide-react";
+import { PanelLeft, PanelRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { ChatUser } from "./chat-shell";
@@ -11,12 +11,14 @@ import type { ChatUser } from "./chat-shell";
  */
 export function TopBar({
   user,
+  onNewChat,
   onToggleSources,
   onToggleStudio,
   onSignIn,
   onOpenProfile,
 }: {
   user: ChatUser | null;
+  onNewChat: () => void;
   onToggleSources: () => void;
   onToggleStudio?: () => void;
   onSignIn: () => void;
@@ -44,6 +46,14 @@ export function TopBar({
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onNewChat}
+          className="bg-foreground text-background press-scale hidden items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-normal transition-opacity hover:opacity-90 sm:flex"
+        >
+          <Plus className="h-4 w-4" />
+          New chat
+        </button>
         {onToggleStudio && (
           <button
             type="button"

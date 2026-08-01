@@ -1,21 +1,40 @@
 "use client";
 
-import { PanelRight } from "lucide-react";
+import { NotebookPen, PanelRight, WandSparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ActionTiles } from "./action-tiles";
 import { NotesWidget } from "./notes-widget";
 import { RemindersWidget } from "./reminders-widget";
+import { GLOBAL_SCOPE, useWorkspace } from "./workspace-store";
+
+export const NOTE_INPUT_ID = "studio-note-input";
 
 /** Section stack shared by the desktop panel and the mobile sheet. */
 export function StudioContent({ activeId }: { activeId: string }) {
+  const { notes, reminders } = useWorkspace();
+  const scope = activeId || GLOBAL_SCOPE;
+  const hasOutput =
+    notes.items.some((note) => note.conversationId === scope) ||
+    reminders.items.some((reminder) => reminder.conversationId === scope);
+
   return (
-    <div className="space-y-5">
-      <section>
-        <span className="text-foreground/35 mb-1.5 block text-[10px] font-semibold tracking-wider uppercase">
-          Generate
-        </span>
-        <ActionTiles activeId={activeId} />
-      </section>
+    <div className="space-y-4">
+      <ActionTiles activeId={activeId} />
+
+      <div className="border-border border-t" />
+
+      {!hasOutput && (
+        <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+          <WandSparkles className="text-foreground/25 h-6 w-6" />
+          <p className="text-foreground/70 text-sm font-semibold">
+            Studio output will be saved here.
+          </p>
+          <p className="text-foreground/40 text-xs leading-relaxed">
+            After adding sources, tap to generate an Audio Overview, Case
+            Summary, Timeline, and more.
+          </p>
+        </div>
+      )}
 
       <section>
         <span className="text-foreground/35 mb-1.5 block text-[10px] font-semibold tracking-wider uppercase">
@@ -48,6 +67,14 @@ export function StudioPanel({
   collapsed: boolean;
   onToggleCollapse: () => void;
 }) {
+  const focusNoteInput = () => {
+    const input = document.getElementById(NOTE_INPUT_ID);
+    if (input instanceof HTMLTextAreaElement) {
+      input.scrollIntoView({ behavior: "smooth", block: "center" });
+      input.focus();
+    }
+  };
+
   return (
     <aside
       className={cn(
@@ -66,7 +93,7 @@ export function StudioPanel({
         </button>
       ) : (
         <div className="border-border bg-background flex h-full flex-col overflow-hidden rounded-lg border">
-          <div className="flex items-center justify-between pt-4 pr-2 pb-3 pl-4">
+          <div className="flex items-center justify-between pt-3 pr-2 pb-2 pl-4">
             <span className="text-foreground/90 text-sm font-semibold tracking-tight">
               Case Studio
             </span>
@@ -81,6 +108,16 @@ export function StudioPanel({
           </div>
           <div className="scrollbar-thin flex-1 overflow-y-auto px-4 pb-4">
             <StudioContent activeId={activeId} />
+          </div>
+          <div className="flex shrink-0 justify-end px-4 pb-4">
+            <button
+              type="button"
+              onClick={focusNoteInput}
+              className="bg-foreground text-background press-scale flex items-center gap-2 rounded-full px-4 py-2 text-sm font-normal transition-opacity hover:opacity-90"
+            >
+              <NotebookPen className="h-4 w-4" />
+              Add note
+            </button>
           </div>
         </div>
       )}

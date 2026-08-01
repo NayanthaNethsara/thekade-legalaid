@@ -179,16 +179,13 @@ export function ConversationClient({
           </div>
         </div>
 
-        <div className="shrink-0 px-4 pb-4 sm:px-6 sm:pb-6 lg:pb-4">
+        <div className="shrink-0 px-4 pb-1 sm:px-6">
           <div className="mx-auto w-full max-w-2xl lg:max-w-3xl">
             <ChatComposer
               disabled={isStreaming}
               onSubmit={handleSubmit}
               onVoice={() => setVoiceOpen(true)}
             />
-            <p className="text-foreground/35 mt-2.5 text-center text-xs leading-relaxed select-none">
-              Kakille is AI and can make mistakes.
-            </p>
           </div>
         </div>
       </div>

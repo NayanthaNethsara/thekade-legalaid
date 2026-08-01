@@ -35,6 +35,7 @@ export function NotesWidget({ activeId }: { activeId: string }) {
     <div className="space-y-2">
       <div className="flex items-start gap-2">
         <textarea
+          id="studio-note-input"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -59,8 +60,8 @@ export function NotesWidget({ activeId }: { activeId: string }) {
       </div>
 
       {scopedNotes.length === 0 ? (
-        <p className="text-foreground/30 py-2 text-center text-xs">
-          No notes yet
+        <p className="text-foreground/30 py-1.5 text-center text-xs">
+          Saved notes will appear here
         </p>
       ) : (
         <ul className="space-y-1.5">

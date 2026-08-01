@@ -118,6 +118,7 @@ export function ChatShell({
     <div className="text-foreground relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
       <TopBar
         user={user}
+        onNewChat={handleNew}
         onToggleSources={() => setMobileSidebarOpen((prev) => !prev)}
         onToggleStudio={() => {
           if (window.innerWidth >= 1024) {
@@ -154,7 +155,15 @@ export function ChatShell({
         />
 
         <div className="border-border bg-background relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
+          <div className="flex h-11 shrink-0 items-center px-4">
+            <span className="text-foreground/90 text-sm font-semibold tracking-tight">
+              Chat
+            </span>
+          </div>
           {children}
+          <p className="text-foreground/35 shrink-0 pt-1 pb-2.5 text-center text-xs select-none">
+            Kakille can be inaccurate; please double check its responses.
+          </p>
         </div>
 
         <StudioPanel

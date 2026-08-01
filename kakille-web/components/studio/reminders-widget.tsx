@@ -78,8 +78,8 @@ export function RemindersWidget({ activeId }: { activeId: string }) {
       </div>
 
       {scopedReminders.length === 0 ? (
-        <p className="text-foreground/30 py-2 text-center text-xs">
-          No reminders yet
+        <p className="text-foreground/30 py-1.5 text-center text-xs">
+          Reminders will appear here
         </p>
       ) : (
         <ul className="space-y-1.5">

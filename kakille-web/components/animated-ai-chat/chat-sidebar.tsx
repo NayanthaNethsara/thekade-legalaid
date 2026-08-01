@@ -192,30 +192,31 @@ export function ChatSidebar({
               : "border-border bg-background overflow-hidden rounded-lg border md:w-72"
           )}
         >
-          <div className="pt-4 pb-3">
-            <div className="flex items-center gap-0">
-              <div className="flex w-12 shrink-0 justify-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.innerWidth < 768) {
-                      onCloseMobile();
-                    } else {
-                      onToggleCollapse?.();
-                    }
-                  }}
-                  aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  className="text-foreground/65 hover:bg-foreground/8 hover:text-foreground/90 rounded-full p-2 transition-colors duration-200"
-                >
-                  <PanelLeft className="h-4.5 w-4.5" />
-                </button>
-              </div>
-              {!collapsed && (
-                <span className="text-foreground/90 pl-1 text-sm font-semibold tracking-tight">
-                  Sources
-                </span>
-              )}
-            </div>
+          <div
+            className={cn(
+              "flex items-center pt-3 pb-2",
+              collapsed ? "justify-center" : "justify-between pr-2 pl-4"
+            )}
+          >
+            {!collapsed && (
+              <span className="text-foreground/90 text-sm font-semibold tracking-tight">
+                Sources
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  onCloseMobile();
+                } else {
+                  onToggleCollapse?.();
+                }
+              }}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="text-foreground/65 hover:bg-foreground/8 hover:text-foreground/90 rounded-full p-2 transition-colors duration-200"
+            >
+              <PanelLeft className="h-4.5 w-4.5" />
+            </button>
           </div>
 
           <div
@@ -224,43 +225,22 @@ export function ChatSidebar({
               collapsed && "md:space-y-4 md:px-0"
             )}
           >
-            <div>
-              {!collapsed && (
-                <span className="text-foreground/35 mb-1.5 block px-2 text-[10px] font-semibold tracking-wider uppercase">
-                  Quick Actions
+            {collapsed && (
+              <button
+                type="button"
+                onClick={onNew}
+                title="Start new chat"
+                className="group text-foreground/75 hover:bg-foreground/5 mx-auto flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-lg p-1 text-sm transition-all duration-200"
+              >
+                <Plus className="text-foreground/70 group-hover:text-foreground/95 h-4.5 w-4.5 shrink-0 transition-colors duration-200" />
+                <span className="text-foreground/65 group-hover:text-foreground/90 text-[9px] leading-none font-semibold tracking-tight transition-colors duration-200">
+                  New
                 </span>
-              )}
-              <ul className={cn("space-y-0.5", collapsed && "md:space-y-1")}>
-                <li>
-                  <button
-                    type="button"
-                    onClick={onNew}
-                    title="Start new chat"
-                    className={cn(
-                      "group flex w-full items-center rounded-lg text-left text-sm transition-all duration-200",
-                      collapsed
-                        ? "text-foreground/75 hover:bg-foreground/5 gap-0.5 md:mx-auto md:h-12 md:w-12 md:flex-col md:items-center md:justify-center md:p-1"
-                        : "text-foreground/75 hover:bg-foreground/4 gap-2.5 px-2 py-1.5"
-                    )}
-                  >
-                    <Plus className="text-foreground/70 group-hover:text-foreground/95 h-4.5 w-4.5 shrink-0 transition-colors duration-200" />
-                    {collapsed ? (
-                      <span className="text-foreground/65 group-hover:text-foreground/90 text-[9px] leading-none font-semibold tracking-tight transition-colors duration-200">
-                        New
-                      </span>
-                    ) : (
-                      <span>Start new chat</span>
-                    )}
-                  </button>
-                </li>
-              </ul>
-            </div>
+              </button>
+            )}
 
             {!collapsed && (
               <div>
-                <span className="text-foreground/35 mb-1.5 block px-2 text-[10px] font-semibold tracking-wider uppercase">
-                  Sources
-                </span>
                 <button
                   type="button"
                   onClick={() => setAddSourceOpen(true)}
@@ -270,10 +250,27 @@ export function ChatSidebar({
                   Add source
                 </button>
                 {sources.items.length === 0 ? (
-                  <p className="text-foreground/30 px-2 py-3 text-center text-xs leading-relaxed">
-                    Upload case files, legal documents, websites, or YouTube
-                    links
-                  </p>
+                  <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                    <FileText className="text-foreground/25 h-7 w-7" />
+                    <p className="text-foreground/70 text-sm font-semibold">
+                      Saved sources will appear here
+                    </p>
+                    <p className="text-foreground/40 text-xs leading-relaxed">
+                      Add case files, legal documents, websites, or YouTube
+                      links. Then ask questions or create things based on
+                      them.
+                    </p>
+                    <p className="text-foreground/40 text-xs">
+                      Drop files here or{" "}
+                      <button
+                        type="button"
+                        onClick={() => setAddSourceOpen(true)}
+                        className="text-primary underline underline-offset-2"
+                      >
+                        add a source
+                      </button>
+                    </p>
+                  </div>
                 ) : (
                   <>
                     <div className="mt-2 flex items-center justify-between px-2 py-1.5">

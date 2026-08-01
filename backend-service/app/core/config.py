@@ -255,6 +255,16 @@ class AuthSettings(BaseSettings):
     firebase_project_id: str = Field(default="", alias="FIREBASE_PROJECT_ID")
 
 
+class AdminAuthSettings(BaseSettings):
+    """Single-user admin authentication credentials and secret configuration."""
+
+    model_config = SettingsConfigDict(env_prefix="ADMIN_")
+
+    username: str = Field(default="admin", alias="ADMIN_USERNAME")
+    password: str = Field(default="admin123", alias="ADMIN_PASSWORD")
+    secret_key: str = Field(default="admin-dev-secret-change-me", alias="ADMIN_SECRET_KEY")
+
+
 class Settings(BaseSettings):
     """Top-level application settings, composed from grouped sub-settings."""
 
@@ -274,6 +284,7 @@ class Settings(BaseSettings):
     redis: RedisSettings = Field(default_factory=RedisSettings)
     rate_limit: RateLimitSettings = Field(default_factory=RateLimitSettings)
     auth: AuthSettings = Field(default_factory=AuthSettings)
+    admin_auth: AdminAuthSettings = Field(default_factory=AdminAuthSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     vision: VisionSettings = Field(default_factory=VisionSettings)
     model_armor: ModelArmorSettings = Field(default_factory=ModelArmorSettings)

@@ -2,11 +2,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.api.deps import require_internal_key
 from app.api.rate_limit import add_global_rate_limit
 from app.api.routes import auth, cart, chat, guest, health, profile
+from app.api.routes.admin import auth as admin_auth, rag as admin_rag, verification as admin_verification
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging, get_logger
 from app.db.redis import dispose_redis
@@ -89,16 +91,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await dispose_engine()
         await dispose_redis()
 
-
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.service_name, lifespan=lifespan)
     app.state.nats_client = None
     add_global_rate_limit(app, settings)
 
-    # No CORS middleware on purpose: the browser never talks to this service.
-    # Every business route requires the frontend's internal key, so the Next.js
-    # server is the only client; health and metrics stay open for infra probes.
+    # Enable CORS for admin web dashboard and browser interactions
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     frontend_only = [Depends(require_internal_key)]
 
     app.include_router(health.router)
@@ -107,6 +114,11 @@ def create_app() -> FastAPI:
     app.include_router(chat.router, dependencies=frontend_only)
     app.include_router(cart.router, dependencies=frontend_only)
     app.include_router(profile.router, dependencies=frontend_only)
+
+    # Admin routes (self-authenticated via JWT session token / cookie)
+    app.include_router(admin_auth.router)
+    app.include_router(admin_rag.router)
+    app.include_router(admin_verification.router)
 
     # Prometheus scrape target for guardrail and future metrics. A direct route
     # (not a sub-app mount) so /metrics returns 200 without a trailing-slash 307.

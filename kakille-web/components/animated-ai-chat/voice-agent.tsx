@@ -28,7 +28,7 @@ export function VoiceAgent({ open, onClose }: VoiceAgentProps) {
               role="dialog"
               aria-modal="true"
               aria-label="Voice assistant"
-              className="border-foreground/6 bg-background/90 pointer-events-auto flex w-full max-w-sm flex-col items-center gap-6 rounded-[1.75rem] border bg-violet-600/[0.03] p-8 shadow-2xl backdrop-blur-md dark:bg-violet-500/[0.03] dark:bg-zinc-950/90"
+              className="glass-panel pointer-events-auto flex w-full max-w-sm flex-col items-center gap-6 rounded-lg p-8"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}

@@ -1,4 +1,4 @@
-import type { ChatAction, ProductCard, TrackingData } from "@/types/chat";
+import type { ChatAction } from "@/types/chat";
 
 /**
  * One event from the chat SSE stream. `token`/`reset` drive the live reply;
@@ -10,9 +10,7 @@ export type ChatStreamEvent =
   | {
       type: "done";
       reply: string;
-      cards?: ProductCard[];
       actions?: ChatAction[];
-      tracking?: TrackingData[];
       title?: string;
     }
   | { type: "error"; reply: string };

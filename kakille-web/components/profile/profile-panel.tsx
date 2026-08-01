@@ -7,7 +7,7 @@ import { Check, Loader2, MapPin, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearMemory, getProfile, updateProfile } from "@/lib/profile/actions";
 import type { Address, Profile } from "@/types/profile";
-import { validateProfile } from "@/lib/commerce/validation";
+import { validateProfile } from "@/lib/profile/validation";
 
 interface ProfilePanelProps {
   open: boolean;
@@ -158,7 +158,7 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
               aria-modal="true"
               aria-label="Your profile"
               onClick={(e) => e.stopPropagation()}
-              className="border-foreground/6 bg-background/90 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border bg-violet-600/[0.03] shadow-2xl backdrop-blur-md dark:bg-violet-500/[0.03] dark:bg-zinc-950/90"
+              className="glass-panel flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg"
               initial={{ opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -339,10 +339,10 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
                   onClick={save}
                   disabled={isSaving || loading}
                   className={cn(
-                    "inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all",
+                    "press-scale inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-normal transition-colors",
                     saved
                       ? "bg-emerald-500/90 text-white"
-                      : "bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-50"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   )}
                 >
                   {isSaving ? (

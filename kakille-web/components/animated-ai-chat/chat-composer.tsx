@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ImagePlus, LoaderIcon, Mic, SendIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useWorkspace } from "@/components/studio/workspace-store";
 import { ImageSearchDialog } from "./image-search-dialog";
 
 export interface ComposerSubmission {
@@ -22,6 +23,10 @@ export function ChatComposer({
   const [value, setValue] = useState("");
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { sources } = useWorkspace();
+  const selectedSourceCount = sources.items.filter(
+    (source) => source.isSelected !== false
+  ).length;
 
   const adjustHeight = (reset?: boolean) => {
     const textarea = textareaRef.current;
@@ -68,7 +73,7 @@ export function ChatComposer({
   return (
     <>
       <motion.div
-        className="bg-foreground/2 dark:border-foreground/5 relative rounded-[28px] border border-violet-400/20 shadow-2xl backdrop-blur-2xl"
+        className="border-border bg-background relative rounded-[28px] border"
         initial={{ scale: 0.98 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.1 }}
@@ -97,7 +102,7 @@ export function ChatComposer({
                 adjustHeight();
               }}
               onKeyDown={handleKeyDown}
-              placeholder="What's on your mind?"
+              placeholder="Ask a question or create something"
               className={cn(
                 "text-foreground/90 placeholder:text-foreground/20 h-9 w-full resize-none overflow-y-auto border-none bg-transparent px-2 py-2 text-sm placeholder:text-xs focus:outline-none lg:px-3 lg:py-2.5"
               )}
@@ -105,6 +110,9 @@ export function ChatComposer({
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
+            <span className="text-foreground/35 hidden px-1 text-xs whitespace-nowrap select-none sm:inline">
+              {selectedSourceCount} source{selectedSourceCount === 1 ? "" : "s"}
+            </span>
             <motion.button
               type="button"
               onClick={onVoice}
@@ -126,7 +134,7 @@ export function ChatComposer({
               className={cn(
                 "flex shrink-0 items-center justify-center rounded-full p-2.5 transition-all duration-200",
                 canSend
-                  ? "bg-violet-600 text-white hover:bg-violet-500 dark:bg-violet-600 dark:text-white dark:hover:bg-violet-500"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "bg-foreground/5 text-foreground/45"
               )}
             >

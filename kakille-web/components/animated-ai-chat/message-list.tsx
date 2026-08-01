@@ -5,10 +5,8 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/types/chat";
 
-import { OrderTrackingCard } from "@/components/commerce/order-tracking";
 import { MessageMarkdown } from "./message-markdown";
 import { MessageActions } from "./message-actions";
-import { ProductGrid } from "./product-grid";
 import { ThinkingStatus, TypingDots } from "./thinking-status";
 
 export function MessageList({
@@ -57,8 +55,6 @@ function MessageItem({
   isUser: boolean;
 }) {
   const hasContent = !!(message.images || message.content || message.actions);
-  const hasCards = !!(message.cards && message.cards.length > 0);
-  const hasTracking = !!(message.tracking && message.tracking.length > 0);
 
   return (
     <motion.div
@@ -106,20 +102,6 @@ function MessageItem({
               <MessageActions actions={message.actions} />
             </div>
           )}
-        </div>
-      )}
-
-      {hasTracking && (
-        <div className="mx-auto mt-4 mb-4 flex w-full max-w-2xl flex-col gap-4 lg:max-w-3xl">
-          {message.tracking!.map((trackData, idx) => (
-            <OrderTrackingCard key={idx} data={trackData} />
-          ))}
-        </div>
-      )}
-
-      {hasCards && (
-        <div className="mx-auto mt-8 mb-4 w-full max-w-5xl">
-          <ProductGrid products={message.cards!} />
         </div>
       )}
     </motion.div>

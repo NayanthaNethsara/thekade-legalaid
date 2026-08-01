@@ -9,7 +9,6 @@ import { MessageList } from "@/components/animated-ai-chat/message-list";
 import { VoiceAgent } from "@/components/animated-ai-chat/voice-agent";
 import { streamChatMessage, type ChatStreamEvent } from "@/lib/chat/stream";
 import { takeFirstMessage } from "@/lib/chat/handoff";
-import { useCommerce } from "@/components/commerce/commerce-store";
 import type { ChatMessage } from "@/types/chat";
 
 export function ConversationClient({
@@ -26,7 +25,6 @@ export function ConversationClient({
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
-  const { refreshCart } = useCommerce();
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentHandoff = useRef(false);
 
@@ -77,11 +75,8 @@ export function ConversationClient({
             setIsTyping(false);
             writeAssistant({
               content: event.reply,
-              cards: event.cards ?? [],
               actions: event.actions ?? [],
-              tracking: event.tracking ?? [],
             });
-            refreshCart();
             window.dispatchEvent(
               new CustomEvent("refresh-conversations", {
                 detail: { conversationId, title: event.title },
@@ -112,7 +107,7 @@ export function ConversationClient({
         }
       })();
     },
-    [conversationId, refreshCart]
+    [conversationId]
   );
 
   // Send a plain text turn: show the user bubble, then stream the reply.
@@ -179,21 +174,18 @@ export function ConversationClient({
     <div className="relative flex h-full min-h-0 flex-1">
       <div className="relative flex h-full min-h-0 flex-1 flex-col">
         <div ref={scrollRef} className="flex-1 scrollbar-thin overflow-y-auto">
-          <div className="mx-auto w-full px-4 py-6 pt-28 sm:px-6 md:px-8">
+          <div className="mx-auto w-full px-4 py-6 sm:px-6 md:px-8">
             <MessageList messages={messages} isTyping={isTyping} />
           </div>
         </div>
 
-        <div className="shrink-0 px-4 pb-4 sm:px-6 sm:pb-6 lg:pb-4">
+        <div className="shrink-0 px-4 pb-1 sm:px-6">
           <div className="mx-auto w-full max-w-2xl lg:max-w-3xl">
             <ChatComposer
               disabled={isStreaming}
               onSubmit={handleSubmit}
               onVoice={() => setVoiceOpen(true)}
             />
-            <p className="text-foreground/35 mt-2.5 text-center text-xs leading-relaxed select-none">
-              Kakille is AI and can make mistakes.
-            </p>
           </div>
         </div>
       </div>

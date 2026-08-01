@@ -2,13 +2,83 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import { Trash2, Plus, PanelLeft, Sun, Moon, User, LogOut } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  PanelLeft,
+  Sun,
+  Moon,
+  User,
+  LogOut,
+  FileText,
+  Check,
+  Globe,
+  SquarePlay,
+  StickyNote,
+  X,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ConversationSummary } from "@/types/chat";
 import { logout } from "@/lib/auth/actions";
 import { generateGuestSessionInfo } from "@/lib/chat/actions";
+import {
+  useWorkspace,
+  type SourceItem,
+} from "@/components/studio/workspace-store";
+import { AddSourceDialog } from "@/components/studio/add-source-dialog";
 import type { ChatUser } from "./chat-shell";
+
+function SourceIcon({ source }: { source: SourceItem }) {
+  const kind = source.kind ?? "file";
+  if (kind === "website") {
+    return <Globe className="text-primary h-4 w-4 shrink-0" />;
+  }
+  if (kind === "youtube") {
+    return <SquarePlay className="h-4 w-4 shrink-0 text-red-500" />;
+  }
+  if (kind === "text") {
+    return <StickyNote className="h-4 w-4 shrink-0 text-amber-500" />;
+  }
+  const isPdf =
+    source.type === "application/pdf" ||
+    source.name.toLowerCase().endsWith(".pdf");
+  return (
+    <FileText
+      className={cn(
+        "h-4 w-4 shrink-0",
+        isPdf ? "text-red-500" : "text-primary"
+      )}
+    />
+  );
+}
+
+function SourceCheckbox({
+  checked,
+  onToggle,
+  label,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={label}
+      aria-pressed={checked}
+      className={cn(
+        "flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
+        checked
+          ? "bg-primary border-primary text-primary-foreground"
+          : "border-foreground/25 hover:border-primary"
+      )}
+    >
+      {checked && <Check className="h-3 w-3" />}
+    </button>
+  );
+}
 
 interface ChatSidebarProps {
   mobileOpen: boolean;
@@ -42,12 +112,24 @@ export function ChatSidebar({
   onToggleCollapse,
 }: ChatSidebarProps) {
   const { resolvedTheme, setTheme } = useTheme();
+  const { sources } = useWorkspace();
   const [mounted, setMounted] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [addSourceOpen, setAddSourceOpen] = useState(false);
   const [guestInfo, setGuestInfo] = useState<{
     name: string;
     color: string;
   } | null>(null);
+
+  const isSourceSelected = (source: SourceItem) => source.isSelected !== false;
+  const allSourcesSelected = sources.items.every(isSourceSelected);
+
+  const toggleSelectAll = () => {
+    const nextSelected = !allSourcesSelected;
+    sources.items.forEach((source) => {
+      sources.update(source.id, { isSelected: nextSelected });
+    });
+  };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -97,46 +179,44 @@ export function ChatSidebar({
       />{" "}
       <div
         className={cn(
-          "z-40 h-full shrink-0 p-3 transition-all duration-300 ease-in-out max-md:fixed max-md:top-0 max-md:left-0 max-md:h-[100dvh] max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:transition-transform max-md:duration-300 max-md:ease-out md:relative md:z-20",
+          "z-40 h-full shrink-0 transition-all duration-300 ease-in-out max-md:fixed max-md:top-0 max-md:left-0 max-md:h-[100dvh] max-md:p-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:transition-transform max-md:duration-300 max-md:ease-out md:relative md:z-20",
           mobileOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full",
-          collapsed ? "md:w-[72px]" : "md:w-72"
+          collapsed ? "md:w-12" : "md:w-72"
         )}
       >
         <aside
           className={cn(
             "flex h-full flex-col transition-all duration-300 ease-in-out",
             collapsed
-              ? "overflow-visible border-none bg-transparent shadow-none backdrop-blur-none md:w-12"
-              : "border-foreground/6 bg-background/30 supports-[backdrop-filter]:bg-background/20 overflow-hidden rounded-[1.75rem] border backdrop-blur-xl md:w-72"
+              ? "overflow-visible border-none bg-transparent shadow-none md:w-12"
+              : "border-border bg-background overflow-hidden rounded-lg border md:w-72"
           )}
         >
-          <div className="pt-4 pb-3">
-            <div className="flex items-center gap-0">
-              <div className="flex w-12 shrink-0 justify-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.innerWidth < 768) {
-                      onCloseMobile();
-                    } else {
-                      onToggleCollapse?.();
-                    }
-                  }}
-                  aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  className="text-foreground/65 hover:bg-foreground/8 hover:text-foreground/90 rounded-full p-2 transition-colors duration-200"
-                >
-                  <PanelLeft className="h-4.5 w-4.5" />
-                </button>
-              </div>
-              <div className="flex shrink-0 items-baseline gap-2 pl-3">
-                <span className="text-foreground/90 text-lg font-semibold tracking-tight">
-                  Kakille
-                </span>
-                <span className="text-foreground/35 text-[10px] font-medium tracking-[0.18em] uppercase">
-                  AI Assistant
-                </span>
-              </div>
-            </div>
+          <div
+            className={cn(
+              "flex items-center pt-3 pb-2",
+              collapsed ? "justify-center" : "justify-between pr-2 pl-4"
+            )}
+          >
+            {!collapsed && (
+              <span className="text-foreground/90 text-sm font-semibold tracking-tight">
+                Sources
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  onCloseMobile();
+                } else {
+                  onToggleCollapse?.();
+                }
+              }}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="text-foreground/65 hover:bg-foreground/8 hover:text-foreground/90 rounded-full p-2 transition-colors duration-200"
+            >
+              <PanelLeft className="h-4.5 w-4.5" />
+            </button>
           </div>
 
           <div
@@ -145,37 +225,101 @@ export function ChatSidebar({
               collapsed && "md:space-y-4 md:px-0"
             )}
           >
-            <div>
-              {!collapsed && (
-                <span className="text-foreground/35 mb-1.5 block px-2 text-[10px] font-semibold tracking-wider uppercase">
-                  Quick Actions
+            {collapsed && (
+              <button
+                type="button"
+                onClick={onNew}
+                title="Start new chat"
+                className="group text-foreground/75 hover:bg-foreground/5 mx-auto flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-lg p-1 text-sm transition-all duration-200"
+              >
+                <Plus className="text-foreground/70 group-hover:text-foreground/95 h-4.5 w-4.5 shrink-0 transition-colors duration-200" />
+                <span className="text-foreground/65 group-hover:text-foreground/90 text-[9px] leading-none font-semibold tracking-tight transition-colors duration-200">
+                  New
                 </span>
-              )}
-              <ul className={cn("space-y-0.5", collapsed && "md:space-y-1")}>
-                <li>
-                  <button
-                    type="button"
-                    onClick={onNew}
-                    title="Start new chat"
-                    className={cn(
-                      "group flex w-full items-center rounded-lg text-left text-sm transition-all duration-200",
-                      collapsed
-                        ? "text-foreground/75 hover:bg-foreground/5 gap-0.5 md:mx-auto md:h-12 md:w-12 md:flex-col md:items-center md:justify-center md:p-1"
-                        : "text-foreground/75 hover:bg-foreground/4 gap-2.5 px-2 py-1.5"
-                    )}
-                  >
-                    <Plus className="text-foreground/70 group-hover:text-foreground/95 h-4.5 w-4.5 shrink-0 transition-colors duration-200" />
-                    {collapsed ? (
-                      <span className="text-foreground/65 group-hover:text-foreground/90 text-[9px] leading-none font-semibold tracking-tight transition-colors duration-200">
-                        New
+              </button>
+            )}
+
+            {!collapsed && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setAddSourceOpen(true)}
+                  className="border-border text-foreground/75 hover:bg-pearl hover:text-foreground/95 press-scale mx-2 flex w-[calc(100%-1rem)] items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add source
+                </button>
+                {sources.items.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                    <FileText className="text-foreground/25 h-7 w-7" />
+                    <p className="text-foreground/70 text-sm font-semibold">
+                      Saved sources will appear here
+                    </p>
+                    <p className="text-foreground/40 text-xs leading-relaxed">
+                      Add case files, legal documents, websites, or YouTube
+                      links. Then ask questions or create things based on
+                      them.
+                    </p>
+                    <p className="text-foreground/40 text-xs">
+                      Drop files here or{" "}
+                      <button
+                        type="button"
+                        onClick={() => setAddSourceOpen(true)}
+                        className="text-primary underline underline-offset-2"
+                      >
+                        add a source
+                      </button>
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-2 flex items-center justify-between px-2 py-1.5">
+                      <span className="text-foreground/55 text-xs">
+                        Select all sources
                       </span>
-                    ) : (
-                      <span>Start new chat</span>
-                    )}
-                  </button>
-                </li>
-              </ul>
-            </div>
+                      <SourceCheckbox
+                        checked={allSourcesSelected}
+                        onToggle={toggleSelectAll}
+                        label="Select all sources"
+                      />
+                    </div>
+                    <ul className="space-y-0.5">
+                      {sources.items.map((source) => (
+                        <li
+                          key={source.id}
+                          className="group hover:bg-foreground/4 flex w-full items-center gap-2 rounded-lg px-2 py-2"
+                        >
+                          <SourceIcon source={source} />
+                          <span
+                            title={source.name}
+                            className="text-foreground/75 min-w-0 flex-1 truncate text-[13px]"
+                          >
+                            {source.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => sources.remove(source.id)}
+                            aria-label={`Remove ${source.name}`}
+                            className="text-foreground/20 hover:text-foreground/55 shrink-0 rounded-md p-0.5 opacity-100 transition-colors md:opacity-0 md:group-hover:opacity-100"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                          <SourceCheckbox
+                            checked={isSourceSelected(source)}
+                            onToggle={() =>
+                              sources.update(source.id, {
+                                isSelected: !isSourceSelected(source),
+                              })
+                            }
+                            label={`Select ${source.name}`}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
 
             {!collapsed && (
               <div>
@@ -286,6 +430,10 @@ export function ChatSidebar({
           </div>
         </aside>
       </div>
+      <AddSourceDialog
+        open={addSourceOpen}
+        onClose={() => setAddSourceOpen(false)}
+      />
       {dropdownOpen && (
         <div
           onClick={(e) => e.stopPropagation()}

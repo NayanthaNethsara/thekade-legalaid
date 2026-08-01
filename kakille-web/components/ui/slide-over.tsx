@@ -4,9 +4,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 
 /**
- * Floating glass panel used by the mobile commerce cart: an inset, rounded box
- * with margins rather than a full-bleed edge sheet. Backdrop click and the close
- * control both dismiss it.
+ * Floating glass panel for mobile sheets: an inset, rounded box with margins
+ * rather than a full-bleed edge sheet. Backdrop click and the close control
+ * both dismiss it.
  */
 export function SlideOver({
   open,
@@ -39,7 +39,7 @@ export function SlideOver({
             aria-modal="true"
             aria-label={title}
             onClick={(e) => e.stopPropagation()}
-            className="border-foreground/6 bg-background/95 supports-[backdrop-filter]:bg-background/85 fixed inset-3 z-50 mx-auto flex max-w-md flex-col overflow-hidden rounded-[1.75rem] border bg-violet-600/[0.02] shadow-2xl backdrop-blur-2xl dark:bg-violet-500/[0.02] dark:bg-zinc-950/95"
+            className="glass-panel fixed inset-3 z-50 mx-auto flex max-w-md flex-col overflow-hidden rounded-lg"
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}

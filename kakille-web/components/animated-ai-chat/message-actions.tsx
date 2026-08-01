@@ -54,7 +54,7 @@ export function MessageActions({ actions }: { actions: ChatAction[] }) {
             href={action.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors duration-200 hover:bg-violet-500 dark:bg-violet-600 dark:text-white dark:hover:bg-violet-500"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-normal transition-colors duration-200"
           >
             <Icon className="h-3.5 w-3.5" />
             {action.label}

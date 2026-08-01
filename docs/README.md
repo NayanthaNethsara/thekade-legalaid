@@ -20,6 +20,9 @@ domain. See `backend-service/app/orchestrator/prompts.py`.
 
 ## Documents
 
+- [Backend API requirements](backend-api-requirements.md) — every kakille-web
+  button/panel mapped to its backend endpoint, and the endpoints still needed
+  for the NotebookLM-style Sources/Notes/Reminders/Studio panels.
 - [Memory](../backend-service/docs/memory.md) — the three state and memory tiers
   the orchestrator uses, and their lifecycles.
 - [Domain knowledge prompt](../backend-service/docs/domain-knowledge-prompt.md) —

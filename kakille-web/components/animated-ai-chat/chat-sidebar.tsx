@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import {
   Trash2,
@@ -11,6 +11,10 @@ import {
   User,
   LogOut,
   FileText,
+  Check,
+  Globe,
+  SquarePlay,
+  StickyNote,
   X,
 } from "lucide-react";
 
@@ -19,10 +23,62 @@ import type { ConversationSummary } from "@/types/chat";
 import { logout } from "@/lib/auth/actions";
 import { generateGuestSessionInfo } from "@/lib/chat/actions";
 import {
-  newWorkspaceItemId,
   useWorkspace,
+  type SourceItem,
 } from "@/components/studio/workspace-store";
+import { AddSourceDialog } from "@/components/studio/add-source-dialog";
 import type { ChatUser } from "./chat-shell";
+
+function SourceIcon({ source }: { source: SourceItem }) {
+  const kind = source.kind ?? "file";
+  if (kind === "website") {
+    return <Globe className="text-primary h-4 w-4 shrink-0" />;
+  }
+  if (kind === "youtube") {
+    return <SquarePlay className="h-4 w-4 shrink-0 text-red-500" />;
+  }
+  if (kind === "text") {
+    return <StickyNote className="h-4 w-4 shrink-0 text-amber-500" />;
+  }
+  const isPdf =
+    source.type === "application/pdf" ||
+    source.name.toLowerCase().endsWith(".pdf");
+  return (
+    <FileText
+      className={cn(
+        "h-4 w-4 shrink-0",
+        isPdf ? "text-red-500" : "text-primary"
+      )}
+    />
+  );
+}
+
+function SourceCheckbox({
+  checked,
+  onToggle,
+  label,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={label}
+      aria-pressed={checked}
+      className={cn(
+        "flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
+        checked
+          ? "bg-primary border-primary text-primary-foreground"
+          : "border-foreground/25 hover:border-primary"
+      )}
+    >
+      {checked && <Check className="h-3 w-3" />}
+    </button>
+  );
+}
 
 interface ChatSidebarProps {
   mobileOpen: boolean;
@@ -57,26 +113,22 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const { sources } = useWorkspace();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [addSourceOpen, setAddSourceOpen] = useState(false);
   const [guestInfo, setGuestInfo] = useState<{
     name: string;
     color: string;
   } | null>(null);
 
-  const handleFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    files.forEach((file) => {
-      sources.add({
-        id: newWorkspaceItemId(),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        addedAt: new Date().toISOString(),
-      });
+  const isSourceSelected = (source: SourceItem) => source.isSelected !== false;
+  const allSourcesSelected = sources.items.every(isSourceSelected);
+
+  const toggleSelectAll = () => {
+    const nextSelected = !allSourcesSelected;
+    sources.items.forEach((source) => {
+      sources.update(source.id, { isSelected: nextSelected });
     });
-    event.target.value = "";
   };
 
   useEffect(() => {
@@ -209,19 +261,9 @@ export function ChatSidebar({
                 <span className="text-foreground/35 mb-1.5 block px-2 text-[10px] font-semibold tracking-wider uppercase">
                   Sources
                 </span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.doc,.docx,.txt,image/*"
-                  onChange={handleFilesSelected}
-                  className="hidden"
-                  aria-hidden="true"
-                  tabIndex={-1}
-                />
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => setAddSourceOpen(true)}
                   className="border-border text-foreground/75 hover:bg-pearl hover:text-foreground/95 press-scale mx-2 flex w-[calc(100%-1rem)] items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
                 >
                   <Plus className="h-4 w-4" />
@@ -229,33 +271,55 @@ export function ChatSidebar({
                 </button>
                 {sources.items.length === 0 ? (
                   <p className="text-foreground/30 px-2 py-3 text-center text-xs leading-relaxed">
-                    Upload case files and legal documents
+                    Upload case files, legal documents, websites, or YouTube
+                    links
                   </p>
                 ) : (
-                  <ul className="mt-2 space-y-0.5">
-                    {sources.items.map((source) => (
-                      <li
-                        key={source.id}
-                        className="group hover:bg-foreground/4 flex w-full items-center gap-2 rounded-lg px-2 py-1.5"
-                      >
-                        <FileText className="text-primary h-3.5 w-3.5 shrink-0" />
-                        <span
-                          title={source.name}
-                          className="text-foreground/70 min-w-0 flex-1 truncate text-xs"
+                  <>
+                    <div className="mt-2 flex items-center justify-between px-2 py-1.5">
+                      <span className="text-foreground/55 text-xs">
+                        Select all sources
+                      </span>
+                      <SourceCheckbox
+                        checked={allSourcesSelected}
+                        onToggle={toggleSelectAll}
+                        label="Select all sources"
+                      />
+                    </div>
+                    <ul className="space-y-0.5">
+                      {sources.items.map((source) => (
+                        <li
+                          key={source.id}
+                          className="group hover:bg-foreground/4 flex w-full items-center gap-2 rounded-lg px-2 py-2"
                         >
-                          {source.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => sources.remove(source.id)}
-                          aria-label={`Remove ${source.name}`}
-                          className="text-foreground/20 hover:text-foreground/55 shrink-0 rounded-md p-1 opacity-100 transition-colors md:opacity-0 md:group-hover:opacity-100"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                          <SourceIcon source={source} />
+                          <span
+                            title={source.name}
+                            className="text-foreground/75 min-w-0 flex-1 truncate text-[13px]"
+                          >
+                            {source.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => sources.remove(source.id)}
+                            aria-label={`Remove ${source.name}`}
+                            className="text-foreground/20 hover:text-foreground/55 shrink-0 rounded-md p-0.5 opacity-100 transition-colors md:opacity-0 md:group-hover:opacity-100"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                          <SourceCheckbox
+                            checked={isSourceSelected(source)}
+                            onToggle={() =>
+                              sources.update(source.id, {
+                                isSelected: !isSourceSelected(source),
+                              })
+                            }
+                            label={`Select ${source.name}`}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </>
                 )}
               </div>
             )}
@@ -369,6 +433,10 @@ export function ChatSidebar({
           </div>
         </aside>
       </div>
+      <AddSourceDialog
+        open={addSourceOpen}
+        onClose={() => setAddSourceOpen(false)}
+      />
       {dropdownOpen && (
         <div
           onClick={(e) => e.stopPropagation()}

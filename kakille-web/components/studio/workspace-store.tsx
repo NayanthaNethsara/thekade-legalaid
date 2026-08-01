@@ -6,12 +6,18 @@ import {
   type LocalCollection,
 } from "@/hooks/use-local-collection";
 
+export type SourceKind = "file" | "website" | "youtube" | "text";
+
 export interface SourceItem {
   id: string;
   name: string;
   size: number;
   type: string;
   addedAt: string;
+  /* Optional so entries persisted before these fields existed still load. */
+  kind?: SourceKind;
+  url?: string;
+  isSelected?: boolean;
 }
 
 export interface NoteItem {

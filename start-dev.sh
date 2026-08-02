@@ -22,9 +22,11 @@ set -m
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-FRONTEND_DIR="$ROOT_DIR/frontend"
-BACKEND_PORT="${BACKEND_PORT:-8001}"
+FRONTEND_DIR="$ROOT_DIR/kakille-web"
+ADMIN_DIR="$ROOT_DIR/admin-web"
+BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
+ADMIN_PORT="${ADMIN_PORT:-3001}"
 
 FRONTEND_PID=""
 LOGS_PID=""
@@ -107,7 +109,8 @@ log "Starting frontend on http://localhost:$FRONTEND_PORT ..."
 FRONTEND_PID=$!
 
 log "Up. Press Ctrl+C to stop."
-log "  frontend        -> http://localhost:$FRONTEND_PORT/admin/rag"
+log "  chat frontend   -> http://localhost:$FRONTEND_PORT"
+log "  admin web       -> http://localhost:$ADMIN_PORT/login"
 log "  backend-service -> http://localhost:$BACKEND_PORT  (API docs: /docs)"
 log "  postgres view   -> http://localhost:8081  (pgweb)"
 

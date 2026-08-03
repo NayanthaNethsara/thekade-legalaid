@@ -13,7 +13,10 @@ from app.models import (  # noqa: F401 -- register model metadata for autogenera
     CustomerCartCheckout,
     CustomerMemory,
     CustomerProfile,
+    Note,
     OrderTracking,
+    Reminder,
+    Source,
     User,
 )
 

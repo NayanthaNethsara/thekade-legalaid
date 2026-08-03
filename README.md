@@ -8,7 +8,7 @@ Kakille AI is a conversational AI assistant reachable over WhatsApp and the web.
 
 | Path                                     | What it is                                                                                 |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------ |
-| [backend-service/](backend-service/)     | FastAPI + LangGraph orchestrator. Owns Postgres, Redis, the auth API, and the NATS worker. |
+| [backend-service/](backend-service/)     | FastAPI + LangGraph orchestrator. Owns Postgres, Redis, the auth API, the NATS worker, and the first-party MCP server (`app/mcp_server`). |
 | [kakille-web/](kakille-web/)             | Next.js (App Router) web chat client, NextAuth sessions plus guest mode.                   |
 | [whatsapp-gateway/](whatsapp-gateway/)   | NestJS gateway. Normalizes WhatsApp Cloud API traffic onto the NATS contract.              |
 | [observability/](observability/)         | Prometheus, Loki, Promtail, Grafana provisioning.                                          |

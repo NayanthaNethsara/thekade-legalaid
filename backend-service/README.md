@@ -23,6 +23,7 @@ payloads are terminated.
 ```
 app/
   main.py                    FastAPI app + lifespan that runs the NATS worker
+  mcp_server/main.py         first-party MCP server (legal knowledge search)
   core/
     config.py                Settings (pydantic-settings), grouped by concern
     logging.py               structlog JSON logging
@@ -62,7 +63,15 @@ processing. The handler receives a validated `IncomingMessage` and uses the
 ```bash
 uv sync
 cp .env.example .env
+uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
+```
+
+The MCP server runs as its own process (see below); start it first, or leave
+`MCP_URL` blank to run without legal knowledge search.
+
+```bash
+uv run uvicorn app.mcp_server.main:app --port 8010
 ```
 
 Run checks:

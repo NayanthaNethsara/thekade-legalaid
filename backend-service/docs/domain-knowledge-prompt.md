@@ -43,15 +43,30 @@ Domain coverage:
 
 ## Current content
 
-Placeholder. Replace the whole block below, then mirror it into
-`DOMAIN_KNOWLEDGE_PROMPT`.
+Sri Lankan legal aid. The top-level names are also the exact `category` values
+the `kakille_search_legal_knowledge` MCP tool accepts, so renaming one means
+editing the tool's validation list in `app/mcp_server/main.py` too.
 
 ```
-Domain coverage:
-- Topic area A
-  * subtopic, subtopic, subtopic
-- Topic area B
-  * subtopic, subtopic, subtopic
-- Topic area C
-  * subtopic, subtopic, subtopic
+Domain coverage (Sri Lankan law):
+- Legislation
+  * the Constitution, fundamental rights petitions, acts and ordinances,
+    consumer rights and the Consumer Affairs Authority, Right to Information
+    requests
+- Property Law
+  * deeds, title and land registration, tenancy and the Rent Act, landlord and
+    tenant disputes, boundary and partition disputes
+- Criminal Defense
+  * police complaints and entries, arrest and detention rights, bail, criminal
+    procedure, magistrate court basics, victim support
+- Family Law
+  * marriage registration, divorce, child custody, maintenance, domestic
+    violence protection orders, inheritance and wills
+- Labor & Employment
+  * EPF and ETF, termination and gratuity, the Labour Tribunal, wages and
+    overtime, workplace harassment, workplace rights
+
+Not covered: drafting filings to submit to court on the user's behalf,
+predicting how a case will be decided, and representing the user before any
+court or authority.
 ```

@@ -5,6 +5,14 @@ backed by a real endpoint, not local state. Derived from a full audit of the
 frontend (every server action, API route, and UI control) against the routes
 `backend-service` already exposes.
 
+> **Status (August 2026):** everything below except the Studio generation
+> artifacts is now implemented and wired. Sources, notes, and reminders are
+> server-backed; `/chat/quick-messages` and source-aware chat (`source_ids`)
+> exist; the agent reads sources through local `list_sources`/`read_source`
+> tools and searches legal knowledge through the first-party MCP server. The
+> remaining gap is §6: the tiles still stream into chat rather than producing a
+> persisted, typed artifact.
+
 Status legend: ✅ exists and wired · 🟡 exists, needs extending · ⛔ missing,
 needs building.
 
@@ -26,19 +34,15 @@ outside a conversation.
 | Auth (Google, refresh, me) | ✅ | none |
 | Guest session | ✅ | none |
 | Profile (get/update/clear memory) | ✅ | none |
-| Quick-start prompts | 🟡 mocked client-side | `GET /chat/quick-messages` |
-| Chat context from selected sources | 🟡 selection is cosmetic today | extend `ChatRequest` with `source_ids` |
-| Sources (upload, link, text, list, select, delete) | ⛔ | `POST /sources/upload`, `POST /sources/link`, `POST /sources/text`, `GET /sources`, `PATCH /sources/{id}`, `PATCH /sources/select-all`, `DELETE /sources/{id}` |
-| Notes | ⛔ | `GET /notes`, `POST /notes`, `PUT /notes/{id}`, `DELETE /notes/{id}` |
-| Reminders | ⛔ | `GET /reminders`, `POST /reminders`, `PATCH /reminders/{id}`, `DELETE /reminders/{id}` |
+| Quick-start prompts | ✅ | `GET /chat/quick-messages` |
+| Chat context from selected sources | ✅ | `ChatRequest.source_ids` |
+| Sources (upload, link, text, list, select, delete) | ✅ | `POST /sources/upload`, `POST /sources/link`, `POST /sources/text`, `GET /sources`, `PATCH /sources/{id}`, `PATCH /sources/select-all`, `DELETE /sources/{id}` |
+| Notes | ✅ | `GET /notes`, `POST /notes`, `PUT /notes/{id}`, `DELETE /notes/{id}` |
+| Reminders | ✅ | `GET /reminders`, `POST /reminders`, `PATCH /reminders/{id}`, `DELETE /reminders/{id}` |
+| Legal knowledge search (agent) | ✅ | `kakille_search_legal_knowledge` on the first-party MCP server |
 | Studio generation tiles (Case Summary, Legal Research, Document Draft, Timeline, Mind Map, Report, Flashcards) | 🟡 works as a plain chat turn today | `POST /studio/generate`, `GET /studio/outputs` |
 | Audio Overview tile | ⛔ (needs TTS) | `POST /studio/generate` with `type: "audio_overview"` + a TTS provider |
-| Cart (`/cart/*`) | ✅ implemented, unused | not part of this redesign — see Note below |
-
-**Note on cart:** `backend-service` already fully implements `/cart` and
-`/cart/items` (`app/api/routes/cart.py`), but nothing in `kakille-web` calls
-them anymore since the commerce UI was removed. Leave as-is or remove in a
-separate cleanup — out of scope here.
+| Cart (`/cart/*`) | removed | commerce routes, tools and repositories deleted |
 
 ---
 

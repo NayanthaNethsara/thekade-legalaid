@@ -61,6 +61,28 @@ services:
     ports:
       - "8080:8080"
 
+  # First-party MCP server: legal knowledge search over the RAG knowledge base.
+  # Same image as backend-service, different entrypoint. Not published beyond
+  # the compose network -- MCP_API_KEY is a shared internal secret.
+  mcp-server:
+    build:
+      context: ./backend-service
+    command:
+      ["uvicorn", "app.mcp_server.main:app", "--host", "0.0.0.0", "--port", "8010"]
+    env_file:
+      - ./backend-service/.env
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://kakille_agent:kakille_agent@postgres:5432/kakille_agent
+      GOOGLE_APPLICATION_CREDENTIALS: /gcp/adc.json
+    volumes:
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/gcp/adc.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8010:8010"
+
   backend-service:
     build:
       context: ./backend-service
@@ -71,6 +93,7 @@ services:
       ENVIRONMENT: development
       DATABASE_URL: postgresql+asyncpg://kakille_agent:kakille_agent@postgres:5432/kakille_agent
       REDIS_URL: redis://redis:6379/0
+      MCP_URL: http://mcp-server:8010/mcp
       # Lets Vertex AI (LLM_PROVIDER=vertexai) authenticate with the mounted ADC.
       GOOGLE_APPLICATION_CREDENTIALS: /gcp/adc.json
     volumes:
@@ -84,6 +107,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mcp-server:
+        condition: service_started
     ports:
       - "8000:8000"
 

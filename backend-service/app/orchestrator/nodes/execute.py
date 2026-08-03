@@ -1,9 +1,9 @@
 """Tool-execution node for the reactive agent loop.
 
-``execute_model_tools`` runs the tool calls an agent emits (search, cart
-mutations, order creation, follow-up lookups) and feeds the results back to the
-agent. It sanitizes args, formats results, handles errors, and executes
-independent calls concurrently.
+``execute_model_tools`` runs the tool calls an agent emits (legal knowledge
+search, source reads, note and reminder writes) and feeds the results back to
+the agent. It formats results, handles errors, and executes independent calls
+concurrently.
 """
 
 import asyncio

@@ -8,6 +8,7 @@ interface StreamRequestBody {
   message?: string;
   conversationId?: string;
   isUi?: boolean;
+  sourceIds?: string[];
 }
 
 /**
@@ -61,6 +62,7 @@ export async function POST(request: Request): Promise<Response> {
         message,
         conversation_id: payload.conversationId,
         is_ui: payload.isUi ?? false,
+        source_ids: payload.sourceIds ?? [],
       }),
       cache: "no-store",
     });

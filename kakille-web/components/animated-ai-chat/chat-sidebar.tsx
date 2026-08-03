@@ -24,6 +24,7 @@ import { logout } from "@/lib/auth/actions";
 import { generateGuestSessionInfo } from "@/lib/chat/actions";
 import {
   useWorkspace,
+  useWorkspaceDeletions,
   type SourceItem,
 } from "@/components/studio/workspace-store";
 import { AddSourceDialog } from "@/components/studio/add-source-dialog";
@@ -112,7 +113,8 @@ export function ChatSidebar({
   onToggleCollapse,
 }: ChatSidebarProps) {
   const { resolvedTheme, setTheme } = useTheme();
-  const { sources } = useWorkspace();
+  const { sources, toggleSourceSelected, selectAllSources } = useWorkspace();
+  const { removeSource } = useWorkspaceDeletions();
   const [mounted, setMounted] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [addSourceOpen, setAddSourceOpen] = useState(false);
@@ -123,13 +125,6 @@ export function ChatSidebar({
 
   const isSourceSelected = (source: SourceItem) => source.isSelected !== false;
   const allSourcesSelected = sources.items.every(isSourceSelected);
-
-  const toggleSelectAll = () => {
-    const nextSelected = !allSourcesSelected;
-    sources.items.forEach((source) => {
-      sources.update(source.id, { isSelected: nextSelected });
-    });
-  };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -279,7 +274,9 @@ export function ChatSidebar({
                       </span>
                       <SourceCheckbox
                         checked={allSourcesSelected}
-                        onToggle={toggleSelectAll}
+                        onToggle={() =>
+                          void selectAllSources(!allSourcesSelected)
+                        }
                         label="Select all sources"
                       />
                     </div>
@@ -298,7 +295,7 @@ export function ChatSidebar({
                           </span>
                           <button
                             type="button"
-                            onClick={() => sources.remove(source.id)}
+                            onClick={() => void removeSource(source.id)}
                             aria-label={`Remove ${source.name}`}
                             className="text-foreground/20 hover:text-foreground/55 shrink-0 rounded-md p-0.5 opacity-100 transition-colors md:opacity-0 md:group-hover:opacity-100"
                           >
@@ -307,9 +304,10 @@ export function ChatSidebar({
                           <SourceCheckbox
                             checked={isSourceSelected(source)}
                             onToggle={() =>
-                              sources.update(source.id, {
-                                isSelected: !isSourceSelected(source),
-                              })
+                              void toggleSourceSelected(
+                                source.id,
+                                !isSourceSelected(source)
+                              )
                             }
                             label={`Select ${source.name}`}
                           />

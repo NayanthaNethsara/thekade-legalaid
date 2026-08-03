@@ -5,17 +5,14 @@ import { cn } from "@/lib/utils";
 import { ActionTiles } from "./action-tiles";
 import { NotesWidget } from "./notes-widget";
 import { RemindersWidget } from "./reminders-widget";
-import { GLOBAL_SCOPE, useWorkspace } from "./workspace-store";
+import { useWorkspace } from "./workspace-store";
 
 export const NOTE_INPUT_ID = "studio-note-input";
 
 /** Section stack shared by the desktop panel and the mobile sheet. */
 export function StudioContent({ activeId }: { activeId: string }) {
   const { notes, reminders } = useWorkspace();
-  const scope = activeId || GLOBAL_SCOPE;
-  const hasOutput =
-    notes.items.some((note) => note.conversationId === scope) ||
-    reminders.items.some((reminder) => reminder.conversationId === scope);
+  const hasOutput = notes.items.length > 0 || reminders.items.length > 0;
 
   return (
     <div className="space-y-4">
@@ -40,14 +37,14 @@ export function StudioContent({ activeId }: { activeId: string }) {
         <span className="text-foreground/35 mb-1.5 block text-[10px] font-semibold tracking-wider uppercase">
           Notes
         </span>
-        <NotesWidget activeId={activeId} />
+        <NotesWidget />
       </section>
 
       <section>
         <span className="text-foreground/35 mb-1.5 block text-[10px] font-semibold tracking-wider uppercase">
           Reminders
         </span>
-        <RemindersWidget activeId={activeId} />
+        <RemindersWidget />
       </section>
     </div>
   );

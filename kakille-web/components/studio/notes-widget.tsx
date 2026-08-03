@@ -4,31 +4,23 @@ import { useState } from "react";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  GLOBAL_SCOPE,
-  newWorkspaceItemId,
   useWorkspace,
+  useWorkspaceDeletions,
   type NoteItem,
 } from "./workspace-store";
 
-/** Notes scoped to the active conversation (or global on the landing route). */
-export function NotesWidget({ activeId }: { activeId: string }) {
-  const { notes } = useWorkspace();
-  const scope = activeId || GLOBAL_SCOPE;
-  const scopedNotes = notes.items.filter(
-    (note) => note.conversationId === scope
-  );
+/** Notes for the active conversation, stored on the server. */
+export function NotesWidget() {
+  const { notes, addNote: saveNote, editNote } = useWorkspace();
+  const { removeNote } = useWorkspaceDeletions();
+  const scopedNotes = notes.items;
   const [draft, setDraft] = useState("");
 
   const addNote = () => {
     const content = draft.trim();
     if (!content) return;
-    notes.add({
-      id: newWorkspaceItemId(),
-      conversationId: scope,
-      content,
-      updatedAt: new Date().toISOString(),
-    });
     setDraft("");
+    void saveNote(content);
   };
 
   return (
@@ -69,13 +61,8 @@ export function NotesWidget({ activeId }: { activeId: string }) {
             <NoteRow
               key={note.id}
               note={note}
-              onSave={(content) =>
-                notes.update(note.id, {
-                  content,
-                  updatedAt: new Date().toISOString(),
-                })
-              }
-              onDelete={() => notes.remove(note.id)}
+              onSave={(content) => void editNote(note.id, content)}
+              onDelete={() => void removeNote(note.id)}
             />
           ))}
         </ul>

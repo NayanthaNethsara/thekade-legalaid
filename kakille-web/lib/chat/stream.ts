@@ -24,14 +24,15 @@ export async function streamChatMessage(
   message: string,
   conversationId: string,
   isUi: boolean,
-  onEvent: (event: ChatStreamEvent) => void
+  sourceIds: string[],
+  onEvent: (event: ChatStreamEvent) => void,
 ): Promise<void> {
   let response: Response;
   try {
     response = await fetch("/api/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, conversationId, isUi }),
+      body: JSON.stringify({ message, conversationId, isUi, sourceIds }),
     });
   } catch {
     onEvent({ type: "error", reply: "Cannot reach the server. Try again." });

@@ -11,22 +11,15 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  newWorkspaceItemId,
-  useWorkspace,
-  type SourceKind,
-} from "./workspace-store";
+import { createLinkSource, createTextSource } from "@/lib/sources/actions";
+import { useWorkspace } from "./workspace-store";
 
 const SOURCE_LIMIT = 300;
 
-function kindForUrl(url: string): SourceKind {
-  return /(?:youtube\.com|youtu\.be)\//i.test(url) ? "youtube" : "website";
-}
-
 /**
  * NotebookLM-style source intake: paste a website or YouTube link, upload or
- * drop files, or paste raw text. Everything lands in the local workspace
- * store as metadata; nothing is uploaded anywhere yet.
+ * drop files, or paste raw text. Every source is stored on the backend, which
+ * extracts its text so the agent can read it.
  */
 export function AddSourceDialog({
   open,
@@ -35,65 +28,75 @@ export function AddSourceDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const { sources } = useWorkspace();
+  const { sources, conversationId } = useWorkspace();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
   const [showTextPanel, setShowTextPanel] = useState(false);
   const [pastedText, setPastedText] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const count = sources.items.length;
   const isAtLimit = count >= SOURCE_LIMIT;
 
-  const addFiles = (files: File[]) => {
-    files.forEach((file) => {
-      sources.add({
-        id: newWorkspaceItemId(),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        addedAt: new Date().toISOString(),
-        kind: "file",
-        isSelected: true,
-      });
-    });
+  const addFiles = async (files: File[]) => {
+    if (!files.length) return;
+    setIsBusy(true);
+    setError(null);
+    for (const file of files) {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("conversation_id", conversationId);
+      try {
+        const response = await fetch("/api/sources/upload", {
+          method: "POST",
+          body: form,
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          setError(body?.detail ?? `Could not upload ${file.name}.`);
+          break;
+        }
+      } catch {
+        setError("Cannot reach the server. Please try again.");
+        break;
+      }
+    }
+    setIsBusy(false);
+    sources.refresh();
   };
 
-  const addUrl = () => {
+  const addUrl = async () => {
     const trimmed = url.trim();
     if (!trimmed) return;
-    const withScheme = /^https?:\/\//i.test(trimmed)
-      ? trimmed
-      : `https://${trimmed}`;
-    sources.add({
-      id: newWorkspaceItemId(),
-      name: trimmed.replace(/^https?:\/\//i, ""),
-      size: 0,
-      type: "text/html",
-      addedAt: new Date().toISOString(),
-      kind: kindForUrl(withScheme),
-      url: withScheme,
-      isSelected: true,
-    });
-    setUrl("");
+    setIsBusy(true);
+    setError(null);
+    const result = await createLinkSource(conversationId, trimmed);
+    setIsBusy(false);
+    if (result.ok) {
+      setUrl("");
+      sources.insert(result.source);
+    } else {
+      setError(result.error);
+    }
   };
 
-  const addText = () => {
+  const addText = async () => {
     const trimmed = pastedText.trim();
     if (!trimmed) return;
-    const firstLine = trimmed.split("\n")[0];
-    sources.add({
-      id: newWorkspaceItemId(),
-      name: firstLine.length > 60 ? `${firstLine.slice(0, 60)}...` : firstLine,
-      size: trimmed.length,
-      type: "text/plain",
-      addedAt: new Date().toISOString(),
-      kind: "text",
-      isSelected: true,
-    });
-    setPastedText("");
-    setShowTextPanel(false);
+    setIsBusy(true);
+    setError(null);
+    const result = await createTextSource(conversationId, trimmed);
+    setIsBusy(false);
+    if (result.ok) {
+      setPastedText("");
+      setShowTextPanel(false);
+      sources.insert(result.source);
+    } else {
+      setError(result.error);
+    }
   };
 
   const chipClass =
@@ -155,7 +158,7 @@ export function AddSourceDialog({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        addUrl();
+                        void addUrl();
                       }
                     }}
                     placeholder="Paste a website or YouTube link"
@@ -163,8 +166,8 @@ export function AddSourceDialog({
                   />
                   <button
                     type="button"
-                    onClick={addUrl}
-                    disabled={!url.trim() || isAtLimit}
+                    onClick={() => void addUrl()}
+                    disabled={!url.trim() || isAtLimit || isBusy}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 press-scale shrink-0 rounded-full px-4 py-1.5 text-xs font-normal transition-colors disabled:opacity-40"
                   >
                     Add
@@ -178,7 +181,7 @@ export function AddSourceDialog({
                   multiple
                   accept=".pdf,.doc,.docx,.txt,image/*,audio/*"
                   onChange={(e) => {
-                    addFiles(Array.from(e.target.files ?? []));
+                    void addFiles(Array.from(e.target.files ?? []));
                     e.target.value = "";
                   }}
                   className="hidden"
@@ -196,9 +199,9 @@ export function AddSourceDialog({
                   onDrop={(e) => {
                     e.preventDefault();
                     setIsDragging(false);
-                    addFiles(Array.from(e.dataTransfer.files ?? []));
+                    void addFiles(Array.from(e.dataTransfer.files ?? []));
                   }}
-                  disabled={isAtLimit}
+                  disabled={isAtLimit || isBusy}
                   className={cn(
                     "flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed px-6 py-10 transition-colors",
                     isDragging
@@ -269,8 +272,8 @@ export function AddSourceDialog({
                     <div className="flex justify-end">
                       <button
                         type="button"
-                        onClick={addText}
-                        disabled={!pastedText.trim() || isAtLimit}
+                        onClick={() => void addText()}
+                        disabled={!pastedText.trim() || isAtLimit || isBusy}
                         className="bg-primary text-primary-foreground hover:bg-primary/90 press-scale rounded-full px-4 py-1.5 text-xs font-normal transition-colors disabled:opacity-40"
                       >
                         Add text
@@ -279,6 +282,10 @@ export function AddSourceDialog({
                   </div>
                 )}
               </div>
+
+              {error && (
+                <p className="text-destructive px-6 pb-2 text-xs">{error}</p>
+              )}
 
               {/* Source counter */}
               <footer className="border-border flex items-center gap-3 border-t px-6 py-4">

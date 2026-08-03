@@ -9,6 +9,7 @@ import { MessageList } from "@/components/animated-ai-chat/message-list";
 import { VoiceAgent } from "@/components/animated-ai-chat/voice-agent";
 import { streamChatMessage, type ChatStreamEvent } from "@/lib/chat/stream";
 import { takeFirstMessage } from "@/lib/chat/handoff";
+import { useWorkspace } from "@/components/studio/workspace-store";
 import type { ChatMessage } from "@/types/chat";
 
 export function ConversationClient({
@@ -27,6 +28,12 @@ export function ConversationClient({
   const [voiceOpen, setVoiceOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentHandoff = useRef(false);
+
+  // Read through a ref so changing the source selection does not re-create the
+  // streaming callback (and its event listener) on every checkbox toggle.
+  const { selectedSourceIds } = useWorkspace();
+  const selectedSourceIdsRef = useRef(selectedSourceIds);
+  selectedSourceIdsRef.current = selectedSourceIds;
 
   // Stream the assistant reply for an already-shown user turn. Appends the
   // assistant message on first write, then updates it in place as tokens stream.
@@ -93,7 +100,13 @@ export function ConversationClient({
 
       void (async () => {
         try {
-          await streamChatMessage(message, conversationId, isUi, handleEvent);
+          await streamChatMessage(
+            message,
+            conversationId,
+            isUi,
+            selectedSourceIdsRef.current,
+            handleEvent
+          );
           if (!finalized) {
             setIsTyping(false);
             writeAssistant({

@@ -106,33 +106,42 @@ export async function fetchConversationDetail(
   return result.ok ? result.data : null;
 }
 
+// Shown when the backend is unreachable, so the landing page is never bare.
+const FALLBACK_QUICK_MESSAGES: QuickMessageItem[] = [
+  {
+    iconName: "question",
+    label: "Understand a legal problem",
+    message:
+      "I have a legal problem I would like to understand better. Can you help me work through it?",
+  },
+  {
+    iconName: "checklist",
+    label: "Know your rights",
+    message:
+      "Can you explain my rights in a situation I am dealing with? I will describe it.",
+  },
+  {
+    iconName: "search",
+    label: "Get help with a document",
+    message:
+      "I have a legal document I need help understanding or drafting. Can you guide me?",
+  },
+];
+
 /**
- * Fetch list of fast-show quick messages from the backend (mocked as a server action).
+ * Starter prompts for the landing page. Owned by the backend so the copy can
+ * change without a frontend deploy.
  */
 export async function fetchQuickMessages(): Promise<QuickMessageItem[]> {
-  // TODO: Switch this to a real backend endpoint call (e.g. GET /chat/quick-messages) later.
-  // Placeholder starters. Replace with prompts that match the real domain --
-  // they are the first thing a new user sees, so they set expectations.
-  return [
-    {
-      iconName: "question",
-      label: "Understand a legal problem",
-      message:
-        "I have a legal problem I would like to understand better. Can you help me work through it?",
-    },
-    {
-      iconName: "checklist",
-      label: "Know your rights",
-      message:
-        "Can you explain my rights in a situation I am dealing with? I will describe it.",
-    },
-    {
-      iconName: "search",
-      label: "Get help with a document",
-      message:
-        "I have a legal document I need help understanding or drafting. Can you guide me?",
-    },
-  ];
+  const result = await apiFetch<
+    { icon_name: string; label: string; message: string }[]
+  >("/chat/quick-messages", { method: "GET" });
+  if (!result.ok || result.data.length === 0) return FALLBACK_QUICK_MESSAGES;
+  return result.data.map((item) => ({
+    iconName: item.icon_name,
+    label: item.label,
+    message: item.message,
+  }));
 }
 
 export interface GuestSessionInfo {

@@ -3,11 +3,7 @@
 import { useState } from "react";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  GLOBAL_SCOPE,
-  newWorkspaceItemId,
-  useWorkspace,
-} from "./workspace-store";
+import { useWorkspace, useWorkspaceDeletions } from "./workspace-store";
 
 function isOverdue(dueDate: string, isDone: boolean): boolean {
   if (isDone || !dueDate) return false;
@@ -17,28 +13,24 @@ function isOverdue(dueDate: string, isDone: boolean): boolean {
   return due < today;
 }
 
-/** Reminders with due dates, scoped like notes to the active conversation. */
-export function RemindersWidget({ activeId }: { activeId: string }) {
-  const { reminders } = useWorkspace();
-  const scope = activeId || GLOBAL_SCOPE;
-  const scopedReminders = reminders.items.filter(
-    (reminder) => reminder.conversationId === scope
-  );
+/** Reminders with due dates for the active conversation, stored on the server. */
+export function RemindersWidget() {
+  const {
+    reminders,
+    addReminder: saveReminder,
+    toggleReminderDone,
+  } = useWorkspace();
+  const { removeReminder } = useWorkspaceDeletions();
+  const scopedReminders = reminders.items;
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
 
   const addReminder = () => {
     const trimmed = title.trim();
     if (!trimmed) return;
-    reminders.add({
-      id: newWorkspaceItemId(),
-      conversationId: scope,
-      title: trimmed,
-      dueDate,
-      isDone: false,
-    });
     setTitle("");
     setDueDate("");
+    void saveReminder(trimmed, dueDate);
   };
 
   return (
@@ -93,7 +85,7 @@ export function RemindersWidget({ activeId }: { activeId: string }) {
                 <button
                   type="button"
                   onClick={() =>
-                    reminders.update(reminder.id, { isDone: !reminder.isDone })
+                    void toggleReminderDone(reminder.id, !reminder.isDone)
                   }
                   aria-label={
                     reminder.isDone ? "Mark as not done" : "Mark as done"
@@ -131,7 +123,7 @@ export function RemindersWidget({ activeId }: { activeId: string }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => reminders.remove(reminder.id)}
+                  onClick={() => void removeReminder(reminder.id)}
                   aria-label="Delete reminder"
                   className="text-foreground/20 hover:text-foreground/55 shrink-0 rounded-md p-1 opacity-100 transition-colors md:opacity-0 md:group-hover:opacity-100"
                 >

@@ -80,7 +80,6 @@ def _history_from_rendered_turns(
                     content=reply_text,
                     cards=turn.get("cards") or [],
                     actions=turn.get("actions") or [],
-                    tracking=turn.get("tracking") or [],
                 )
             )
     return history

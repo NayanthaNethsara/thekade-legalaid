@@ -97,6 +97,7 @@ async def chat(
         principal_id=principal.id,
         principal_kind=principal.kind,
         is_ui=payload.is_ui,
+        source_ids=payload.source_ids,
     )
 
 
@@ -134,6 +135,7 @@ async def chat_stream(
             principal_id=principal.id,
             principal_kind=principal.kind,
             is_ui=payload.is_ui,
+            source_ids=payload.source_ids,
         ):
             yield _sse(event)
 

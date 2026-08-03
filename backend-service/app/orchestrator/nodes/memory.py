@@ -1,4 +1,3 @@
-import re
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
@@ -9,25 +8,27 @@ from app.core.logging import get_logger
 from app.core.security.phone import to_local_display
 from app.orchestrator.prompts import COMBINED_MEMORY_EXTRACT_PROMPT
 from app.orchestrator.state import AgentState
-from app.orchestrator.utils.order_sync import CheckoutEvent, extract_checkout_events
 from app.orchestrator.utils.trace import node_finish, node_start
 from app.orchestrator.utils.turns import (
     render_last_exchanges,
     render_llm_input,
 )
-from app.repositories.cart_checkout_repository import CartCheckoutRepository
 from app.repositories.customer_memory_repository import CustomerMemoryRepository
 from app.repositories.customer_profile_repository import (
     CustomerProfileData,
     CustomerProfileRepository,
 )
-from app.repositories.guest_checkout_contact_repository import GuestCheckoutContactRepository
-from app.repositories.order_tracking_repository import OrderTrackingRepository
+from app.repositories.source_repository import SourceRepository
 from app.schemas.memory import CombinedExtraction
 
 logger = get_logger(__name__)
 
 _EXCHANGE_WINDOW = 3
+
+# When the selected sources' combined text fits in this budget it is injected
+# directly into the agent context; beyond it the agent gets the name list and
+# reads individual sources with the read_source tool instead.
+_INLINE_SOURCES_CHAR_BUDGET = 6000
 
 
 def _user_identity() -> str | None:
@@ -36,16 +37,72 @@ def _user_identity() -> str | None:
     return identity if isinstance(identity, str) and identity else None
 
 
+def _selected_source_ids() -> list[str]:
+    configurable = get_config().get("configurable") or {}
+    source_ids = configurable.get("source_ids")
+    if not isinstance(source_ids, list):
+        return []
+    return [item for item in source_ids if isinstance(item, str) and item]
+
+
 def _whatsapp_number_line(channel: str | None, identity: str | None) -> str | None:
     """A profile line carrying the WhatsApp number the customer is messaging from.
 
-    On WhatsApp the identity is the canonical phone, so we surface it as part of the
-    loaded profile -- the checkout flow then treats it like any known contact number
-    instead of asking for one. Web accounts have no such number.
+    On WhatsApp the identity is the canonical phone, so we surface it as part of
+    the loaded profile. Web accounts have no such number.
     """
     if channel != "whatsapp" or not identity:
         return None
     return f"WhatsApp number (the number they are messaging from): {to_local_display(identity)}"
+
+
+async def _build_sources_context(source_repo: SourceRepository) -> str:
+    """Render the user's selected sources for the agent prompt.
+
+    Small selections inline their full text; larger ones list names and ids and
+    defer content to the read_source tool.
+    """
+    source_ids = _selected_source_ids()
+    if not source_ids:
+        return ""
+
+    configurable = get_config().get("configurable") or {}
+    thread_id = configurable.get("thread_id")
+    if not isinstance(thread_id, str):
+        return ""
+    parts = thread_id.split(":", 2)
+    if len(parts) != 3:
+        return ""
+    principal_kind, principal_id, conversation_id = parts
+
+    try:
+        rows = await source_repo.get_many_with_content(
+            source_ids, principal_kind, principal_id, conversation_id
+        )
+    except Exception as error:
+        logger.warning("orchestrator.memory.load_sources_failed", error=str(error))
+        return ""
+    if not rows:
+        return ""
+
+    total_content_chars = sum(len(content or "") for _, content in rows)
+    if total_content_chars and total_content_chars <= _INLINE_SOURCES_CHAR_BUDGET:
+        blocks = []
+        for source, content in rows:
+            if content:
+                blocks.append(f"--- Source: {source.name} ---\n{content}")
+            else:
+                blocks.append(f"--- Source: {source.name} --- (no extracted text)")
+        return "User's selected sources for this turn:\n" + "\n\n".join(blocks)
+
+    lines = [
+        f"- id={source.id} | {source.name}{'' if content else ' (no extracted text)'}"
+        for source, content in rows
+    ]
+    return (
+        "User's selected sources for this turn (content too large to inline; "
+        "use read_source(id) for the ones you need):\n" + "\n".join(lines)
+    )
 
 
 async def load_memory(
@@ -53,42 +110,22 @@ async def load_memory(
     *,
     profile_repo: CustomerProfileRepository,
     memory_repo: CustomerMemoryRepository,
-    cart_repo: Any,
-    guest_contact_repo: GuestCheckoutContactRepository,
+    source_repo: SourceRepository,
 ) -> dict[str, Any]:
     node_start("LOAD MEMORY NODE")
 
     identity = _user_identity()
-    configurable = get_config().get("configurable") or {}
-    thread_id = configurable.get("thread_id")
 
     update: dict[str, Any] = {}
 
-    if thread_id:
-        try:
-            cart = await cart_repo.get_cart(thread_id)
-            if cart and cart.items:
-                cart_lines = [
-                    f"{item.quantity}x {item.name} (ID: {item.product_id}) - Rs {item.price}"
-                    for item in cart.items
-                ]
-                update["cart"] = "\n".join(cart_lines)
-            else:
-                update["cart"] = "Cart is empty."
-        except Exception as e:
-            logger.warning("orchestrator.memory.load_cart_failed", error=str(e))
-            update["cart"] = "Cart is empty."
+    if sources_context := await _build_sources_context(source_repo):
+        update["sources_context"] = sources_context
 
     if not identity:
-        if thread_id:
-            guest_contact = await guest_contact_repo.get(thread_id)
-            if guest_contact and (contact_text := guest_contact.to_prompt_text()):
-                update["memory"] = contact_text
         node_finish(
             "LOAD MEMORY NODE",
             Identity="guest",
-            Cart=update.get("cart", "n/a"),
-            Memory="loaded" if update.get("memory") else "none",
+            Sources="loaded" if update.get("sources_context") else "none",
         )
         return update
 
@@ -124,8 +161,8 @@ async def load_memory(
     node_finish(
         "LOAD MEMORY NODE",
         Identity=identity,
-        Cart=update.get("cart", "n/a"),
         Memory="loaded" if combined else "none",
+        Sources="loaded" if update.get("sources_context") else "none",
     )
     return update
 
@@ -138,9 +175,6 @@ async def write_memory(
     model: BaseChatModel,
     profile_repo: CustomerProfileRepository,
     memory_repo: CustomerMemoryRepository,
-    guest_contact_repo: GuestCheckoutContactRepository,
-    cart_checkout_repo: CartCheckoutRepository,
-    order_tracking_repo: OrderTrackingRepository,
 ) -> dict[str, Any]:
     node_start("WRITE MEMORY NODE")
 
@@ -148,12 +182,8 @@ async def write_memory(
     exchange = render_last_exchanges(state["messages"], _EXCHANGE_WINDOW)
 
     if not identity:
-        saved = await _write_guest_contact(state, thread_id, exchange, model, guest_contact_repo)
-        node_finish(
-            "WRITE MEMORY NODE",
-            Identity="guest",
-            Contact="saved" if saved else "unchanged",
-        )
+        # Guests have no durable cross-conversation profile to write to.
+        node_finish("WRITE MEMORY NODE", Identity="guest", Note="no durable profile")
         return {}
 
     if not exchange:
@@ -164,21 +194,6 @@ async def write_memory(
     should_extract = state.get("requires_memory_update", False)
     profile_updated = False
     memory_updated = False
-    tracking_changes = 0
-
-    tracking_details = state.get("tracking") or []
-    for t in tracking_details:
-        track_num = t.get("order_number")
-        if not track_num:
-            continue
-        status_text = str(t.get("status", "")).lower()
-        is_terminal = bool(
-            re.search(r"\bcancelled\b", status_text)
-            or re.search(r"\b(?<!un)delivered\b", status_text)
-        )
-        status = "delivered/cancelled" if is_terminal else "tracking"
-        if await order_tracking_repo.record_tracking(identity, track_num, status):
-            tracking_changes += 1
 
     if should_extract:
         existing_memory_data = await memory_repo.get(identity) or {}
@@ -208,78 +223,13 @@ async def write_memory(
                 await memory_repo.upsert(identity, new_memory_dict)
                 memory_updated = True
 
-    raw_checkouts = state.get("_checkout_events")
-    if raw_checkouts is None:
-        checkouts = extract_checkout_events(state["messages"])
-    else:
-        checkouts = [
-            c if isinstance(c, CheckoutEvent) else CheckoutEvent(**c) for c in raw_checkouts
-        ]
-
-    for checkout in checkouts:
-        cart_list = checkout.last_order.get("cart") or []
-        await cart_checkout_repo.record_checkout(
-            identity,
-            checkout_ref=checkout.order_ref,
-            summary=checkout.summary,
-            expires_at=checkout.expires_at,
-            order_link=checkout.order_link,
-            cart=cart_list,
-        )
-
     node_finish(
         "WRITE MEMORY NODE",
         Identity=identity,
         Profile="updated" if profile_updated else "unchanged",
         Memory="updated" if memory_updated else "unchanged",
-        Tracking=f"{tracking_changes} changed" if tracking_changes else "unchanged",
-        Checkouts=len(checkouts),
     )
     return {}
-
-
-async def _write_guest_contact(
-    state: AgentState,
-    thread_id: str | None,
-    exchange: str,
-    model: BaseChatModel,
-    guest_contact_repo: GuestCheckoutContactRepository,
-) -> bool:
-    if not thread_id or not exchange or state.get("target_goal") != "checkout":
-        return False
-
-    existing = await guest_contact_repo.get(thread_id) or CustomerProfileData()
-    extracted = await _extract_combined(
-        model=model,
-        exchange=exchange,
-        existing_profile=existing,
-        existing_memory="",
-    )
-    if not extracted:
-        return False
-
-    merged = _merged_guest_contact(existing, extracted)
-    if merged == existing:
-        return False
-    await guest_contact_repo.save(thread_id, merged)
-    return True
-
-
-def _merged_guest_contact(
-    existing: CustomerProfileData, extracted: CombinedExtraction
-) -> CustomerProfileData:
-    addresses = [dict(a) for a in existing.addresses]
-    seen = {a.get("value", "").strip().lower() for a in addresses}
-    for addr in extracted.addresses:
-        value = addr.value.strip()
-        if value and value.lower() not in seen:
-            addresses.append({"label": addr.label or "default", "value": value})
-            seen.add(value.lower())
-    return CustomerProfileData(
-        name=extracted.name or existing.name,
-        phone=extracted.phone or existing.phone,
-        addresses=addresses,
-    )
 
 
 async def _extract_combined(

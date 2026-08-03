@@ -23,8 +23,6 @@ from app.orchestrator.tools.mcp_cache import (
     is_miss,
     set_cached_result,
 )
-from app.orchestrator.utils.products import format_search_response
-from app.orchestrator.utils.tool_sanitization import normalize_kakille_args
 from app.orchestrator.utils.trace import node_finish, node_start
 from app.orchestrator.utils.turns import tool_output_to_text
 
@@ -49,7 +47,7 @@ async def execute_model_tools(state: AgentState, *, tools: list[BaseTool]) -> di
     tool_calls = [
         {
             "name": call.get("name", ""),
-            "args": normalize_kakille_args(call.get("name", ""), call.get("args") or {}),
+            "args": call.get("args") or {},
             "id": call.get("id") or f"call_{uuid.uuid4().hex[:12]}",
         }
         for call in pending_calls
@@ -66,9 +64,8 @@ async def execute_model_tools(state: AgentState, *, tools: list[BaseTool]) -> di
 
 def route_to_agent(state: AgentState) -> str:
     """Route from the plan node to the agent for the planner's target goal."""
-    target_goal = state.get("target_goal", "chat")
-    if target_goal in ("search", "checkout", "tracking"):
-        return f"{target_goal}_agent"
+    if state.get("target_goal", "chat") == "search":
+        return "search_agent"
     return "chat_agent"
 
 
@@ -138,11 +135,7 @@ async def _invoke_with_cache(tool: BaseTool, tool_name: str, tool_args: dict[str
     if isinstance(tool_output, str) and tool_output.strip().startswith("Error"):
         return tool_output
 
-    if tool_name == "kakille_track_order":
-        ttl_seconds = 3600
-    else:
-        ttl_seconds = get_settings().mcp.cache_ttl_seconds
-
+    ttl_seconds = get_settings().mcp.cache_ttl_seconds
     await set_cached_result(tool_name, tool_args, tool_output, ttl_seconds)
     return tool_output
 
@@ -161,17 +154,9 @@ async def _run_single_tool(tool_map: dict[str, BaseTool], call: dict[str, Any]) 
         )
 
     logger.info("orchestrator.execute.running", tool=tool_name, args=tool_args, call_id=call_id)
-    # Search results carry their structured products in the message artifact so
-    # downstream card extraction reads data instead of re-parsing markdown.
-    artifact: dict[str, Any] | None = None
     try:
         tool_output = await _invoke_with_cache(tool_map[tool_name], tool_name, tool_args)
-        if tool_name == "kakille_search_products":
-            content_str, products = format_search_response(tool_output)
-            if products:
-                artifact = {"products": products}
-        else:
-            content_str = tool_output_to_text(tool_output)
+        content_str = tool_output_to_text(tool_output)
 
         if isinstance(content_str, str) and content_str.strip().startswith("Error"):
             status = "rate_limited" if "rate limit" in content_str.lower() else "failed"
@@ -195,4 +180,4 @@ async def _run_single_tool(tool_map: dict[str, BaseTool], call: dict[str, Any]) 
         logger.exception("orchestrator.execute.failed", name=tool_name, error=str(error))
         content_str = f"Tool execution failed: {error}"
 
-    return ToolMessage(content=content_str, name=tool_name, tool_call_id=call_id, artifact=artifact)
+    return ToolMessage(content=content_str, name=tool_name, tool_call_id=call_id)

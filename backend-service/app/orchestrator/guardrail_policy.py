@@ -12,13 +12,24 @@ DENYLIST_PATTERNS: tuple[str, ...] = (
 # The single definition of what this assistant will and will not talk about.
 # It is injected into the scope classifier (``build_classifier_prompt``) and
 # into the image-search prompt, so widening or narrowing the assistant's remit
-# is an edit here and nowhere else. Placeholder -- replace with the real remit.
+# is an edit here and nowhere else.
+# CONTRACT: keep in sync with ``DOMAIN_KNOWLEDGE_PROMPT`` in ``prompts.py`` --
+# anything the agent can search for must also be in scope here, or the guard
+# blocks requests the tools could have answered.
 DOMAIN_GROUNDING = (
-    "Topics in scope (PLACEHOLDER — replace with the real remit): general "
-    "questions the assistant is built to answer, the tasks it can carry out on "
-    "the user's behalf, the status of anything the user has already started, and "
-    "questions about the service itself. Ordinary greetings, check-ins, and small "
-    "talk are also in scope."
+    "Topics in scope: legal questions from people in Sri Lanka about their "
+    "rights, obligations, and procedures — legislation and the Constitution "
+    "(including fundamental rights, consumer rights, and Right to Information); "
+    "property law (deeds, land registration, tenancy, landlord and tenant "
+    "disputes, boundaries); criminal matters from the person's own side (police "
+    "complaints, arrest and detention rights, bail, court procedure, victim "
+    "support); family law (marriage, divorce, custody, maintenance, domestic "
+    "violence protection, inheritance); and employment (EPF and ETF, "
+    "termination and gratuity, the Labour Tribunal, wages, workplace rights). "
+    "Also in scope: questions about documents the user uploaded, saving notes "
+    "and reminders about their matter, questions about the service itself, and "
+    "ordinary greetings, check-ins, and small talk. Describing a crime or abuse "
+    "they have suffered or are accused of is in scope — they are seeking help."
 )
 
 

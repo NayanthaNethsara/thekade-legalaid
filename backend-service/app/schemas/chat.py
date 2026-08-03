@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -14,6 +14,11 @@ class ChatRequest(BaseModel):
     is_ui: bool = Field(
         default=False,
         description="True if this message is triggered programmatically by the client UI.",
+    )
+    source_ids: list[str] = Field(
+        default_factory=list,
+        max_length=300,
+        description="Ids of the workspace sources the user has selected for this turn.",
     )
 
 
@@ -61,9 +66,10 @@ class Action(BaseModel):
 class ChatResponse(BaseModel):
     """Channel-neutral reply envelope.
 
-    ``reply`` is the text every channel uses. ``cards`` and ``actions`` are
-    rendered by the web client directly and converted into interactive WhatsApp
-    messages (CTA URL card / carousel) by the WhatsApp handler.
+    ``reply`` is the text every channel uses. ``cards`` and ``actions`` are the
+    structured-attachment channel: the web client renders them directly and the
+    WhatsApp handler converts them into interactive messages. Nothing populates
+    them today, but the shape is kept so both clients stay stable.
     """
 
     reply: str
@@ -72,21 +78,16 @@ class ChatResponse(BaseModel):
     detected_emotion: str | None = None
     target_goal: str | None = None
     title: str | None = None
-    missing_fields: list[str] = Field(default_factory=list)
-    cart_checkouts: list[dict[str, Any]] = Field(default_factory=list)
-    tracking: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class MessageResponse(BaseModel):
     id: str
     role: Literal["user", "assistant"]
     content: str
-    # Product cards and actions shown with this assistant turn, taken from the
-    # rendered transcript so reopening a conversation shows what was first sent.
+    # Cards and actions shown with this assistant turn, taken from the rendered
+    # transcript so reopening a conversation shows what was first sent.
     cards: list[ProductCard] = Field(default_factory=list)
     actions: list[Action] = Field(default_factory=list)
-    cart_checkouts: list[dict[str, Any]] = Field(default_factory=list)
-    tracking: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ConversationSummary(BaseModel):

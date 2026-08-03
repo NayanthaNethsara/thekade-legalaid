@@ -1,8 +1,6 @@
 from app.orchestrator.nodes.agents import (
     chat_agent,
-    checkout_agent,
     search_agent,
-    tracking_agent,
 )
 from app.orchestrator.nodes.execute import (
     execute_model_tools,
@@ -31,8 +29,6 @@ __all__ = [
     "load_memory",
     "plan",
     "search_agent",
-    "checkout_agent",
-    "tracking_agent",
     "chat_agent",
     "route_after_guard",
     "route_to_agent",

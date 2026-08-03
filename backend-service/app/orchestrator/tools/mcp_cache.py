@@ -1,13 +1,10 @@
 """Redis-backed cache for read-only Kakille MCP tool results.
 
-The MCP server rate-limits to 60 requests/min per client IP across all tools
-and serves catalog reads from a cache of up to 30 minutes.  Caching those reads
-on our side keeps repeat searches and category/product lookups off the wire,
-which both avoids 429s and makes recurring lookups instant.
+Legal knowledge search embeds the query and runs a vector lookup on every
+call, so caching repeat queries saves both latency and embedding cost.
 
-Only side-effect-free read tools are cached; write tools (order creation, cart
-mutations) are never cached and always hit the server.  Cache access fails open:
-a Redis outage degrades to direct MCP calls rather than breaking the turn.
+Only side-effect-free read tools are cached. Cache access fails open: a Redis
+outage degrades to direct MCP calls rather than breaking the turn.
 """
 
 import hashlib
@@ -22,18 +19,8 @@ logger = get_logger(__name__)
 _KEY_PREFIX = "mcp:read:"
 
 # Side-effect-free Kakille tools whose results are safe to reuse within the TTL.
-# Everything else (order creation, cart writes) bypasses the cache.
-_CACHEABLE_TOOLS = frozenset(
-    {
-        "kakille_search_products",
-        "kakille_get_product",
-        "kakille_list_categories",
-        "kakille_get_category",
-        "kakille_check_delivery",
-        "kakille_list_delivery_cities",
-        "kakille_track_order",
-    }
-)
+# Everything else bypasses the cache.
+_CACHEABLE_TOOLS = frozenset({"kakille_search_legal_knowledge"})
 
 
 def is_cacheable_tool(tool_name: str) -> bool:

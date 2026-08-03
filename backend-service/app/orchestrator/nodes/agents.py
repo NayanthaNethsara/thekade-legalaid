@@ -1,6 +1,6 @@
 from typing import Any
 
-from langchain_core.messages import SystemMessage, ToolMessage
+from langchain_core.messages import SystemMessage
 
 from app.core.logging import clip, get_logger
 from app.orchestrator.constants import (
@@ -10,19 +10,14 @@ from app.orchestrator.constants import (
 )
 from app.orchestrator.prompts import (
     CHAT_GUIDE_PROMPT,
-    CHECKOUT_GUIDE_PROMPT,
-    CHECKOUT_TOOL_PROMPT,
     GENERAL_OPERATIONS_PROMPT,
     MISSION_PROMPT,
     PERSONA_PROMPT,
-    PRODUCT_DISPLAY_PROMPT,
     SEARCH_GUIDE_PROMPT,
     SEARCH_TOOL_PROMPT,
-    TRACKING_GUIDE_PROMPT,
-    TRACKING_TOOL_PROMPT,
+    WORKSPACE_TOOL_PROMPT,
 )
 from app.orchestrator.state import AgentState
-from app.orchestrator.utils.products import SEARCH_TOOLS, candidate_cards
 from app.orchestrator.utils.prompt_context import build_state_context
 from app.orchestrator.utils.trace import node_finish, node_start
 from app.orchestrator.utils.turns import message_text, render_llm_input
@@ -30,22 +25,8 @@ from app.orchestrator.utils.turns import message_text, render_llm_input
 logger = get_logger(__name__)
 
 # Reactive search loop's per-turn budget. Mirrors the cap stated in
-# SEARCH_TOOL_PROMPT; bounds how long we keep forcing fallback searches.
+# SEARCH_TOOL_PROMPT.
 MAX_SEARCHES_PER_TURN = 3
-
-# Re-asserted at the decision point when a turn's searches surfaced nothing.
-# The static fallback rule is too easily skipped, so this fresh, high-salience
-# directive forces a broader retry instead of letting the agent give up early.
-_FORCE_FALLBACK_SEARCH_DIRECTIVE = (
-    "CRITICAL -- DO NOT REPLY YET: your search(es) this turn returned NO products. "
-    "Before writing any reply you MUST run broader fallback search(es) now -- drop "
-    "the most specific qualifier (brand, character, model, colour) and search the "
-    "parent category instead, firing them together in ONE batched step "
-    "(parallel tool calls). You may run at most {remaining} more search(es) this "
-    "turn -- do not exceed that. Only after a broader search has ALSO come "
-    "back empty may you tell the customer the item is unavailable; do not "
-    "say it is out of stock yet."
-)
 
 _CHANNEL_FORMAT_GUIDES = {
     "web": (
@@ -60,67 +41,40 @@ _CHANNEL_FORMAT_GUIDES = {
 }
 
 _EMOTION_GUIDANCE = {
-    "sad": "The customer seems sad -- be gentle and comforting, and "
+    "sad": "The user seems sad -- be gentle and comforting, and "
     "acknowledge how they feel before anything else.",
-    "stressed": "The customer seems stressed -- be calm and reassuring, "
+    "stressed": "The user seems stressed -- be calm and reassuring, "
     "keep it simple, and don't add pressure.",
-    "angry": "The customer seems angry -- stay calm and de-escalate; "
+    "angry": "The user seems angry -- stay calm and de-escalate; "
     "acknowledge the frustration and don't get defensive.",
-    "celebrating": "The customer is celebrating -- match their excitement and be warm and upbeat.",
+    "celebrating": "The user is celebrating -- match their excitement and be warm and upbeat.",
 }
 
 _ROUTER_BASE = (
     f"{MISSION_PROMPT}\n\n"
     f"{PERSONA_PROMPT}\n\n"
-    "You are the Kakille AI assistant. You can use tools to gather data "
-    "(search, cart, cart checkouts).\n"
+    "You are the Kakille legal aid assistant. You can use tools to gather data "
+    "(legal knowledge search, the user's sources, notes, reminders).\n"
     "When you need to use a tool, ONLY output the tool call (do not write conversational "
     "text to the user).\n"
     "When you have the tool results and are ready to reply, write the FINAL conversational "
-    "response directly to the user.\n"
-    "If you want to display cards to the user this turn, include a line at the "
-    "very end of your final reply like this: `[DISPLAY: code1, code2]` using the exact "
-    "codes from the catalog.\n\n"
+    "response directly to the user.\n\n"
 )
 
 SEARCH_AGENT_PROMPT = (
     f"{_ROUTER_BASE}{GENERAL_OPERATIONS_PROMPT}\n\n{SEARCH_GUIDE_PROMPT}\n\n{SEARCH_TOOL_PROMPT}"
 )
-CHECKOUT_AGENT_PROMPT = (
-    f"{_ROUTER_BASE}{GENERAL_OPERATIONS_PROMPT}\n\n"
-    f"{CHECKOUT_GUIDE_PROMPT}\n\n{CHECKOUT_TOOL_PROMPT}"
+CHAT_AGENT_PROMPT = (
+    f"{_ROUTER_BASE}{GENERAL_OPERATIONS_PROMPT}\n\n{CHAT_GUIDE_PROMPT}\n\n{WORKSPACE_TOOL_PROMPT}"
 )
-TRACKING_AGENT_PROMPT = (
-    f"{_ROUTER_BASE}{GENERAL_OPERATIONS_PROMPT}\n\n"
-    f"{TRACKING_GUIDE_PROMPT}\n\n{TRACKING_TOOL_PROMPT}"
-)
-CHAT_AGENT_PROMPT = f"{_ROUTER_BASE}{GENERAL_OPERATIONS_PROMPT}\n\n{CHAT_GUIDE_PROMPT}"
 
 
 def _build_dynamic_prompt(state: AgentState) -> str:
     sections = [
         "Dynamic Context:",
-        PRODUCT_DISPLAY_PROMPT,
         _CHANNEL_FORMAT_GUIDES.get(state.get("channel", "web"), _CHANNEL_FORMAT_GUIDES["web"]),
         *build_state_context(state),
     ]
-
-    tool_messages = [m for m in state["messages"] if isinstance(m, ToolMessage)]
-    catalog = candidate_cards(tool_messages)[:40]
-    if catalog:
-        lines = ["Products you can display this turn (use their codes in [DISPLAY: code]):"]
-        for card in catalog:
-            price = card.get("price") or ""
-            suffix = f" - {price}" if price else ""
-            name = card.get("name", "Unknown")
-            code = card.get("code", "Unknown")
-            lines.append(f"- Code: {code} | {name}{suffix}")
-        sections.append("\n".join(lines))
-
-    search_messages = [m for m in tool_messages if m.name in SEARCH_TOOLS]
-    force_fallback_search = (
-        bool(search_messages) and not catalog and len(search_messages) < MAX_SEARCHES_PER_TURN
-    )
 
     if emotion_guidance := _EMOTION_GUIDANCE.get(state.get("detected_emotion", "neutral")):
         sections.append(emotion_guidance)
@@ -135,17 +89,13 @@ def _build_dynamic_prompt(state: AgentState) -> str:
         )
     else:
         sections.append(
-            "ALWAYS reply in the exact language and script the customer is using. "
-            "If the customer wrote in Latin letters (Singlish/Tanglish), "
+            "ALWAYS reply in the exact language and script the user is using. "
+            "If the user wrote in Latin letters (Singlish/Tanglish), "
             "reply in Latin letters only."
         )
 
     if persona_note := LANGUAGE_PERSONA_NOTES.get(language_tag):
         sections.append(f"Register for this language: {persona_note}")
-
-    if force_fallback_search:
-        remaining = MAX_SEARCHES_PER_TURN - len(search_messages)
-        sections.append(_FORCE_FALLBACK_SEARCH_DIRECTIVE.format(remaining=remaining))
 
     return "\n\n".join(sections)
 
@@ -188,14 +138,6 @@ async def _invoke_agent(
 
 async def search_agent(state: AgentState, *, model: Any) -> dict[str, Any]:
     return await _invoke_agent(state, model, SEARCH_AGENT_PROMPT, "search_agent")
-
-
-async def checkout_agent(state: AgentState, *, model: Any) -> dict[str, Any]:
-    return await _invoke_agent(state, model, CHECKOUT_AGENT_PROMPT, "checkout_agent")
-
-
-async def tracking_agent(state: AgentState, *, model: Any) -> dict[str, Any]:
-    return await _invoke_agent(state, model, TRACKING_AGENT_PROMPT, "tracking_agent")
 
 
 async def chat_agent(state: AgentState, *, model: Any) -> dict[str, Any]:

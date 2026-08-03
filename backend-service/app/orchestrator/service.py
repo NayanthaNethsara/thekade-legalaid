@@ -31,24 +31,16 @@ from app.orchestrator.nodes import (
 from app.orchestrator.nodes.memory import write_memory
 from app.orchestrator.prompts import DOMAIN_KNOWLEDGE_PROMPT, build_classifier_prompt
 from app.orchestrator.state import AgentState
-from app.orchestrator.tools.cart_tools import build_cart_tools
-from app.orchestrator.tools.checkout_tools import (
-    build_active_checkouts_tool,
-    build_checkout_history_tool,
-    build_last_checkout_tool,
-)
 from app.orchestrator.tools.mcp_tools import McpToolManager, load_mcp_tools
-from app.orchestrator.tools.tracking_tools import (
-    build_list_tracked_orders_tool,
-    build_track_all_active_orders_tool,
-)
-from app.repositories.cart_checkout_repository import CartCheckoutRepository
-from app.repositories.cart_repository import CartRepository
+from app.orchestrator.tools.note_tools import build_note_tools
+from app.orchestrator.tools.reminder_tools import build_reminder_tools
+from app.orchestrator.tools.source_tools import build_source_tools
 from app.repositories.conversation_index_repository import ConversationIndexRepository
 from app.repositories.customer_memory_repository import CustomerMemoryRepository
 from app.repositories.customer_profile_repository import CustomerProfileRepository
-from app.repositories.guest_checkout_contact_repository import GuestCheckoutContactRepository
-from app.repositories.order_tracking_repository import OrderTrackingRepository
+from app.repositories.note_repository import NoteRepository
+from app.repositories.reminder_repository import ReminderRepository
+from app.repositories.source_repository import SourceRepository
 from app.schemas.chat import ChatResponse, ConversationDetail, ConversationSummary
 from app.services.vision_service import (
     ImageIdentification,
@@ -69,11 +61,31 @@ _ERROR_REPLY = (
 
 _IMAGE_UNAVAILABLE_REPLY = "Image search is unavailable right now. Please describe what you want."
 
-_AGENT_NODES = frozenset({"search_agent", "checkout_agent", "tracking_agent", "chat_agent"})
-
-_DISPLAY_MARKER = "[DISPLAY"
+_AGENT_NODES = frozenset({"search_agent", "chat_agent"})
 
 _SHUTDOWN_DRAIN_SECONDS = 10
+
+# The research agent runs the knowledge search plus source reads; the chat
+# agent handles small talk and the user's workspace (sources, notes,
+# reminders). Tool names must match what the factories and the MCP server
+# register, and what the *_TOOL_PROMPT constants describe.
+_SEARCH_AGENT_TOOLS = frozenset(
+    {
+        "kakille_search_legal_knowledge",
+        "list_sources",
+        "read_source",
+    }
+)
+_CHAT_AGENT_TOOLS = frozenset(
+    {
+        "list_sources",
+        "read_source",
+        "add_note",
+        "list_notes",
+        "add_reminder",
+        "list_reminders",
+    }
+)
 
 
 def _chunk_text(chunk: Any) -> str:
@@ -90,22 +102,6 @@ def _chunk_text(chunk: Any) -> str:
     return ""
 
 
-def _streamable_prefix(text: str) -> str:
-    """The portion of ``text`` safe to stream, hiding the ``[DISPLAY: ...]`` marker.
-
-    Everything from a complete marker onward is dropped, and a trailing partial
-    marker (e.g. ``[DISP``) is held back until the next chunk resolves whether it
-    is the marker or ordinary text.
-    """
-    index = text.find(_DISPLAY_MARKER)
-    if index != -1:
-        return text[:index]
-    for held in range(min(len(text), len(_DISPLAY_MARKER) - 1), 0, -1):
-        if text.endswith(_DISPLAY_MARKER[:held]):
-            return text[: len(text) - held]
-    return text
-
-
 class _ReplyStreamer:
     """Turns LangGraph message-stream chunks into user-facing reply token events.
 
@@ -117,7 +113,6 @@ class _ReplyStreamer:
     def __init__(self) -> None:
         self._step: Any = None
         self._emitted = ""
-        self._buffer = ""
 
     def consume(self, chunk: Any, metadata: dict[str, Any]) -> list[dict[str, Any]]:
         if metadata.get("langgraph_node") not in _AGENT_NODES:
@@ -130,13 +125,11 @@ class _ReplyStreamer:
                 events.append({"type": "reset"})
             self._step = step
             self._emitted = ""
-            self._buffer = ""
 
-        self._buffer += _chunk_text(chunk)
-        safe = _streamable_prefix(self._buffer)
-        if len(safe) > len(self._emitted):
-            events.append({"type": "token", "text": safe[len(self._emitted) :]})
-            self._emitted = safe
+        text = _chunk_text(chunk)
+        if text:
+            events.append({"type": "token", "text": text})
+            self._emitted += text
         return events
 
 
@@ -191,63 +184,14 @@ class Orchestrator:
         guard = self._build_guard(settings, utility_model, model)
 
         # Agent-specific tool pruning
-        search_tools = [
-            t
-            for t in tools
-            if t.name
-            in (
-                "kakille_search_products",
-                "get_cart",
-                "add_to_cart",
-                "remove_from_cart",
-                "change_cart_item",
-                "clear_cart",
-            )
-        ]
-        checkout_tools = [
-            t
-            for t in tools
-            if t.name
-            in (
-                "kakille_create_order",
-                "get_cart",
-                "add_to_cart",
-                "remove_from_cart",
-                "change_cart_item",
-                "clear_cart",
-                "get_active_checkouts",
-                "get_last_checkout",
-                "get_checkout_history",
-            )
-        ]
-        tracking_tools = [
-            t
-            for t in tools
-            if t.name
-            in (
-                "kakille_track_order",
-                "list_tracked_orders",
-                "track_all_active_orders",
-                "get_active_checkouts",
-                "get_checkout_history",
-                "get_last_checkout",
-            )
-        ]
-        chat_tools = [
-            t
-            for t in tools
-            if t.name in ("get_active_checkouts", "get_last_checkout", "get_checkout_history")
-        ]
+        search_tools = [t for t in tools if t.name in _SEARCH_AGENT_TOOLS]
+        chat_tools = [t for t in tools if t.name in _CHAT_AGENT_TOOLS]
 
         search_model = model.bind_tools(search_tools) if search_tools else model
-        checkout_model = model.bind_tools(checkout_tools) if checkout_tools else model
-        tracking_model = model.bind_tools(tracking_tools) if tracking_tools else model
         chat_model = model.bind_tools(chat_tools) if chat_tools else model
 
         self._graph = build_graph(
             search_model=search_model,
-            checkout_model=checkout_model,
-            tracking_model=tracking_model,
             chat_model=chat_model,
             base_model=model,
             summarizer=utility_model,
@@ -256,8 +200,7 @@ class Orchestrator:
             store=store,
             profile_repo=repos.profile,
             memory_repo=repos.memory,
-            cart_repo=repos.cart,
-            guest_contact_repo=repos.guest_contact,
+            source_repo=repos.source,
             guard=guard,
         )
         self._conversations = ConversationStore(checkpointer)
@@ -294,21 +237,19 @@ class Orchestrator:
         return pool, checkpointer, store
 
     async def _build_tools(self, settings: Settings, repos: "_Repositories") -> list[BaseTool]:
-        """External Kakille MCP tools plus our local, database-backed tools."""
+        """First-party MCP tools plus our local, database-backed workspace tools."""
         tools = await self._load_mcp_tools(settings)
-        tools.append(build_active_checkouts_tool(repos.cart_checkout))
-        tools.append(build_checkout_history_tool(repos.cart_checkout))
-        tools.append(build_last_checkout_tool(repos.cart_checkout))
-        tools.append(build_list_tracked_orders_tool(repos.order_tracking))
-        tools.append(build_track_all_active_orders_tool(tools, repos.order_tracking))
-        tools.extend(build_cart_tools(repos.cart))
+        tools.extend(build_source_tools(repos.source))
+        tools.extend(build_note_tools(repos.note))
+        tools.extend(build_reminder_tools(repos.reminder))
         return tools
 
     async def _load_mcp_tools(self, settings: Settings) -> list[BaseTool]:
         """Load MCP tools, degrading to none if the server is unreachable.
 
         Tool loading must never block boot: if the MCP server is down the agent
-        still answers (text-only) instead of failing to start.
+        still answers (without knowledge-base search) instead of failing to
+        start.
         """
         for attempt in range(5):
             try:
@@ -372,6 +313,7 @@ class Orchestrator:
         user_identity: str | None,
         principal_id: str | None,
         principal_kind: str | None,
+        source_ids: list[str] | None = None,
     ) -> RunnableConfig:
         return {
             "configurable": {
@@ -379,6 +321,7 @@ class Orchestrator:
                 "user_identity": user_identity,
                 "principal_id": principal_id,
                 "principal_kind": principal_kind,
+                "source_ids": source_ids or [],
             },
             "recursion_limit": 15,
         }
@@ -392,6 +335,7 @@ class Orchestrator:
         principal_id: str | None = None,
         principal_kind: str | None = None,
         is_ui: bool = False,
+        source_ids: list[str] | None = None,
     ) -> ChatResponse:
         """Run one orchestrator turn. Never raises -- always returns a reply.
 
@@ -404,7 +348,9 @@ class Orchestrator:
         try:
             result = await self._graph.ainvoke(
                 self._initial_state(message, channel, is_ui),
-                config=self._run_config(thread_id, user_identity, principal_id, principal_kind),
+                config=self._run_config(
+                    thread_id, user_identity, principal_id, principal_kind, source_ids
+                ),
                 durability="exit",
             )
             response = await self._apply_turn_result(result, thread_id, user_identity, channel)
@@ -422,7 +368,7 @@ class Orchestrator:
         caption: str = "",
         thread_id: str | None = None,
     ) -> ImageIdentification:
-        """KakilleVision: identify a product in an uploaded image. Never raises.
+        """KakilleVision: identify what an uploaded image shows. Never raises.
 
         Kept here because the orchestrator owns the LLM models' lifecycle; the
         image never enters the conversation graph -- the caller turns the returned
@@ -487,6 +433,7 @@ class Orchestrator:
         principal_id: str | None = None,
         principal_kind: str | None = None,
         is_ui: bool = False,
+        source_ids: list[str] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream one turn: the final agent reply token by token, then the result."""
         if self._is_disabled or self._graph is None:
@@ -505,6 +452,7 @@ class Orchestrator:
                     principal_id,
                     principal_kind,
                     is_ui,
+                    source_ids,
                 ):
                     await queue.put(event)
             finally:
@@ -527,6 +475,7 @@ class Orchestrator:
         principal_id: str | None,
         principal_kind: str | None,
         is_ui: bool,
+        source_ids: list[str] | None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Drive the graph and yield stream events, ending with the authoritative result.
 
@@ -538,7 +487,9 @@ class Orchestrator:
         try:
             async for mode, data in self._graph.astream(  # type: ignore[union-attr]
                 self._initial_state(message, channel, is_ui),
-                config=self._run_config(thread_id, user_identity, principal_id, principal_kind),
+                config=self._run_config(
+                    thread_id, user_identity, principal_id, principal_kind, source_ids
+                ),
                 stream_mode=["messages", "values"],
                 durability="exit",
             ):
@@ -583,40 +534,17 @@ class Orchestrator:
     ) -> ChatResponse:
         """Apply a finished turn's side effects and assemble the channel response.
 
-        Shared by ``respond`` and ``respond_stream``: snapshots the cart into any
-        checkout events, kicks off the background memory write, clears the cart
-        after a checkout, and builds the ``ChatResponse``.
+        Shared by ``respond`` and ``respond_stream``: kicks off the background
+        memory write and builds the ``ChatResponse``.
         """
         logger.info("orchestrator.responded", thread_id=thread_id, channel=channel)
 
-        checkout_events = result.get("_checkout_events")
-        if checkout_events and self._repos:
-            # Snapshot the live cart (with names and prices) into each checkout
-            # record before it is cleared. The create_order tool args carry only
-            # product ids, so without this a later "reorder my last order" would
-            # restore items as "unknown" at price 0.
-            cart = await self._repos.cart.get_cart(thread_id)
-            if cart and cart.items:
-                rich_cart = [item.model_dump(exclude_none=True) for item in cart.items]
-                for event in checkout_events:
-                    event.setdefault("last_order", {})["cart"] = rich_cart
-
-        is_guest = user_identity is None
-        should_update_memory = bool(
-            result.get("requires_memory_update")
-            or checkout_events
-            or result.get("tracking")
-            or (is_guest and result.get("target_goal") == "checkout")
-        )
-        if should_update_memory:
+        if result.get("requires_memory_update"):
             self._spawn_background(
                 self._run_write_memory_background(
                     cast(AgentState, result), user_identity, thread_id
                 )
             )
-
-        if checkout_events and self._repos:
-            await self._repos.cart.clear_cart(thread_id)
 
         self._index_conversation(thread_id, result.get("title"))
 
@@ -627,9 +555,6 @@ class Orchestrator:
             detected_emotion=result.get("detected_emotion", "neutral"),
             target_goal=result.get("target_goal", "chat"),
             title=result.get("title"),
-            missing_fields=result.get("missing_fields", []),
-            cart_checkouts=result.get("cart_checkouts", []),
-            tracking=result.get("tracking") or [],
         )
 
     async def _run_write_memory_background(
@@ -645,9 +570,6 @@ class Orchestrator:
                 model=self._utility_model,
                 profile_repo=self._repos.profile,
                 memory_repo=self._repos.memory,
-                guest_contact_repo=self._repos.guest_contact,
-                cart_checkout_repo=self._repos.cart_checkout,
-                order_tracking_repo=self._repos.order_tracking,
             )
         except Exception:
             logger.exception("orchestrator.write_memory_background_failed")
@@ -684,12 +606,8 @@ class Orchestrator:
             "channel": channel,
             "formatted_reply": "",
             "plan": "",
-            "cart": "",
-            "missing_fields": [],
-            "cart_checkouts": [],
-            "tracking": [],
+            "sources_context": "",
             "is_ui": is_ui,
-            "_checkout_events": [],
         }
 
     async def list_conversations(
@@ -740,19 +658,17 @@ class _Repositories:
         self,
         profile: CustomerProfileRepository,
         memory: CustomerMemoryRepository,
-        cart_checkout: CartCheckoutRepository,
-        order_tracking: OrderTrackingRepository,
-        cart: CartRepository,
-        guest_contact: GuestCheckoutContactRepository,
         conversation_index: ConversationIndexRepository,
+        source: SourceRepository,
+        note: NoteRepository,
+        reminder: ReminderRepository,
     ) -> None:
         self.profile = profile
         self.memory = memory
-        self.cart_checkout = cart_checkout
-        self.order_tracking = order_tracking
-        self.cart = cart
-        self.guest_contact = guest_contact
         self.conversation_index = conversation_index
+        self.source = source
+        self.note = note
+        self.reminder = reminder
 
 
 def _build_repositories() -> _Repositories:
@@ -761,9 +677,8 @@ def _build_repositories() -> _Repositories:
     return _Repositories(
         profile=CustomerProfileRepository(sessionmaker, redis),
         memory=CustomerMemoryRepository(sessionmaker, redis),
-        cart_checkout=CartCheckoutRepository(sessionmaker, redis),
-        order_tracking=OrderTrackingRepository(sessionmaker),
-        cart=CartRepository(redis),
-        guest_contact=GuestCheckoutContactRepository(redis),
         conversation_index=ConversationIndexRepository(sessionmaker),
+        source=SourceRepository(sessionmaker),
+        note=NoteRepository(sessionmaker),
+        reminder=ReminderRepository(sessionmaker),
     )

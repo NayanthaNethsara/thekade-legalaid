@@ -13,7 +13,6 @@ from app.core.security.tokens import InvalidTokenError, decode_token
 from app.db.redis import get_redis
 from app.db.session import get_session, get_sessionmaker
 from app.models.user import User
-from app.repositories.cart_repository import CartRepository
 from app.repositories.customer_memory_repository import CustomerMemoryRepository
 from app.repositories.customer_profile_repository import CustomerProfileRepository
 from app.repositories.guest_repository import GuestRepository
@@ -56,12 +55,6 @@ def get_customer_memory_repository(
     redis: Annotated[Redis, Depends(get_redis_client)],
 ) -> CustomerMemoryRepository:
     return CustomerMemoryRepository(get_sessionmaker(), redis)
-
-
-def get_cart_repository(
-    redis: Annotated[Redis, Depends(get_redis_client)],
-) -> CartRepository:
-    return CartRepository(redis)
 
 
 def get_guest_repository(

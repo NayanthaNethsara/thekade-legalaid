@@ -171,41 +171,9 @@ async def load_mcp_tools(settings: McpSettings) -> tuple[list[BaseTool], McpTool
     manager = McpToolManager({"kakille": connection})
     tools = await manager.start()
 
-    for i, t in enumerate(tools):
-        if t.name == "kakille_track_order":
-            tools[i] = _wrap_track_order_tool(t)
-
     logger.info(
         "orchestrator.mcp_tools_loaded",
         count=len(tools),
         names=[tool.name for tool in tools],
     )
     return tools, manager
-
-
-def _wrap_track_order_tool(tool: BaseTool) -> BaseTool:
-    """Interceptors to set response_format='json' on all tracking calls so we
-    get structured JSON back.
-    """
-    original_invoke = tool.invoke
-    original_ainvoke = tool.ainvoke
-
-    def new_invoke(input: Any, *args: Any, **kwargs: Any) -> Any:
-        if isinstance(input, dict):
-            if "params" in input and isinstance(input["params"], dict):
-                input["params"]["response_format"] = "json"
-            else:
-                input["response_format"] = "json"
-        return original_invoke(input, *args, **kwargs)
-
-    async def new_ainvoke(input: Any, *args: Any, **kwargs: Any) -> Any:
-        if isinstance(input, dict):
-            if "params" in input and isinstance(input["params"], dict):
-                input["params"]["response_format"] = "json"
-            else:
-                input["response_format"] = "json"
-        return await original_ainvoke(input, *args, **kwargs)
-
-    tool.__dict__["invoke"] = new_invoke
-    tool.__dict__["ainvoke"] = new_ainvoke
-    return tool

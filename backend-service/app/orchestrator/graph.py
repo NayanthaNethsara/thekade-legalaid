@@ -10,14 +10,12 @@ Topology:
                          -> [no summarize -> load_memory]
           -> load_memory -> plan -> [route to target-goal agent]
           -> agent -> [tool calls? -> tools -> agent]   (reactive loop)
-                   -> [no tool calls -> generate_response]
-          -> generate_response -> write_memory -> finalize_turn -> END
+                   -> [no tool calls -> finalize_turn -> END]
 
 The plan node is a router and strategist: it classifies the target goal and
 writes turn guidance, but does not call tools. Each target-goal agent owns its
-own tool calling through the reactive loop -- search, cart mutations, order
-creation after an explicit confirmation, tracking -- without ending the turn on
-a dangling tool call.
+own tool calling through the reactive loop -- legal knowledge search, source
+reads, notes, reminders -- without ending the turn on a dangling tool call.
 """
 
 from collections.abc import Awaitable, Callable
@@ -33,7 +31,6 @@ from langgraph.store.base import BaseStore
 
 from app.orchestrator.nodes import (
     chat_agent,
-    checkout_agent,
     execute_model_tools,
     finalize_turn,
     load_memory,
@@ -42,21 +39,18 @@ from app.orchestrator.nodes import (
     route_after_guard,
     route_to_agent,
     search_agent,
-    tracking_agent,
 )
 from app.orchestrator.nodes.summarize import summarize
 from app.orchestrator.state import AgentState
 from app.repositories.customer_memory_repository import CustomerMemoryRepository
 from app.repositories.customer_profile_repository import CustomerProfileRepository
-from app.repositories.guest_checkout_contact_repository import GuestCheckoutContactRepository
+from app.repositories.source_repository import SourceRepository
 
 GuardNode = Callable[..., Awaitable[dict[str, Any]]]
 
 
 def build_graph(
     search_model: LanguageModelLike,
-    checkout_model: LanguageModelLike,
-    tracking_model: LanguageModelLike,
     chat_model: LanguageModelLike,
     base_model: LanguageModelLike,
     summarizer: BaseChatModel,
@@ -65,8 +59,7 @@ def build_graph(
     store: BaseStore,
     profile_repo: CustomerProfileRepository,
     memory_repo: CustomerMemoryRepository,
-    cart_repo: Any,
-    guest_contact_repo: GuestCheckoutContactRepository,
+    source_repo: SourceRepository,
     guard: GuardNode,
 ) -> CompiledStateGraph[Any, Any, Any, Any]:
     """Assemble and compile the orchestrator workflow."""
@@ -80,14 +73,11 @@ def build_graph(
             load_memory,
             profile_repo=profile_repo,
             memory_repo=memory_repo,
-            cart_repo=cart_repo,
-            guest_contact_repo=guest_contact_repo,
+            source_repo=source_repo,
         ),
     )
     builder.add_node("plan", partial(plan, model=summarizer))
     builder.add_node("search_agent", partial(search_agent, model=search_model))
-    builder.add_node("checkout_agent", partial(checkout_agent, model=checkout_model))
-    builder.add_node("tracking_agent", partial(tracking_agent, model=tracking_model))
     builder.add_node("chat_agent", partial(chat_agent, model=chat_model))
 
     builder.add_node("tools", partial(execute_model_tools, tools=tools))
@@ -109,14 +99,12 @@ def build_graph(
         route_to_agent,
         {
             "search_agent": "search_agent",
-            "checkout_agent": "checkout_agent",
-            "tracking_agent": "tracking_agent",
             "chat_agent": "chat_agent",
         },
     )
 
-    # Reactive tool loop for all agents
-    for agent in ("search_agent", "checkout_agent", "tracking_agent", "chat_agent"):
+    # Reactive tool loop for both agents
+    for agent in ("search_agent", "chat_agent"):
         builder.add_conditional_edges(
             agent,
             route_after_agent,
@@ -128,8 +116,6 @@ def build_graph(
         route_to_agent,
         {
             "search_agent": "search_agent",
-            "checkout_agent": "checkout_agent",
-            "tracking_agent": "tracking_agent",
             "chat_agent": "chat_agent",
         },
     )

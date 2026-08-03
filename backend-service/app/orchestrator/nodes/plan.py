@@ -1,6 +1,6 @@
 import asyncio
 import datetime
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -16,7 +16,6 @@ from app.orchestrator.prompts import PERSONA_PROMPT, REFINE_AND_PLAN_PROMPT
 from app.orchestrator.state import AgentState
 from app.orchestrator.utils.trace import node_finish, node_start
 from app.orchestrator.utils.turns import (
-    message_text,
     render_conversation_history,
     render_llm_input,
 )
@@ -35,10 +34,9 @@ class PlanResult(BaseModel):
         default="neutral",
         description="One of: sad | stressed | angry | celebrating | neutral",
     )
-    target_goal: Literal["search", "checkout", "tracking", "chat"] = Field(
-        default="chat", description="One of: search | checkout | tracking | chat"
+    target_goal: Literal["search", "chat"] = Field(
+        default="chat", description="One of: search | chat"
     )
-    missing_fields: list[str] = Field(default_factory=list)
     conversational_strategy: str = Field(default="")
     normalized_request: str = Field(default="")
     requires_memory_update: bool = Field(
@@ -59,20 +57,15 @@ class PlanResult(BaseModel):
             f"Customer's main goal: {self.target_goal}",
             f"Their request: {self.normalized_request}",
         ]
-        if self.target_goal == "checkout":
-            still_missing = ", ".join(self.missing_fields) or "none"
-            lines.append(f"Checkout details still missing: {still_missing}")
         if self.conversational_strategy:
             lines.append(f"Guidance: {self.conversational_strategy}")
         return "\n".join(lines)
 
     def as_state_update(self) -> dict[str, Any]:
-        is_checkout = self.target_goal == "checkout"
         update = {
             "plan": self.plan_text.strip(),
             "detected_emotion": self.detected_emotion.strip(),
             "target_goal": self.target_goal.strip(),
-            "missing_fields": self.missing_fields if is_checkout else [],
             "requires_memory_update": self.requires_memory_update,
         }
         if self.title:
@@ -94,8 +87,6 @@ def _build_plan_prompt(state: AgentState) -> list[Any]:
         parts.append(f"Summary of earlier conversation:\n{summary}")
     if memory := state.get("memory", ""):
         parts.append(f"Customer profile & preferences:\n{memory}")
-    if cart := state.get("cart", ""):
-        parts.append(f"Current Cart:\n{cart}")
     if recent_history := render_conversation_history(
         state["messages"], max_turns=6, include_tool_calls=True
     ):
@@ -115,38 +106,16 @@ def _build_plan_prompt(state: AgentState) -> list[Any]:
 async def plan(state: AgentState, *, model: BaseChatModel) -> dict[str, Any]:
     node_start("PLAN NODE")
 
-    last_message_text = message_text(state["messages"][-1]).lower() if state["messages"] else ""
-    if state.get("is_ui", False) and "checkout form" in last_message_text:
-        update = {
-            "plan": (
-                "Customer's main goal: checkout\n"
-                "Their request: UI checkout form submission\n"
-                "Checkout details still missing: none"
-            ),
-            "detected_emotion": "neutral",
-            "target_goal": "checkout",
-            "missing_fields": [],
-            "requires_memory_update": False,
-        }
-        logger.info(
-            "orchestrator.plan.ui_checkout_forced",
-            target_goal="checkout",
-        )
-        node_finish(
-            "PLAN NODE",
-            Goal="checkout",
-            Language=state.get("detected_language", "en"),
-            Emotion="neutral",
-            Strategy="Immediate UI checkout execution",
-        )
-        return update
-
     messages = _build_plan_prompt(state)
     logger.debug("orchestrator.plan.input", llm_input=render_llm_input(messages))
 
     # On planner failure, keep the prior turn's goal so a transient blip never
-    # drops an active checkout or search into chat.
-    result = PlanResult(target_goal=state.get("target_goal") or "chat")
+    # drops an active research thread into chat. Old checkpoints may carry a
+    # goal from a removed agent, so anything unknown sanitizes to "chat".
+    prior_goal = state.get("target_goal") or "chat"
+    if prior_goal not in ("search", "chat"):
+        prior_goal = "chat"
+    result = PlanResult(target_goal=cast(Literal["search", "chat"], prior_goal))
     planner = model.with_structured_output(PlanResult)
     try:
         parsed = await asyncio.wait_for(planner.ainvoke(messages), timeout=PLAN_TIMEOUT_SECONDS)
@@ -166,7 +135,6 @@ async def plan(state: AgentState, *, model: BaseChatModel) -> dict[str, Any]:
     logger.info(
         "orchestrator.plan.parsed",
         target_goal=result.target_goal,
-        missing_fields=result.missing_fields,
         detected_language=result.detected_language,
         effective_language=effective_language,
         detected_emotion=result.detected_emotion,

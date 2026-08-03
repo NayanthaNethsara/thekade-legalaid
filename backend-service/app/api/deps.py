@@ -17,6 +17,9 @@ from app.repositories.cart_repository import CartRepository
 from app.repositories.customer_memory_repository import CustomerMemoryRepository
 from app.repositories.customer_profile_repository import CustomerProfileRepository
 from app.repositories.guest_repository import GuestRepository
+from app.repositories.note_repository import NoteRepository
+from app.repositories.reminder_repository import ReminderRepository
+from app.repositories.source_repository import SourceRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.guest import GuestRecord
 from app.services.auth_service import AuthService
@@ -65,6 +68,18 @@ def get_guest_repository(
     redis: Annotated[Redis, Depends(get_redis_client)],
 ) -> GuestRepository:
     return GuestRepository(redis)
+
+
+def get_source_repository() -> SourceRepository:
+    return SourceRepository(get_sessionmaker())
+
+
+def get_note_repository() -> NoteRepository:
+    return NoteRepository(get_sessionmaker())
+
+
+def get_reminder_repository() -> ReminderRepository:
+    return ReminderRepository(get_sessionmaker())
 
 
 def get_guest_service(

@@ -17,6 +17,14 @@ class ChatRequest(BaseModel):
     )
 
 
+class QuickMessageItem(BaseModel):
+    """A starter prompt chip shown on the web landing page."""
+
+    icon_name: str
+    label: str
+    message: str
+
+
 class ImageSearchResponse(BaseModel):
     """KakilleVision verdict for an uploaded image (POST /chat/image-search).
 

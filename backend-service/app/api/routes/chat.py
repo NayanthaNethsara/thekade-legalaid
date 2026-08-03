@@ -7,26 +7,57 @@ from fastapi.responses import StreamingResponse
 
 from app.api.deps import (
     Principal,
-    get_cart_repository,
+    get_note_repository,
     get_principal,
+    get_reminder_repository,
+    get_source_repository,
     require_internal_key,
 )
 from app.api.rate_limit import RateLimiterDep, enforce_rate_limit
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 from app.orchestrator import orchestrator
-from app.repositories.cart_repository import CartRepository
+from app.repositories.note_repository import NoteRepository
+from app.repositories.reminder_repository import ReminderRepository
+from app.repositories.source_repository import SourceRepository
 from app.schemas.chat import (
     ChatRequest,
     ChatResponse,
     ConversationDetail,
     ConversationSummary,
     ImageSearchResponse,
+    QuickMessageItem,
 )
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+# Static starter prompts for the web landing page. Kept server-side so copy
+# changes do not need a frontend deploy.
+_QUICK_MESSAGES = [
+    QuickMessageItem(
+        icon_name="question",
+        label="Understand a legal problem",
+        message=(
+            "I have a legal problem I would like to understand better. "
+            "Can you help me work through it?"
+        ),
+    ),
+    QuickMessageItem(
+        icon_name="checklist",
+        label="Know your rights",
+        message=("Can you explain my rights in a situation I am dealing with? I will describe it."),
+    ),
+    QuickMessageItem(
+        icon_name="search",
+        label="Get help with a document",
+        message=(
+            "I have a legal document I need help understanding or drafting. Can you guide me?"
+        ),
+    ),
+]
 
 
 def _thread_id(principal: Principal, conversation_id: str) -> str:
@@ -166,6 +197,16 @@ async def image_search(
     )
 
 
+@router.get(
+    "/quick-messages",
+    response_model=list[QuickMessageItem],
+    dependencies=[Depends(require_internal_key)],
+)
+async def quick_messages() -> list[QuickMessageItem]:
+    """Starter prompts for the landing page."""
+    return _QUICK_MESSAGES
+
+
 @router.delete(
     "",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -173,18 +214,22 @@ async def image_search(
 )
 async def end_conversation(
     principal: Annotated[Principal, Depends(get_principal)],
-    carts: Annotated[CartRepository, Depends(get_cart_repository)],
+    sources: Annotated[SourceRepository, Depends(get_source_repository)],
+    notes: Annotated[NoteRepository, Depends(get_note_repository)],
+    reminders: Annotated[ReminderRepository, Depends(get_reminder_repository)],
     conversation_id: str,
 ) -> None:
-    """End a conversation and fully drop its stored history and cart.
+    """End a conversation and fully drop its stored history and workspace rows.
 
     Returns 404 when the conversation does not exist for this principal, so the
     client only removes it from the UI once the backend confirms deletion.
     """
     thread_id = _thread_id(principal, conversation_id)
-    # Cart shares the conversation's thread id as its key; drop it so no cart
-    # outlives the conversation it belonged to.
-    await carts.clear_cart(thread_id)
+    # Workspace rows share the conversation scope; drop them so no source,
+    # note, or reminder outlives the conversation it belonged to.
+    await sources.delete_for_conversation(principal.kind, principal.id, conversation_id)
+    await notes.delete_for_conversation(principal.kind, principal.id, conversation_id)
+    await reminders.delete_for_conversation(principal.kind, principal.id, conversation_id)
     deleted = await orchestrator.delete_conversation(thread_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")

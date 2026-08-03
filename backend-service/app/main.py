@@ -7,7 +7,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.api.deps import require_internal_key
 from app.api.rate_limit import add_global_rate_limit
-from app.api.routes import auth, cart, chat, guest, health, profile
+from app.api.routes import auth, cart, chat, guest, health, notes, profile, reminders, sources
 from app.api.routes.admin import auth as admin_auth, rag as admin_rag, verification as admin_verification
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging, get_logger
@@ -114,6 +114,9 @@ def create_app() -> FastAPI:
     app.include_router(chat.router, dependencies=frontend_only)
     app.include_router(cart.router, dependencies=frontend_only)
     app.include_router(profile.router, dependencies=frontend_only)
+    app.include_router(sources.router, dependencies=frontend_only)
+    app.include_router(notes.router, dependencies=frontend_only)
+    app.include_router(reminders.router, dependencies=frontend_only)
 
     # Admin routes (self-authenticated via JWT session token / cookie)
     app.include_router(admin_auth.router)

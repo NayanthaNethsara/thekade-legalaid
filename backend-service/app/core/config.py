@@ -92,19 +92,36 @@ class LLMSettings(BaseSettings):
 
 
 class McpSettings(BaseSettings):
-    """Kakille MCP tool server (catalog search, delivery, order creation).
+    """First-party Kakille MCP server (legal knowledge search).
 
-    An empty `url` disables tools; the orchestrator then answers text-only.
-    `api_key` is sent as a bearer token only when set -- the catalog read
-    tools are public, so it is optional.
+    Defaults target the in-repo MCP server (`app.mcp_server.main`) running on
+    port 8010. An empty `url` disables MCP tools; the orchestrator then answers
+    without knowledge-base search. `api_key` is the shared bearer secret between
+    the orchestrator (client) and the MCP server; when blank, the server skips
+    auth (dev only).
     """
 
     model_config = SettingsConfigDict(env_prefix="MCP_")
 
-    url: str = "https://mcp.kakille.ai/mcp"
+    url: str = "http://localhost:8010/mcp"
     api_key: str = ""
 
     cache_ttl_seconds: int = 1800
+
+
+class SourcesSettings(BaseSettings):
+    """Workspace source intake limits.
+
+    Original file bytes are never stored -- only text extracted at upload, so
+    ``max_text_chars`` bounds what one source can add to the database and to
+    the agent's context.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="SOURCES_")
+
+    max_file_bytes: int = 10 * 1024 * 1024
+    max_text_chars: int = 200_000
+    max_per_conversation: int = 300
 
 
 class VisionSettings(BaseSettings):
@@ -289,6 +306,7 @@ class Settings(BaseSettings):
     vision: VisionSettings = Field(default_factory=VisionSettings)
     model_armor: ModelArmorSettings = Field(default_factory=ModelArmorSettings)
     mcp: McpSettings = Field(default_factory=McpSettings)
+    sources: SourcesSettings = Field(default_factory=SourcesSettings)
 
 
 @lru_cache
